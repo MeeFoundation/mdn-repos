@@ -1,1 +1,1 @@
-DROP TABLE mee_network_users;
+DROP TABLE issued_access_tokens;

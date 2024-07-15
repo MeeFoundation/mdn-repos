@@ -1,0 +1,55 @@
+[workspace]
+resolver = "2"
+members = ["aps"]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+# async
+async-trait = "0.1"
+tokio = "1.37"
+
+# cli
+clap = "4.5"
+dotenvy = "0.15"
+
+# crypto
+biscuit-auth = "4.1"
+identity_jose = "1.2"
+argon2 = "0.5"
+
+# db
+sea-orm = "0.12"
+sea-orm-migration = "0.12"
+
+# errors
+anyhow = "1.0"
+thiserror = "1.0"
+
+# log
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# other
+uuid = "1.8"
+strum = "0.26"
+strum_macros = "0.26"
+
+# serialization
+serde = "1.0"
+serde_json = "1.0"
+
+# time
+chrono = "0.4"
+
+# web
+axum = "0.7"
+axum-extra = "0.9"
+url = "2.5"
+reqwest = { version = "0.11", default-features = false }
+utoipa = "4.2"
+utoipa-swagger-ui = "7.1"
+hyper = "1.0"
+tower-http = "0.5"

@@ -3,7 +3,7 @@ PG_DATABASE_PORT=5432
 PG_DATABASE_USER=postgres
 PG_DATABASE_PSWD=postgres
 
-DATABASE_URL=postgres://${PG_DATABASE_USER}:${PG_DATABASE_PSWD}@${PG_DATABASE_HOST}:${PG_DATABASE_PORT}/${PG_DATABASE_NAME}
+export DATABASE_URL=postgres://${PG_DATABASE_USER}:${PG_DATABASE_PSWD}@${PG_DATABASE_HOST}:${PG_DATABASE_PORT}/${PG_DATABASE_NAME}
 
 DB_CONT_NAME=local-dev-mee-pgsql
 
@@ -17,7 +17,7 @@ run_db_daemon:
 		-e POSTGRES_USER=${PG_DATABASE_USER} \
 		-e POSTGRES_PASSWORD=${PG_DATABASE_PSWD} \
 		-e PGDATA=/var/lib/postgresql/data/pgdata \
-		-v $(shell pwd)/../tmp:/var/lib/postgresql/data \
+		-v $(shell pwd)/../../../tmp:/var/lib/postgresql/data \
 		postgres
 
 create_db:
