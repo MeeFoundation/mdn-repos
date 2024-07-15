@@ -1,0 +1,52 @@
+[workspace]
+resolver = "2"
+members = [
+    "mee_macro_utils",
+    "mee_http_utils",
+    "mee_db_utils",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+### async
+async-trait = "0.1"
+futures-util = "0.3"
+futures = "0.3"
+tokio = "1.17"
+
+# db
+sea-orm = "0.12"
+sea-orm-migration = "0.12"
+
+### web
+axum = "0.7"
+axum-extra = "0.9"
+hyper = "1.0.1"
+utoipa = "4.2"
+utoipa-swagger-ui = "7.1"
+# tower = "0.4"
+tower-http = "0.5"
+reqwest = { version = "0.11", default-features = false }
+url = "2"
+
+### ser/de
+serde = "1"
+serde_json = "1"
+
+### logs, metrics, etc
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+### other
+dotenvy = "0.15"
+clap = "4"
+uuid = "1"
+chrono = "0.4"
+anyhow = "1.0"
+thiserror = "1"
+strum = "0.26"
+strum_macros = "0.26"

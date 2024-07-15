@@ -1,0 +1,15 @@
+.env
+target
+build
+*.log
+.vscode
+.idea
+.DS_Store
+.settings
+.classpath
+.project
+*.code-workspace
+*.worksheet.sc
+**/Generated
+**/xcuserdata
+tmp

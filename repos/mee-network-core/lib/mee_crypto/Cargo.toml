@@ -1,0 +1,26 @@
+[package]
+name = "mee_crypto"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils" }
+
+uuid = { workspace = true, features = ["v4", "serde"] }
+thiserror = { workspace = true }
+identity_jose = { workspace = true }
+biscuit-auth = { workspace = true }
+
+rand_core = { version = "0.6", features = ["getrandom"] }
+rsa = { version = "0.9" }
+chacha20poly1305 = { version = "0.10" }
+p256 = { version = "0.13", features = ["default", "jwk"] }
+pkcs8 = { version = "0.10", features = ["pem", "alloc"] }
+base64 = { version = "0.21" }
+ed25519 = { version = "2", features = ["pem", "alloc"] }
+ed25519-dalek = { version = "2", features = ["pkcs8", "rand_core"] }
+password-hash = "0.5"
+pbkdf2 = { version = "0.12", features = ["simple"] }

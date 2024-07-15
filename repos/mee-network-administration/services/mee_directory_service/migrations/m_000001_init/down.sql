@@ -1,0 +1,1 @@
+DROP TABLE mee_network_persona_model_schemas;

@@ -1,0 +1,24 @@
+[package]
+name = "mee_db_utils"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sea-orm-migration = { workspace = true }
+sea-orm = { workspace = true, features = [
+  "sqlx-postgres",
+  "sqlx-sqlite",
+  "runtime-tokio-rustls",
+  "with-chrono",
+] }
+anyhow = { workspace = true }
+url = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = [
+  "env-filter",
+  "tracing-log",
+] }

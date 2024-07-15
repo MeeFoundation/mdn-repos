@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sing in - Mee Account</title>
+</head>
+
+<body>
+
+  <form method="post" style="
+    display: grid;
+    gap: 12px;
+    grid-auto-flow: row;
+  ">
+    <div>Sign in to {{ client_id_name }}</div>
+    <div>{{ user_email }}</div>
+    <div style="display: flex; flex-direction: row; gap: 12px;">
+      <input type="submit" value="Accept" formaction="{{ accept_url }}?{{ accept_params }}&allow=true">
+      <input type="submit" value="Deny" formaction="{{ accept_url }}?{{ accept_params }}&deny=true">
+    </div>
+  </form>
+</body>
+
+</html>

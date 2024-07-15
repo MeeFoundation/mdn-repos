@@ -1,0 +1,20 @@
+[package]
+name = "mee_did"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ssi = { workspace = true, features = ["w3c"] }
+async-trait = { workspace = true }
+didkit = { workspace = true }
+
+lazy_static = "1"
+anyhow = "1"

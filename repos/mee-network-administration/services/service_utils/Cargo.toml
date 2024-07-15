@@ -1,0 +1,29 @@
+[package]
+name = "service_utils"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mee_http_utils = { path = "../../../mee-utils/lib/mee_http_utils" }
+mee_authority_secrets = { path = "../mee_authority_secrets" }
+
+reqwest = { workspace = true, default-features = false, features = [
+  "json",
+  "rustls-tls",
+] }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+utoipa = { workspace = true, features = ["axum_extras", "url"] }
+sea-orm = { workspace = true }
+axum = { workspace = true }
+axum-extra = { workspace = true, features = ["typed-header", "cookie"] }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+biscuit-auth = { workspace = true }

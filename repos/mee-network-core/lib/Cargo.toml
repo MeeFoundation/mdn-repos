@@ -1,0 +1,61 @@
+[workspace]
+resolver = "2"
+members = [
+    "mee_crypto",
+    "mee_secrets_manager",
+    "mee_did",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+### async
+async-trait = "0.1"
+futures-util = "0.3"
+futures = "0.3"
+tokio = "1.17"
+
+### web
+axum = "0.7"
+axum-extra = "0.9"
+hyper = "1.0.1"
+utoipa = "4.2"
+utoipa-swagger-ui = "6.0"
+# tower = "0.4"
+tower-http = "0.5"
+reqwest = { version = "0.11", default-features = false }
+url = "2"
+
+### ser/de
+serde = "1"
+serde_json = "1"
+
+### logs, metrics, etc
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+### authNZ
+biscuit-auth = "4"
+openid = { default-features = false, version = "0.12" }
+
+### crypto
+didkit = "0.6"
+ssi = "0.7"
+did-method-key = "0.2"
+argon2 = "0.5"
+identity_jose = "1"
+ed25519 = { version = "2", features = ["pem", "alloc"] }
+ed25519-dalek = { version = "2", features = ["pkcs8", "rand_core"] }
+
+### other
+uniffi = "0.26.1"
+clap = "4"
+uuid = "1"
+chrono = "0.4"
+anyhow = "1.0"
+thiserror = "1"
+strum = "0.26"
+strum_macros = "0.26"

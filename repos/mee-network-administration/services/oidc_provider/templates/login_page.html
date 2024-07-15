@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8'>
+  <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+  <title>Sing in - Mee Account</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1'>
+</head>
+
+<body>
+  <form id="login_form" style="
+    display: grid;
+    gap: 12px;
+    grid-auto-flow: row;
+    grid-template-columns: 300px;
+  ">
+    <div>Sign in</div>
+    <div>to continue to {{ client_id_name }}</div>
+    <input placeholder="email" name="email" value="bob_user@mail.com" type="text" />
+    <input placeholder="password" name="password" value="bob_user" type="password" />
+    <input type="submit" value="Login" />
+  </form>
+
+  <script>
+    const login_form = document.getElementById("login_form");
+
+    if (login_form) {
+      login_form.onsubmit = async (e) => {
+        e.preventDefault();
+
+        const data = new FormData(login_form);
+        const [[, email], [, password]] = [...data];
+
+        if (email && password) {
+          try {
+            const { auth_token } = await fetch("http://127.0.0.1:8000/api/v1/users/login", {
+              credentials: 'include',
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ email, password })
+            }).then(r => r.json());
+
+            const [[name]] = [...new URLSearchParams(document.location.search)];
+
+            if (name === "oauth_continue") {
+              const oauth_continue = atob(document.location.search.replace("?oauth_continue=", ""));
+              window.location.replace(oauth_continue);
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      };
+    }
+  </script>
+</body>
+
+</html>
