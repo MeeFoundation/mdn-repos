@@ -152,40 +152,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
-name = "aps"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "async-trait",
- "axum",
- "axum-extra",
- "biscuit-auth",
- "chrono",
- "clap 4.5.9",
- "dotenvy",
- "mee_crypto",
- "mee_db_utils",
- "mee_http_utils",
- "mee_secrets_manager",
- "reqwest 0.11.27",
- "sea-orm",
- "sea-orm-migration",
- "serde",
- "strum 0.26.3",
- "strum_macros 0.26.4",
- "thiserror",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
-]
-
-[[package]]
 name = "arbitrary"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2077,6 +2043,40 @@ checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
+]
+
+[[package]]
+name = "mee_aps"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "async-trait",
+ "axum",
+ "axum-extra",
+ "biscuit-auth",
+ "chrono",
+ "clap 4.5.9",
+ "dotenvy",
+ "mee_crypto",
+ "mee_db_utils",
+ "mee_http_utils",
+ "mee_secrets_manager",
+ "reqwest 0.11.27",
+ "sea-orm",
+ "sea-orm-migration",
+ "serde",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
+ "thiserror",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
 ]
 
 [[package]]

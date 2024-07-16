@@ -17,7 +17,7 @@ run_db_daemon:
 		-e POSTGRES_USER=${PG_DATABASE_USER} \
 		-e POSTGRES_PASSWORD=${PG_DATABASE_PSWD} \
 		-e PGDATA=/var/lib/postgresql/data/pgdata \
-		-v $(shell pwd)/../../../tmp:/var/lib/postgresql/data \
+		-v $(shell pwd)/../../tmp:/var/lib/postgresql/data \
 		postgres
 
 create_db:

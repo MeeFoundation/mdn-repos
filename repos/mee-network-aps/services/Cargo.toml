@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["aps"]
+members = ["mee_aps"]
 
 [workspace.package]
 edition = "2021"
