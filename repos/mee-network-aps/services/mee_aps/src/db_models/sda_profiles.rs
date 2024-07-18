@@ -12,8 +12,7 @@ pub struct Model {
     pub record_uid: String,
     #[sea_orm(column_type = "Text")]
     pub user_uid: String,
-    #[sea_orm(column_type = "Text")]
-    pub sda_profile: String,
+    pub sda_profile: Json,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

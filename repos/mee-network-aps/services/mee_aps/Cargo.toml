@@ -43,6 +43,7 @@ tracing-subscriber = { workspace = true, features = [
 ] }
 axum = { workspace = true }
 axum-extra = { workspace = true, features = ["typed-header", "cookie"] }
+serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
 strum_macros = { workspace = true }

@@ -47,7 +47,7 @@ impl AppCtl {
     }
     pub async fn run(self) -> ApsServiceResult {
         let api_routes =
-            Router::new().nest("/ad_profiles", ad_profiles_router());
+            Router::new().nest("/", ad_profiles_router());
 
         let mut app = Router::new()
             .merge(SwaggerUi::new(SWAGGER_PATH).url(
