@@ -6,7 +6,7 @@ use axum::{extract::State, Json};
   post,
   path = "/api/v1/ad_profiles",
   responses(
-      (status = 200, description = "Add ad profile for the provided user", body = ()),
+      (status = 200, description = "Update ad profile for the provided user", body = ()),
       (status = 500, description = "Something went wrong", body = String),
   ),
 )]
@@ -16,7 +16,7 @@ pub async fn add_sda_profile(
 ) -> ApsServiceResult<()> {
     let res = app_ctl
         .add_profile_controller
-        .add_sda_profile(payload)
+        .update_sda_profile(payload)
         .await?;
 
     Ok(res)

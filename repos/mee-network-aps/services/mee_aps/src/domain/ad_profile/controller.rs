@@ -29,7 +29,7 @@ impl AdProfileController {
     ) -> impl SdaProfileRepository + 'a {
         SdaProfileRepositoryImpl::new(tx)
     }
-    pub async fn add_sda_profile(
+    pub async fn update_sda_profile(
         &self,
         payload: CreateSdaProfileRequest,
     ) -> ApsServiceResult {
@@ -42,7 +42,7 @@ impl AdProfileController {
                 Box::pin(async move {
                     let user_account_service = this.user_account_service(tx);
                     let res =
-                        user_account_service.add_sda_profile(payload).await?;
+                        user_account_service.update_sda_profile(payload).await?;
 
                     Ok(res)
                 })

@@ -18,7 +18,7 @@ impl<'a> SdaProfileService<'a> {
             sda_profile_repository,
         }
     }
-    pub async fn add_sda_profile(
+    pub async fn update_sda_profile(
         &self,
         CreateSdaProfileRequest {
             user_uid,
@@ -26,7 +26,7 @@ impl<'a> SdaProfileService<'a> {
         }: CreateSdaProfileRequest,
     ) -> ApsServiceResult<()> {
         self.sda_profile_repository
-            .add_sda_profile(CreateSdaProfileDto {
+            .update_sda_profile(CreateSdaProfileDto {
                 user_uid,
                 sda_profile,
             })

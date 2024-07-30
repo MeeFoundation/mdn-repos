@@ -9,7 +9,7 @@
 
 ```bash
   cd mee-utils/scripts
-  make -f dev.common.mk run_db_daemon # run it only once
+  make -f dev.service.common run_db_daemon # run it only once
   cd path_to_concrete_service
   make create_db
   # make clean_db # if required
