@@ -1,0 +1,22 @@
+[package]
+name = "mee_data_sync"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+
+bytes = { version = "1.4", features = ["serde"] }
+rand_chacha = "0.3"
+
+# clone this [experimental branch](https://github.com/Voronar/iroh/tree/willow-experiments) next to `mds-repos` root directory
+iroh-willow = { path = "../../../../../iroh/iroh-willow" }
+iroh-net = { path = "../../../../../iroh/iroh-net" }
+iroh-blobs = { path = "../../../../../iroh/iroh-blobs" }
+iroh-base = { path = "../../../../../iroh/iroh-base" }
