@@ -25,6 +25,7 @@ impl WillowPeer {
     pub async fn new(iroh_node_secret_key: iroh_net::key::SecretKey) -> MeeDataSyncResult<Self> {
         let willow_node = WillowNode::run(iroh_node_secret_key, Default::default()).await?;
         let willow_user_manager = WillowUserManager::new(willow_node.clone());
+        let willow_network_manager = WillowNetworkManager::new(willow_node.clone());
 
         Ok(Self {
             willow_data_manager: WillowDataManager::new(
@@ -35,9 +36,12 @@ impl WillowPeer {
                 willow_node.clone(),
                 willow_user_manager.clone(),
             ),
-            willow_delegation_manager: WillowDelegationManager::new(willow_node.clone()),
-            willow_network_manager: WillowNetworkManager::new(willow_node.clone()),
+            willow_delegation_manager: WillowDelegationManager::new(
+                willow_node.clone(),
+                willow_network_manager.clone(),
+            ),
             willow_user_manager: WillowUserManager::new(willow_node),
+            willow_network_manager,
         })
     }
 }

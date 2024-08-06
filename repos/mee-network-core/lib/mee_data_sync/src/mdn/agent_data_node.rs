@@ -1,20 +1,29 @@
-use crate::{error::MeeDataSyncResult, willow::peer::WillowPeer};
+use crate::{
+    error::{MeeDataSyncErr, MeeDataSyncResult},
+    willow::peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
+};
 use async_trait::async_trait;
 use futures::future::join_all;
-use iroh_willow::proto::{
-    grouping::{Range, RangeEnd, ThreeDRange},
-    keys::{NamespaceId, NamespaceKind},
-    willow::Path,
+use iroh_net::{ticket::NodeTicket, NodeAddr};
+use iroh_willow::{
+    auth::{CapSelector, CapabilityPack, DelegateTo},
+    proto::{
+        grouping::ThreeDRange,
+        keys::{NamespaceId, NamespaceKind, UserId},
+        meadowcap::AccessMode,
+        willow::{Entry, Path},
+    },
+    session::intents::IntentHandle,
 };
 
 #[derive(Debug)]
 pub struct GetUserDataRecord {
-    pub key: String,
+    pub key: Path,
     pub value: Vec<u8>,
 }
 
 #[async_trait]
-pub trait MdnAgentDataNode {
+pub trait MdnAgentDataNodeStore {
     /// Path/key to user's data root in KV-like storage
     fn user_data_root_path(&self, user_id: &str) -> String;
 
@@ -34,27 +43,110 @@ pub trait MdnAgentDataNode {
     ) -> MeeDataSyncResult;
 }
 
+#[async_trait]
+pub trait MdnAgentDataNodeUser {
+    async fn user_id(&self) -> MeeDataSyncResult<UserId>;
+}
+
+#[async_trait]
+pub trait MdnAgentDataNodeDelegation {
+    async fn import_capabilities_from_remote_peer(
+        &self,
+        caps: ImportCapabilitiesFromRemotePeer,
+    ) -> MeeDataSyncResult<IntentHandle>;
+    async fn delegate_capabilities(
+        &self,
+        access_mode: AccessMode,
+        to: DelegateTo,
+    ) -> MeeDataSyncResult<Vec<CapabilityPack>>;
+}
+
+#[async_trait]
+pub trait MdnAgentDataNodeNetwork {
+    async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket>;
+    async fn network_node_addr(&self) -> MeeDataSyncResult<NodeAddr>;
+    fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult;
+}
+
+#[async_trait]
+impl MdnAgentDataNodeNetwork for MdnAgentDataNodeWillowImpl {
+    async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket> {
+        self.willow_peer
+            .willow_network_manager
+            .iroh_node_ticket()
+            .await
+    }
+    async fn network_node_addr(&self) -> MeeDataSyncResult<NodeAddr> {
+        self.willow_peer
+            .willow_network_manager
+            .iroh_node_addr()
+            .await
+    }
+    fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult {
+        self.willow_peer
+            .willow_network_manager
+            .add_remote_peer(node_addr)
+    }
+}
+
+#[async_trait]
+impl MdnAgentDataNodeDelegation for MdnAgentDataNodeWillowImpl {
+    async fn import_capabilities_from_remote_peer(
+        &self,
+        caps: ImportCapabilitiesFromRemotePeer,
+    ) -> MeeDataSyncResult<IntentHandle> {
+        self.willow_peer
+            .willow_delegation_manager
+            .import_capabilities_from_remote_peer(caps)
+            .await
+    }
+    async fn delegate_capabilities(
+        &self,
+        access_mode: AccessMode,
+        to: DelegateTo,
+    ) -> MeeDataSyncResult<Vec<CapabilityPack>> {
+        self.willow_peer
+            .willow_delegation_manager
+            .delegate_capabilities(
+                CapSelector::widest(self.own_data_namespace_id.clone()),
+                access_mode,
+                to,
+            )
+            .await
+    }
+}
+
+#[async_trait]
+impl MdnAgentDataNodeUser for MdnAgentDataNodeWillowImpl {
+    async fn user_id(&self) -> MeeDataSyncResult<UserId> {
+        self.willow_peer
+            .willow_user_manager
+            .get_active_user_profile()
+            .await
+    }
+}
+
 #[derive(Clone)]
 pub struct MdnAgentDataNodeWillowImpl {
     willow_peer: WillowPeer,
     agent_holder_id: String,
-    namespace_id: NamespaceId,
+    own_data_namespace_id: NamespaceId,
 }
 
 impl MdnAgentDataNodeWillowImpl {
     pub async fn new(willow_peer: WillowPeer, agent_holder_id: String) -> MeeDataSyncResult<Self> {
-        let namespace_id = willow_peer
+        let data_namespace_id = willow_peer
             .willow_namespace_manager
-            .create_namespace(NamespaceKind::Owned)
+            .get_namespace_or_create(NamespaceKind::Owned)
             .await?;
 
         Ok(Self {
-            namespace_id,
+            own_data_namespace_id: data_namespace_id,
             willow_peer,
             agent_holder_id,
         })
     }
-    fn make_entry_path(
+    pub fn make_entry_path(
         &self,
         user_id: &str,
         attribute_name: &str,
@@ -81,36 +173,54 @@ impl MdnAgentDataNodeWillowImpl {
 }
 
 #[async_trait]
-impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
+impl MdnAgentDataNodeStore for MdnAgentDataNodeWillowImpl {
     fn user_data_root_path(&self, user_id: &str) -> String {
         format!("mdn/{}/data/{}", self.agent_holder_id, user_id)
     }
+    // TODO find entries in delegated data areas (read caps namespaces)
     async fn get_user_data(
         &self,
         user_id: &str,
         attribute_name: &str,
         sub_attribute_path: &[&str],
     ) -> MeeDataSyncResult<Vec<GetUserDataRecord>> {
-        // TODO handle namespace properly
-        // let ns = self
-        //     .willow_peer
-        //     .willow_namespace_manager
-        //     .get_owned_namespaces()
-        //     .await?
-        //     .pop()
-        //     .unwrap();
-
         let mut range = ThreeDRange::full();
 
         let path = self.make_entry_path(user_id, attribute_name, sub_attribute_path)?;
 
-        range.paths = Range::new(path.clone(), RangeEnd::Open);
+        // range.paths = Range::new(path.clone(), RangeEnd::Open);
 
-        let entries = self
+        let mut entries = self
             .willow_peer
             .willow_data_manager
-            .get_entries(self.namespace_id, range)
+            .get_entries(self.own_data_namespace_id, range)
             .await?;
+
+        let caps_ns = self
+            .willow_peer
+            .willow_delegation_manager
+            .list_read_caps()
+            .await?
+            .into_iter()
+            .filter_map(|c| {
+                let ns = c.namespace();
+
+                if ns != self.own_data_namespace_id {
+                    Some(ns)
+                } else {
+                    None
+                }
+            });
+
+        for ns in caps_ns {
+            let e = self
+                .willow_peer
+                .willow_data_manager
+                .get_entries(ns, ThreeDRange::full())
+                .await?;
+
+            entries.extend(e);
+        }
 
         let records = entries.into_iter().map(|entry| {
             let willow_peer = self.willow_peer.clone();
@@ -119,23 +229,20 @@ impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
                 let path = entry.path.clone();
                 let payload = willow_peer
                     .willow_data_manager
-                    .read_entry_payload(entry)
-                    .await?;
+                    .read_entry_payload(entry.clone())
+                    .await
+                    .map_err(|e| (e, entry))?;
 
                 let record = if let Some(payload) = payload {
                     Some(GetUserDataRecord {
-                        key: path
-                            .into_iter()
-                            .map(|p| String::from_utf8(p.to_vec()).unwrap())
-                            .collect::<Vec<_>>()
-                            .join("/"),
+                        key: path,
                         value: payload.to_vec(),
                     })
                 } else {
                     None
                 };
 
-                Ok(record) as MeeDataSyncResult<Option<GetUserDataRecord>>
+                Ok(record) as Result<Option<GetUserDataRecord>, (MeeDataSyncErr, Entry)>
             }
         });
 
@@ -144,8 +251,8 @@ impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
             .into_iter()
             .filter_map(|rec| match rec {
                 Ok(v) => v,
-                Err(e) => {
-                    log::error!("Error reading entry payload: {e}");
+                Err((err, entry)) => {
+                    log::error!("Error ({err}) reading entry ({entry:#?}) payload.");
                     None
                 }
             })
@@ -163,15 +270,6 @@ impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
     ) -> MeeDataSyncResult {
         let path = self.make_entry_path(user_id, attribute_name, sub_attribute_path)?;
 
-        // TODO handle namespace properly
-        // let ns = self
-        //     .willow_peer
-        //     .willow_namespace_manager
-        //     .get_owned_namespaces()
-        //     .await?
-        //     .pop()
-        //     .unwrap();
-
         let path_bytes = path
             .components()
             .iter()
@@ -180,7 +278,7 @@ impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
 
         self.willow_peer
             .willow_data_manager
-            .insert_entry(self.namespace_id, &path_bytes, value)
+            .insert_entry(self.own_data_namespace_id, &path_bytes, value)
             .await?;
 
         Ok(())

@@ -19,7 +19,7 @@ impl WillowNamespaceManager {
 
     async fn filter_namespaces_by_type(
         &self,
-        is_communal: bool,
+        ns_kind: NamespaceKind,
     ) -> MeeDataSyncResult<Vec<NamespaceId>> {
         let nss = self
             .willow_node
@@ -31,7 +31,7 @@ impl WillowNamespaceManager {
                 let ns_pk = ns.into_public_key();
 
                 if let Ok(ns_pk) = ns_pk {
-                    if ns_pk.is_communal() && is_communal {
+                    if ns_pk.kind() == ns_kind {
                         return Some(ns);
                     }
                 } else {
@@ -46,10 +46,11 @@ impl WillowNamespaceManager {
     }
 
     pub async fn get_communal_namespaces(&self) -> MeeDataSyncResult<Vec<NamespaceId>> {
-        self.filter_namespaces_by_type(true).await
+        self.filter_namespaces_by_type(NamespaceKind::Communal)
+            .await
     }
     pub async fn get_owned_namespaces(&self) -> MeeDataSyncResult<Vec<NamespaceId>> {
-        self.filter_namespaces_by_type(false).await
+        self.filter_namespaces_by_type(NamespaceKind::Owned).await
     }
 
     pub async fn create_namespace(&self, ns_kind: NamespaceKind) -> MeeDataSyncResult<NamespaceId> {
@@ -63,5 +64,17 @@ impl WillowNamespaceManager {
             .await?;
 
         Ok(namespace_id)
+    }
+
+    pub async fn get_namespace_or_create(
+        &self,
+        ns_kind: NamespaceKind,
+    ) -> MeeDataSyncResult<NamespaceId> {
+        let mut nss = self.filter_namespaces_by_type(ns_kind).await?;
+
+        match nss.pop() {
+            Some(v) => Ok(v),
+            None => self.create_namespace(ns_kind).await,
+        }
     }
 }

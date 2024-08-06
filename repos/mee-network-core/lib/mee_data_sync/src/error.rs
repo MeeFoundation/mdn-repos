@@ -13,6 +13,9 @@ pub enum MeeDataSyncErr {
     #[error("iroh-quinn protocol error: {0}")]
     IrohQuinnProtocol(#[from] ConnectionError),
 
+    #[error("iroh-base ticket error: {0}")]
+    IrohBaseTicket(#[from] iroh_base::ticket::Error),
+
     #[error("tokio task join error: {0}")]
     TokioJoinError(#[from] JoinError),
 
@@ -28,4 +31,7 @@ pub enum MeeDataSyncErr {
 
     #[error("Willow namespace handler error: {0}")]
     WillowNamespaceHandler(String),
+
+    #[error("Willow delegation handler error: {0}")]
+    WillowDelegationHandler(String),
 }

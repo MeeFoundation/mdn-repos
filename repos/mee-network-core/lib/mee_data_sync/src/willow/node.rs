@@ -1,5 +1,5 @@
 use crate::error::{MeeDataSyncErr, MeeDataSyncResult};
-use iroh_net::{Endpoint, NodeId};
+use iroh_net::{ticket::NodeTicket, Endpoint, NodeId};
 use iroh_willow::{
     engine::{AcceptOpts, Engine},
     net::ALPN,
@@ -24,6 +24,10 @@ impl WillowNode {
             .alpns(vec![ALPN.to_vec()])
             .bind(0)
             .await?;
+
+        let node_ticket = NodeTicket::new(endpoint.node_addr().await?)?;
+        
+        log::info!("iroh node has started. Node ticket: {node_ticket}");
 
         let payloads = iroh_blobs::store::mem::Store::default();
         let create_store = move || iroh_willow::store::memory::Store::new(payloads);
