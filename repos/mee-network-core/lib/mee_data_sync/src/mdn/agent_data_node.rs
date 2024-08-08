@@ -1,3 +1,7 @@
+use super::traits::{
+    GetUserDataRecord, MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeStore,
+    MdnAgentDataNodeUser,
+};
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
     willow::peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
@@ -8,65 +12,14 @@ use iroh_net::{ticket::NodeTicket, NodeAddr};
 use iroh_willow::{
     auth::{CapSelector, CapabilityPack, DelegateTo},
     proto::{
-        grouping::ThreeDRange,
+        grouping::{Range, RangeEnd, ThreeDRange},
         keys::{NamespaceId, NamespaceKind, UserId},
         meadowcap::AccessMode,
         willow::{Entry, Path},
     },
     session::intents::IntentHandle,
 };
-
-#[derive(Debug)]
-pub struct GetUserDataRecord {
-    pub key: Path,
-    pub value: Vec<u8>,
-}
-
-#[async_trait]
-pub trait MdnAgentDataNodeStore {
-    /// Path/key to user's data root in KV-like storage
-    fn user_data_root_path(&self, user_id: &str) -> String;
-
-    async fn get_user_data(
-        &self,
-        user_id: &str,
-        attribute_name: &str,
-        sub_attribute_path: &[&str],
-    ) -> MeeDataSyncResult<Vec<GetUserDataRecord>>;
-
-    async fn set_user_data(
-        &self,
-        user_id: &str,
-        attribute_name: &str,
-        sub_attribute_path: &[&str],
-        value: Vec<u8>,
-    ) -> MeeDataSyncResult;
-}
-
-#[async_trait]
-pub trait MdnAgentDataNodeUser {
-    async fn user_id(&self) -> MeeDataSyncResult<UserId>;
-}
-
-#[async_trait]
-pub trait MdnAgentDataNodeDelegation {
-    async fn import_capabilities_from_remote_peer(
-        &self,
-        caps: ImportCapabilitiesFromRemotePeer,
-    ) -> MeeDataSyncResult<IntentHandle>;
-    async fn delegate_capabilities(
-        &self,
-        access_mode: AccessMode,
-        to: DelegateTo,
-    ) -> MeeDataSyncResult<Vec<CapabilityPack>>;
-}
-
-#[async_trait]
-pub trait MdnAgentDataNodeNetwork {
-    async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket>;
-    async fn network_node_addr(&self) -> MeeDataSyncResult<NodeAddr>;
-    fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult;
-}
+use std::collections::HashSet;
 
 #[async_trait]
 impl MdnAgentDataNodeNetwork for MdnAgentDataNodeWillowImpl {
@@ -186,15 +139,21 @@ impl MdnAgentDataNodeStore for MdnAgentDataNodeWillowImpl {
     ) -> MeeDataSyncResult<Vec<GetUserDataRecord>> {
         let mut range = ThreeDRange::full();
 
-        let path = self.make_entry_path(user_id, attribute_name, sub_attribute_path)?;
+        let query_path = self.make_entry_path(user_id, attribute_name, sub_attribute_path)?;
 
-        // range.paths = Range::new(path.clone(), RangeEnd::Open);
+        // TODO wait for fix of the path end range calculation
+        // range.paths = Range::new(query_path.clone(), RangeEnd::Closed(query_path.clone()));
+        range.paths = Range::new(query_path.clone(), RangeEnd::Open);
 
         let mut entries = self
             .willow_peer
             .willow_data_manager
-            .get_entries(self.own_data_namespace_id, range)
+            .filter_entries(self.own_data_namespace_id, range, |e| {
+                query_path.is_prefix_of(&e.path)
+            })
             .await?;
+
+        // log::warn!("[owned] {query_path:?} {entries:#?}");
 
         let caps_ns = self
             .willow_peer
@@ -212,15 +171,25 @@ impl MdnAgentDataNodeStore for MdnAgentDataNodeWillowImpl {
                 }
             });
 
+        let mut caps_entries = HashSet::new();
+
         for ns in caps_ns {
             let e = self
                 .willow_peer
                 .willow_data_manager
-                .get_entries(ns, ThreeDRange::full())
+                .filter_entries(ns, ThreeDRange::full(), |e| {
+                    let owner_agnostic_path = e.path.remove_prefix(2);
+                    let owner_agnostic_query_path = query_path.remove_prefix(2);
+                    owner_agnostic_query_path.is_prefix_of(&owner_agnostic_path)
+                })
                 .await?;
 
-            entries.extend(e);
+            caps_entries.extend(e);
         }
+
+        // log::warn!("[shared] {query_path:?} {caps_entries:#?}");
+
+        entries.extend(caps_entries);
 
         let records = entries.into_iter().map(|entry| {
             let willow_peer = self.willow_peer.clone();

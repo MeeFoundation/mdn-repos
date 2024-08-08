@@ -1,7 +1,7 @@
 use super::user_manager::WillowUserManager;
 use crate::{error::MeeDataSyncResult, willow::node::WillowNode};
 use bytes::Bytes;
-use futures::{Stream, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use iroh_willow::{
     form::EntryForm,
     proto::{
@@ -57,6 +57,26 @@ impl WillowDataManager {
         Ok(self
             .get_entries_stream(namespace, range)
             .await?
+            .try_collect()
+            .await?)
+    }
+    pub async fn filter_entries<F>(
+        &self,
+        namespace: NamespaceId,
+        range: ThreeDRange,
+        filter_fn: F,
+    ) -> MeeDataSyncResult<Vec<Entry>>
+    where
+        F: Fn(&Entry) -> bool,
+    {
+        Ok(self
+            .get_entries_stream(namespace, range)
+            .await?
+            .filter(|e| {
+                let predicate = matches!(e, Ok(e) if filter_fn(&e));
+
+                async move { predicate }
+            })
             .try_collect()
             .await?)
     }

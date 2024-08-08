@@ -6,7 +6,7 @@ use crate::{
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
     auth::{CapSelector, CapabilityPack, DelegateTo},
-    proto::{grouping::Area, meadowcap::AccessMode, sync::ReadAuthorisation},
+    proto::{meadowcap::AccessMode, sync::ReadAuthorisation},
     session::{intents::IntentHandle, Interests, SessionInit, SessionMode},
 };
 
@@ -48,18 +48,18 @@ impl WillowDelegationManager {
 
         let mut interests = Interests::builder();
 
-        // TODO proper area handling
         for cap in caps.iter() {
             let (ns, area) = match cap {
-                CapabilityPack::Read(read_cap) => {
-                    (read_cap.namespace(), read_cap.read_cap().granted_area())
-                }
+                CapabilityPack::Read(read_cap) => (
+                    read_cap.read_cap().granted_namespace().id(),
+                    read_cap.read_cap().granted_area(),
+                ),
                 CapabilityPack::Write(write_cap) => {
                     (write_cap.granted_namespace().id(), write_cap.granted_area())
                 }
             };
 
-            interests = interests.add_area(ns, [Area::full()]);
+            interests = interests.add_area(ns, [area]);
         }
 
         let init = SessionInit::new(interests, SessionMode::Live);
