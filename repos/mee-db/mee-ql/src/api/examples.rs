@@ -3,6 +3,7 @@ use super::api_types::*;
 use serde_json::json;
 use std::collections::HashMap;
 
+// #region example
 pub fn select_payment_cards_exampel() -> SelectQueryRequest {
     let mut filter = HashMap::new();
     filter.insert(
@@ -98,5 +99,4 @@ pub fn select_users_by_flight_exampel() -> SelectQueryRequest {
         offset: None,
     }
 }
-// #endregion
-// const SELECT_EXAMPLE_1: SelectQueryRequest = select_example_1();
+// #endregion example

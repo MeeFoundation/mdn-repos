@@ -13,159 +13,47 @@ pub enum MergeStrategy {
 }
 
 pub trait Storage {
-    fn create_node(&self, schema: String, properties: HashMap<String, Value>) -> ApiResult<String>;
+    fn set(&self, key: String, value: Value) -> ApiResult<()>;
 
-    fn merge_node(
-        &self,
-        schema: String,
-        id: String,
-        properties: HashMap<String, Value>,
-        strategy: MergeStrategy,
-    ) -> ApiResult<HashMap<String, Value>>;
+    fn get(&self, key: String) -> ApiResult<Option<Value>>;
 
-    fn delete_node(&self, schema: String, id: String) -> ApiResult<String>;
+    fn delete(&self, key: String) -> ApiResult<()>;
 
-    fn select_nodes_by_id(
-        &self,
-        schema: String,
-        ids: Vec<String>,
-        fields: Option<Vec<String>>,
-    ) -> ApiResult<Vec<HashMap<String, Value>>>;
-
-    fn select_nodes_by_filter(
-        &self,
-        schema: String,
-        properties: HashMap<String, Value>,
-        fields: Option<Vec<String>>,
-    ) -> ApiResult<Vec<HashMap<String, Value>>>;
+    fn generate_id(&self) -> ApiResult<String>;
 }
 
-pub struct StorageImpl {
-    db: sled::Db,
+pub struct StorageBTreeMapImpl {
+    db: Arc<RwLock<BTreeMap<String, Value>>>,
 }
 
-impl StorageImpl {
-    pub fn new(path: &str) -> ApiResult<Self> {
-        let db = sled::open(path)?;
-        Ok(Self { db })
+impl StorageBTreeMapImpl {
+    pub fn new() -> Self {
+        Self {
+            db: Arc::new(RwLock::new(BTreeMap::new())),
+        }
     }
 }
 
-impl Storage for StorageImpl {
-    fn create_node(&self, schema: String, properties: HashMap<String, Value>) -> ApiResult<String> {
-        let tree = self.db.open_tree(schema)?;
-        let id = self.db.generate_id()?;
-        let str_id = id.to_string();
-        let value: String = serde_json::to_string(&properties)?;
-        tree.insert(str_id.clone(), value.as_bytes())?;
-
-        Ok(str_id)
+impl Storage for StorageBTreeMapImpl {
+    fn set(&self, key: String, value: Value) -> ApiResult<()> {
+        let mut db = self.db.write().unwrap();
+        db.insert(key, value);
+        Ok(())
     }
 
-    fn merge_node(
-        &self,
-        schema: String,
-        id: String,
-        properties: HashMap<String, Value>,
-        strategy: MergeStrategy,
-    ) -> ApiResult<HashMap<String, Value>> {
-        let tree = self.db.open_tree(schema)?;
-        let value = tree.get(&id)?.unwrap_or_default();
-        let mut existing_properties: HashMap<String, Value> = serde_json::from_slice(&value)?;
-        let mut new_properties = properties;
-
-        match strategy {
-            MergeStrategy::IgnoreExisting => {
-                new_properties.extend(existing_properties);
-            }
-            MergeStrategy::Append => {
-                existing_properties.extend(new_properties);
-                new_properties = existing_properties;
-            }
-            MergeStrategy::Replace => {}
-        }
-
-        let value = serde_json::to_string(&new_properties)?;
-        tree.insert(id.clone(), value.as_bytes())?;
-
-        new_properties.insert("id".to_string(), Value::String(id));
-
-        Ok(new_properties)
+    fn get(&self, key: String) -> ApiResult<Option<Value>> {
+        let db = self.db.read().unwrap();
+        Ok(db.get(&key).cloned())
     }
 
-    fn delete_node(&self, schema: String, id: String) -> ApiResult<String> {
-        let tree = self.db.open_tree(schema)?;
-        tree.remove(&id)?;
-        Ok(id)
+    fn delete(&self, key: String) -> ApiResult<()> {
+        let mut db = self.db.write().unwrap();
+        db.remove(&key);
+        Ok(())
     }
 
-    fn select_nodes_by_id(
-        &self,
-        schema: String,
-        ids: Vec<String>,
-        fields: Option<Vec<String>>,
-    ) -> ApiResult<Vec<HashMap<String, Value>>> {
-        let tree = self.db.open_tree(schema)?;
-        let mut ApiResult = vec![];
-
-        for id in ids {
-            let value = tree.get(&id)?.unwrap_or_default();
-            let mut properties: HashMap<String, Value> = serde_json::from_slice(&value)?;
-
-            if let Some(fields) = fields.clone() {
-                for key in fields {
-                    properties.remove(&key);
-                }
-            }
-
-            properties.insert("id".to_string(), Value::String(id.clone()));
-
-            ApiResult.push(properties);
-        }
-
-        Ok(ApiResult)
-    }
-
-    fn select_nodes_by_filter(
-        &self,
-        schema: String,
-        expected_properties: HashMap<String, Value>,
-        fields: Option<Vec<String>>,
-    ) -> ApiResult<Vec<HashMap<String, Value>>> {
-        let tree = self.db.open_tree(schema)?;
-        let mut ApiResult = vec![];
-
-        for item in tree.iter() {
-            let (id, value) = item?;
-            let id = std::str::from_utf8(&id).unwrap();
-            let value = std::str::from_utf8(&value).unwrap();
-
-            let properties: HashMap<String, Value> = serde_json::from_str(&value)?;
-
-            let mut matched = true;
-            for (key, expected_value) in expected_properties.iter() {
-                if let Some(value) = properties.get(key) {
-                    if value != expected_value {
-                        matched = false;
-                        break;
-                    }
-                }
-            }
-
-            if matched {
-                let mut properties = properties;
-                if let Some(fields) = fields.clone() {
-                    for key in fields {
-                        properties.remove(&key);
-                    }
-                }
-
-                properties.insert("id".to_string(), Value::String(id.to_string()));
-
-                ApiResult.push(properties);
-            }
-        }
-
-        Ok(ApiResult)
+    fn generate_id(&self) -> ApiResult<String> {
+        // Пример генерации уникального идентификатора
+        Ok(uuid::Uuid::new_v7().to_string())
     }
 }
