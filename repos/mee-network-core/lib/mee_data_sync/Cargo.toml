@@ -13,6 +13,7 @@ futures = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 
 bytes = { version = "1.4", features = ["serde"] }
+tokio-stream = "0.1"
 rand_chacha = "0.3"
 
 # clone this [experimental branch](https://github.com/Voronar/iroh/tree/willow-experiments) next to `mds-repos` root directory

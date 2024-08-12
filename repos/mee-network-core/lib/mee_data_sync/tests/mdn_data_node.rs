@@ -158,6 +158,10 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     let queries = tokio::spawn(async move {
         loop {
+            let res = untied_mdn_node.get_user_data("bob", "email", &[]).await?;
+
+            log::warn!("non-auth res {res:#?}");
+
             let zip_res = untied_mdn_node
                 .get_user_data(user_id, address_attribute, &address_sub_attribute_zip)
                 .await?;

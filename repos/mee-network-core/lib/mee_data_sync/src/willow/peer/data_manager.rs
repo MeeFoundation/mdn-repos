@@ -1,5 +1,8 @@
 use super::user_manager::WillowUserManager;
-use crate::{error::MeeDataSyncResult, willow::node::WillowNode};
+use crate::{
+    error::{MeeDataSyncErr, MeeDataSyncResult},
+    willow::node::WillowNode,
+};
 use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt};
 use iroh_willow::{
@@ -42,12 +45,13 @@ impl WillowDataManager {
         &self,
         namespace: NamespaceId,
         range: ThreeDRange,
-    ) -> MeeDataSyncResult<impl Stream<Item = anyhow::Result<Entry>>> {
+    ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
         Ok(self
             .willow_node
             .engine
             .get_entries(namespace, range)
-            .await?)
+            .await?
+            .map_err(MeeDataSyncErr::from))
     }
     pub async fn get_entries(
         &self,
@@ -59,6 +63,26 @@ impl WillowDataManager {
             .await?
             .try_collect()
             .await?)
+    }
+    pub async fn filter_entries_stream<F>(
+        &self,
+        namespace: NamespaceId,
+        range: ThreeDRange,
+        filter_fn: F,
+    ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>>
+    where
+        F: Fn(&Entry) -> bool + 'static,
+    {
+        let res = self
+            .get_entries_stream(namespace, range)
+            .await?
+            .try_filter(move |e| {
+                let predicate = matches!(e, e if filter_fn(&e));
+
+                async move { predicate }
+            });
+
+        Ok(res)
     }
     pub async fn filter_entries<F>(
         &self,

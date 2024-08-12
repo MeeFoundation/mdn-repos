@@ -1,6 +1,9 @@
-use super::traits::{
-    GetUserDataRecord, MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeStore,
-    MdnAgentDataNodeUser,
+use super::{
+    store::{FullPathAttribute, KeyComponents, ShortPathAttribute},
+    traits::{
+        GetUserDataRecord, MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork,
+        MdnAgentDataNodeStore, MdnAgentDataNodeUser,
+    },
 };
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
@@ -81,12 +84,14 @@ impl MdnAgentDataNodeUser for MdnAgentDataNodeWillowImpl {
 
 #[derive(Clone)]
 pub struct MdnAgentDataNodeWillowImpl {
-    willow_peer: WillowPeer,
+    pub(crate) willow_peer: WillowPeer,
     agent_holder_id: String,
-    own_data_namespace_id: NamespaceId,
+    pub(crate) own_data_namespace_id: NamespaceId,
 }
 
 impl MdnAgentDataNodeWillowImpl {
+    pub(crate) const DATA_NAMESPACE_PATH_PREFIX: &'static str = "mdn";
+
     pub async fn new(willow_peer: WillowPeer, agent_holder_id: String) -> MeeDataSyncResult<Self> {
         let data_namespace_id = willow_peer
             .willow_namespace_manager
@@ -98,6 +103,43 @@ impl MdnAgentDataNodeWillowImpl {
             willow_peer,
             agent_holder_id,
         })
+    }
+    pub fn make_entry_path_from_key_components(
+        &self,
+        key_components: KeyComponents,
+    ) -> MeeDataSyncResult<Path> {
+        let mut path_components = vec![Self::DATA_NAMESPACE_PATH_PREFIX.to_string()];
+
+        match key_components {
+            KeyComponents::FullPathAttribute(FullPathAttribute {
+                user_id,
+                attribute_name,
+                attribute_instance_id,
+                sub_attribute_name,
+            }) => {
+                path_components.extend(vec![
+                    user_id,
+                    attribute_name,
+                    attribute_instance_id,
+                    sub_attribute_name,
+                ]);
+            }
+            KeyComponents::ShortPathAttribute(ShortPathAttribute {
+                user_id,
+                attribute_name,
+            }) => {
+                path_components.extend(vec![user_id, attribute_name]);
+            }
+        }
+
+        let path_components = path_components
+            .iter()
+            .map(String::as_bytes)
+            .collect::<Vec<_>>();
+
+        let path = Path::new(&path_components)?;
+
+        Ok(path)
     }
     pub fn make_entry_path(
         &self,
@@ -148,12 +190,15 @@ impl MdnAgentDataNodeStore for MdnAgentDataNodeWillowImpl {
         let mut entries = self
             .willow_peer
             .willow_data_manager
-            .filter_entries(self.own_data_namespace_id, range, |e| {
+            .filter_entries(self.own_data_namespace_id, range.clone(), |e| {
                 query_path.is_prefix_of(&e.path)
             })
             .await?;
 
-        // log::warn!("[owned] {query_path:?} {entries:#?}");
+        log::warn!(
+            "[{}][owned] {query_path:?} {entries:#?}",
+            self.agent_holder_id
+        );
 
         let caps_ns = self
             .willow_peer
@@ -162,6 +207,7 @@ impl MdnAgentDataNodeStore for MdnAgentDataNodeWillowImpl {
             .await?
             .into_iter()
             .filter_map(|c| {
+                log::warn!("[{}][cap] {c:#?}", self.agent_holder_id);
                 let ns = c.namespace();
 
                 if ns != self.own_data_namespace_id {
@@ -187,7 +233,10 @@ impl MdnAgentDataNodeStore for MdnAgentDataNodeWillowImpl {
             caps_entries.extend(e);
         }
 
-        // log::warn!("[shared] {query_path:?} {caps_entries:#?}");
+        log::warn!(
+            "[{}][shared] {query_path:?} {caps_entries:#?}",
+            self.agent_holder_id
+        );
 
         entries.extend(caps_entries);
 
