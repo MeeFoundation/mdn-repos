@@ -1,5 +1,5 @@
 use iroh_net::endpoint::ConnectionError;
-use iroh_willow::proto::willow::InvalidPath;
+use iroh_willow::proto::data_model::InvalidPathError;
 use tokio::task::JoinError;
 
 pub type MeeDataSyncResult<T = ()> = Result<T, MeeDataSyncErr>;
@@ -20,7 +20,7 @@ pub enum MeeDataSyncErr {
     TokioJoinError(#[from] JoinError),
 
     #[error("willow invalid path error: {0}")]
-    WillowInvalidPath(#[from] InvalidPath),
+    WillowInvalidPath(#[from] InvalidPathError),
 
     #[error("std::sync::Mutex error: {0}")]
     StdMutex(String),
@@ -31,6 +31,9 @@ pub enum MeeDataSyncErr {
 
     #[error("Willow namespace handler error: {0}")]
     WillowNamespaceHandler(String),
+
+    #[error("Willow path handler error: {0}")]
+    WillowPathHandler(String),
 
     #[error("Willow delegation handler error: {0}")]
     WillowDelegationHandler(String),

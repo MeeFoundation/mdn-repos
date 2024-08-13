@@ -1,12 +1,10 @@
 use super::agent_data_node::MdnAgentDataNodeWillowImpl;
-use crate::error::{MeeDataSyncErr, MeeDataSyncResult};
-use async_trait::async_trait;
-use futures::{stream::BoxStream, StreamExt, TryStreamExt};
-use iroh_willow::proto::{
-    grouping::{Range, RangeEnd, ThreeDRange},
-    willow::Path,
+use crate::{
+    error::{MeeDataSyncErr, MeeDataSyncResult},
+    willow::utils::path_from_bytes_slice,
 };
-use std::collections::HashSet;
+use async_trait::async_trait;
+use futures::stream::BoxStream;
 
 /// `{user_id}/{root_attribute}/{root_attribute_id}/{sub_attribute}`
 pub struct FullPathAttribute {
@@ -44,19 +42,19 @@ pub trait MdnAgentDataNodeKvStore {
     async fn del_value(&self, key: &str) -> MeeDataSyncResult;
 
     /// Asynchronously iterates over the whole store records
-    async fn get_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
+    async fn get_all_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
 
-    // /// Asynchronously iterates over the records for provided user ID
-    // async fn get_values_stream_by_user(
-    //     &self,
-    //     user_id: &str,
-    // ) -> impl Stream<Item = MeeDataSyncResult<(String, Vec<u8>)>>;
+    /// Asynchronously iterates over the records for provided user ID
+    async fn get_values_stream_by_user(
+        &self,
+        user_id: &str,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
 
-    // /// Asynchronously iterates over the records for provided attribute name
-    // async fn get_values_stream_by_attr(
-    //     &self,
-    //     attr: &str,
-    // ) -> impl Stream<Item = MeeDataSyncResult<(String, Vec<u8>)>>;
+    /// Asynchronously iterates over the records for provided attribute name
+    async fn get_values_stream_by_attr(
+        &self,
+        attribute_name: &str,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
 }
 
 #[async_trait]
@@ -93,15 +91,9 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult {
         let path = self.make_entry_path_from_key_components(self.key_components(key)?)?;
 
-        let path_bytes = path
-            .components()
-            .iter()
-            .map(|p| p.as_ref())
-            .collect::<Vec<_>>();
-
         self.willow_peer
             .willow_data_manager
-            .insert_entry(self.own_data_namespace_id, &path_bytes, value)
+            .insert_entry(self.own_data_namespace_id, path, value)
             .await?;
 
         Ok(())
@@ -111,102 +103,44 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
         todo!()
     }
 
-    async fn get_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
-        let mut range = ThreeDRange::full();
+    async fn get_values_stream_by_user(
+        &self,
+        user_id: &str,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
+        let user_prefix = path_from_bytes_slice(&[user_id.as_bytes()])?;
 
-        let query_path = Path::new(&[Self::DATA_NAMESPACE_PATH_PREFIX.as_bytes()])?;
+        let res = self
+            .all_values_with_entry_filter(move |e| user_prefix.is_prefix_of(e.path()))
+            .await?;
 
-        // TODO wait for fix of the path end range calculation
-        // range.paths = Range::new(query_path.clone(), RangeEnd::Closed(query_path.clone()));
-        range.paths = Range::new(query_path.clone(), RangeEnd::Open);
+        Ok(res)
+    }
 
-        let owned_entries = self
-            .willow_peer
-            .willow_data_manager
-            .filter_entries_stream(self.own_data_namespace_id, range.clone(), {
-                let query_path = query_path.clone();
+    async fn get_values_stream_by_attr(
+        &self,
+        attribute_name: &str,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
+        let attribute_name = attribute_name.to_string();
 
-                move |e| query_path.is_prefix_of(&e.path)
+        let res = self
+            .all_values_with_entry_filter(move |e| {
+                let attribute_name_component = e.path().get_component(1);
+                if let Some(attr) =
+                    attribute_name_component.and_then(|c| String::from_utf8(c.to_vec()).ok())
+                {
+                    attr == attribute_name
+                } else {
+                    false
+                }
             })
             .await?;
 
-        let caps_ns = self
-            .willow_peer
-            .willow_delegation_manager
-            .list_read_caps()
-            .await?
-            .into_iter()
-            .filter_map(|c| {
-                let ns = c.namespace();
+        Ok(res)
+    }
 
-                if ns != self.own_data_namespace_id {
-                    Some(ns)
-                } else {
-                    None
-                }
-            });
+    async fn get_all_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
+        let res = self.all_values_with_entry_filter(|_| true).await?;
 
-        let mut caps_entries = HashSet::new();
-
-        for ns in caps_ns {
-            let delegated_entries = self
-                .willow_peer
-                .willow_data_manager
-                .filter_entries(ns.clone(), ThreeDRange::full(), |e| {
-                    query_path.is_prefix_of(&e.path)
-                })
-                .await?;
-
-            caps_entries.extend(delegated_entries);
-        }
-
-        let cap_entries_stream = futures::stream::iter(caps_entries.into_iter().map(Ok));
-
-        let entries = tokio_stream::StreamExt::merge(owned_entries, cap_entries_stream);
-
-        let records = entries
-            .and_then(|entry| {
-                let willow_peer = self.willow_peer.clone();
-
-                async move {
-                    let path = entry.path.clone();
-                    let payload = willow_peer
-                        .willow_data_manager
-                        .read_entry_payload(entry.clone())
-                        .await?;
-
-                    let record = if let Some(payload) = payload {
-                        Some(ReadDataRecord {
-                            key: path
-                                .into_iter()
-                                .filter_map(|p| match String::from_utf8(p.to_vec()) {
-                                    Ok(v) => Some(v),
-                                    Err(e) => {
-                                        log::error!("Error stringifying willow path: {e}");
-                                        None
-                                    }
-                                })
-                                .collect::<Vec<_>>()
-                                .join(Self::key_components_splitter()),
-                            value: payload.to_vec(),
-                        })
-                    } else {
-                        None
-                    };
-
-                    Ok(record) as MeeDataSyncResult<Option<ReadDataRecord>>
-                }
-            })
-            .filter_map(|record| async {
-                match record {
-                    Ok(record) => record,
-                    Err(e) => {
-                        log::error!("Error processing entry: {e}");
-                        None
-                    }
-                }
-            });
-
-        Ok(records.boxed())
+        Ok(res)
     }
 }

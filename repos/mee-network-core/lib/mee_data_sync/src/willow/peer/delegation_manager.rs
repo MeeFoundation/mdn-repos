@@ -5,9 +5,9 @@ use crate::{
 };
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
-    auth::{CapSelector, CapabilityPack, DelegateTo},
-    proto::{meadowcap::AccessMode, sync::ReadAuthorisation},
-    session::{intents::IntentHandle, Interests, SessionInit, SessionMode},
+    interest::{CapSelector, CapabilityPack, DelegateTo, Interests},
+    proto::meadowcap::{AccessMode, ReadAuthorisation},
+    session::{intents::IntentHandle, SessionInit, SessionMode},
 };
 
 pub struct ImportCapabilitiesFromRemotePeer {
@@ -51,18 +51,18 @@ impl WillowDelegationManager {
         for cap in caps.iter() {
             let (ns, area) = match cap {
                 CapabilityPack::Read(read_cap) => (
-                    read_cap.read_cap().granted_namespace().id(),
+                    read_cap.read_cap().granted_namespace(),
                     read_cap.read_cap().granted_area(),
                 ),
                 CapabilityPack::Write(write_cap) => {
-                    (write_cap.granted_namespace().id(), write_cap.granted_area())
+                    (write_cap.granted_namespace(), write_cap.granted_area())
                 }
             };
 
-            interests = interests.add_area(ns, [area]);
+            interests = interests.add_area(*ns, [area]);
         }
 
-        let init = SessionInit::new(interests, SessionMode::Live);
+        let init = SessionInit::new(interests, SessionMode::Continuous);
 
         let sync_intent = self
             .willow_node

@@ -4,13 +4,13 @@ use crate::{
     willow::node::WillowNode,
 };
 use bytes::Bytes;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 use iroh_willow::{
     form::EntryForm,
     proto::{
-        grouping::ThreeDRange,
+        data_model::{Entry, Path},
+        grouping::Range3d,
         keys::NamespaceId,
-        willow::{Entry, Path},
     },
 };
 
@@ -30,10 +30,9 @@ impl WillowDataManager {
     pub async fn insert_entry(
         &self,
         namespace_id: NamespaceId,
-        path: &[&[u8]],
+        path: Path,
         bytes: impl Into<Bytes>,
     ) -> MeeDataSyncResult<(Entry, bool)> {
-        let path = Path::new(path)?;
         let entry = EntryForm::new_bytes(namespace_id, path, bytes);
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
@@ -44,7 +43,7 @@ impl WillowDataManager {
     pub async fn get_entries_stream(
         &self,
         namespace: NamespaceId,
-        range: ThreeDRange,
+        range: Range3d,
     ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
         Ok(self
             .willow_node
@@ -56,51 +55,11 @@ impl WillowDataManager {
     pub async fn get_entries(
         &self,
         namespace: NamespaceId,
-        range: ThreeDRange,
+        range: Range3d,
     ) -> MeeDataSyncResult<Vec<Entry>> {
         Ok(self
             .get_entries_stream(namespace, range)
             .await?
-            .try_collect()
-            .await?)
-    }
-    pub async fn filter_entries_stream<F>(
-        &self,
-        namespace: NamespaceId,
-        range: ThreeDRange,
-        filter_fn: F,
-    ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>>
-    where
-        F: Fn(&Entry) -> bool + 'static,
-    {
-        let res = self
-            .get_entries_stream(namespace, range)
-            .await?
-            .try_filter(move |e| {
-                let predicate = matches!(e, e if filter_fn(&e));
-
-                async move { predicate }
-            });
-
-        Ok(res)
-    }
-    pub async fn filter_entries<F>(
-        &self,
-        namespace: NamespaceId,
-        range: ThreeDRange,
-        filter_fn: F,
-    ) -> MeeDataSyncResult<Vec<Entry>>
-    where
-        F: Fn(&Entry) -> bool,
-    {
-        Ok(self
-            .get_entries_stream(namespace, range)
-            .await?
-            .filter(|e| {
-                let predicate = matches!(e, Ok(e) if filter_fn(&e));
-
-                async move { predicate }
-            })
             .try_collect()
             .await?)
     }

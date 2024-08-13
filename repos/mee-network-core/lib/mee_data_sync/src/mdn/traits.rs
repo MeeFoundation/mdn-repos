@@ -4,37 +4,10 @@ use crate::{
 use async_trait::async_trait;
 use iroh_net::{ticket::NodeTicket, NodeAddr};
 use iroh_willow::{
-    auth::{CapabilityPack, DelegateTo},
-    proto::{keys::UserId, meadowcap::AccessMode, willow::Path},
+    interest::{CapabilityPack, DelegateTo},
+    proto::{keys::UserId, meadowcap::AccessMode},
     session::intents::IntentHandle,
 };
-
-#[derive(Debug)]
-pub struct GetUserDataRecord {
-    pub key: Path,
-    pub value: Vec<u8>,
-}
-
-#[async_trait]
-pub trait MdnAgentDataNodeStore {
-    /// Path/key to user's data root in KV-like storage
-    fn user_data_root_path(&self, user_id: &str) -> String;
-
-    async fn get_user_data(
-        &self,
-        user_id: &str,
-        attribute_name: &str,
-        sub_attribute_path: &[&str],
-    ) -> MeeDataSyncResult<Vec<GetUserDataRecord>>;
-
-    async fn set_user_data(
-        &self,
-        user_id: &str,
-        attribute_name: &str,
-        sub_attribute_path: &[&str],
-        value: Vec<u8>,
-    ) -> MeeDataSyncResult;
-}
 
 #[async_trait]
 pub trait MdnAgentDataNodeUser {

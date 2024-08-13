@@ -2,7 +2,7 @@ use crate::error::{MeeDataSyncErr, MeeDataSyncResult};
 use iroh_net::{ticket::NodeTicket, Endpoint, NodeId};
 use iroh_willow::{
     engine::{AcceptOpts, Engine},
-    net::ALPN,
+    ALPN,
 };
 use std::sync::{Arc, Mutex};
 use tokio::task::JoinHandle;
@@ -26,7 +26,7 @@ impl WillowNode {
             .await?;
 
         let node_ticket = NodeTicket::new(endpoint.node_addr().await?)?;
-        
+
         log::info!("iroh node has started. Node ticket: {node_ticket}");
 
         let payloads = iroh_blobs::store::mem::Store::default();

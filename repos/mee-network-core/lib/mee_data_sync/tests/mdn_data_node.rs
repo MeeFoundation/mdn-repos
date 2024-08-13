@@ -1,17 +1,18 @@
 use anyhow::anyhow;
 use futures::{StreamExt, TryFutureExt};
 use iroh_willow::{
-    auth::{DelegateTo, RestrictArea},
-    proto::{grouping::Area, meadowcap::AccessMode},
+    interest::{DelegateTo, RestrictArea},
+    proto::{
+        grouping::{Area, AreaSubspace, Range},
+        meadowcap::AccessMode,
+    },
     session::intents::IntentHandle,
 };
 use mee_data_sync::{
     mdn::{
         agent_data_node::MdnAgentDataNodeWillowImpl,
-        traits::{
-            MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeStore,
-            MdnAgentDataNodeUser,
-        },
+        store::{KeyComponents, MdnAgentDataNodeKvStore, ShortPathAttribute},
+        traits::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
     },
     willow::peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
 };
@@ -24,10 +25,36 @@ pub fn create_rng(seed: &str) -> ChaCha12Rng {
     ChaCha12Rng::from_seed(*(seed.as_bytes()))
 }
 
+fn draw_path_from_area(area: Area) -> String {
+    area.path()
+        .components()
+        .into_iter()
+        .map(|c| String::from_utf8(c.to_vec()).unwrap())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 async fn progress_session_intents(mut sync_event_stream: IntentHandle) {
     loop {
         select! {
-            _ev = sync_event_stream.next() => {},
+            _ev = sync_event_stream.next() => {
+                match _ev {
+                    Some(e) => match e {
+                        iroh_willow::session::intents::EventKind::CapabilityIntersection { area, .. } => {
+                            log::info!("CapabilityIntersection: {}", draw_path_from_area(area));
+                        },
+                        iroh_willow::session::intents::EventKind::InterestIntersection { area, .. } => {
+                            log::info!("InterestIntersection: {}", draw_path_from_area(area.area));
+                        },
+                        iroh_willow::session::intents::EventKind::Reconciled { area, .. } => {
+                            log::info!("Reconciled: {}", draw_path_from_area(area.area));
+                        },
+                        iroh_willow::session::intents::EventKind::ReconciledAll => {},
+                        iroh_willow::session::intents::EventKind::Abort { .. } => {},
+                    },
+                    None => {},
+                };
+            },
             _ = tokio::time::sleep(Duration::from_secs(1)) => {},
         }
     }
@@ -45,74 +72,101 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     let mut rng = create_rng("oyt node");
     let iroh_node_secret_key = iroh_net::key::SecretKey::generate_with_rng(&mut rng);
     let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
-    let provider_id = "oyt";
 
-    let oyt_mdn_node =
-        MdnAgentDataNodeWillowImpl::new(willow_peer, provider_id.to_string()).await?;
+    let oyt_mdn_node = MdnAgentDataNodeWillowImpl::new(willow_peer).await?;
 
-    let user_id = "alice";
+    let alice_user_id = "alice";
+    let bob_user_id = "bob";
     let address_attribute = "address";
-    let address_sub_attribute_city = ["city"];
-    let address_sub_attribute_zip = ["zip"];
-    let city = "Rome";
-    let zip = "123";
+    let address_sub_attribute_city = "city";
+    let address_sub_attribute_zip = "zip";
+    let alice_city = "Rome";
+    let bob_city = "Milan";
+    let alice_zip = "123";
+    let bob_email = "bob@bob.com";
 
-    let city_record_key =
-        oyt_mdn_node.make_entry_path(user_id, address_attribute, &address_sub_attribute_city)?;
+    let alice_city_path =
+        format!("{alice_user_id}/{address_attribute}/0/{address_sub_attribute_city}");
+    let bob_city_path = format!("{bob_user_id}/{address_attribute}/0/{address_sub_attribute_city}");
+    let alice_zip_path =
+        format!("{alice_user_id}/{address_attribute}/0/{address_sub_attribute_zip}");
+    let alice_cvv_path = format!("{alice_user_id}/payment_card/0/cvv");
+    let bob_email_path = format!("{bob_user_id}/email");
+
+    let city_record_path = oyt_mdn_node
+        .make_entry_path_from_key_components(oyt_mdn_node.key_components(&alice_city_path)?)?;
 
     oyt_mdn_node
-        .set_user_data(
-            user_id,
-            address_attribute,
-            &address_sub_attribute_city,
-            city.as_bytes().to_vec(),
-        )
+        .set_value(&alice_city_path, alice_city.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
-        .set_user_data(
-            user_id,
-            address_attribute,
-            &address_sub_attribute_zip,
-            zip.as_bytes().to_vec(),
-        )
+        .set_value(&bob_city_path, bob_city.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
-        .set_user_data(user_id, "payment_card", &["cvv"], b"123".to_vec())
+        .set_value(&alice_zip_path, alice_zip.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
-        .set_user_data("bob", "email", &[], b"bob@bob.com".to_vec())
+        .set_value(&alice_cvv_path, b"123".to_vec())
         .await?;
 
-    let res = oyt_mdn_node
-        .get_user_data(user_id, address_attribute, &address_sub_attribute_city)
+    oyt_mdn_node
+        .set_value(&bob_email_path, bob_email.as_bytes().to_vec())
+        .await?;
+
+    let all_cities_res = oyt_mdn_node
+        .get_values_stream_by_attr(&address_attribute)
         .await?
+        .collect::<Vec<_>>()
+        .await;
+
+    assert_eq!(all_cities_res.len(), 3);
+
+    let bob_res = oyt_mdn_node
+        .get_values_stream_by_user(&bob_user_id)
+        .await?
+        .collect::<Vec<_>>()
+        .await
         .pop()
         .unwrap();
 
-    assert_eq!(res.value, city.as_bytes());
-    assert_eq!(res.key, city_record_key);
+    assert_eq!(bob_res.value, bob_email.as_bytes());
+    assert_eq!(bob_res.key, bob_email_path);
+
+    let res = oyt_mdn_node
+        .get_all_values_stream()
+        .await?
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .find(|e| (&e.key, e.value.as_slice()) == (&alice_city_path, alice_city.as_bytes()))
+        .unwrap();
+
+    assert_eq!(res.value, alice_city.as_bytes());
+    assert_eq!(res.key, alice_city_path);
 
     // Untied node
     let mut rng = create_rng("untied node");
     let iroh_node_secret_key = iroh_net::key::SecretKey::generate_with_rng(&mut rng);
     let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
-    let provider_id = "untied";
 
-    let untied_mdn_node =
-        MdnAgentDataNodeWillowImpl::new(willow_peer, provider_id.to_string()).await?;
+    let untied_mdn_node = MdnAgentDataNodeWillowImpl::new(willow_peer).await?;
 
     // The ID actually comes with a first Untied request to OYT after MDS discovery process
     let untied_willow_node_user_id = untied_mdn_node.user_id().await?;
 
-    let oyt_data_subset_restriction = RestrictArea::Restrict(Area::path(city_record_key.clone()));
+    let oyt_data_subset_restriction = RestrictArea::Restrict(Area::new(
+        AreaSubspace::Any,
+        city_record_path,
+        Range::full(),
+    ));
 
     // single value sub-attribute sharing
     let cap_for_untied = oyt_mdn_node
         .delegate_capabilities(
-            AccessMode::ReadOnly,
+            AccessMode::Read,
             DelegateTo::new(untied_willow_node_user_id, oyt_data_subset_restriction),
         )
         .await?;
@@ -131,13 +185,22 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream));
 
     // multiple values root attribute sharing
-    let address_records_key = oyt_mdn_node.make_entry_path(user_id, address_attribute, &[])?;
-    let oyt_data_root_attribute_restriction =
-        RestrictArea::Restrict(Area::path(address_records_key.clone()));
+    let address_records_key = oyt_mdn_node.make_entry_path_from_key_components(
+        KeyComponents::ShortPathAttribute(ShortPathAttribute {
+            user_id: alice_user_id.to_string(),
+            attribute_name: address_attribute.to_string(),
+        }),
+    )?;
+
+    let oyt_data_root_attribute_restriction = RestrictArea::Restrict(Area::new(
+        AreaSubspace::Any,
+        address_records_key,
+        Range::full(),
+    ));
 
     let cap_for_untied = oyt_mdn_node
         .delegate_capabilities(
-            AccessMode::ReadOnly,
+            AccessMode::Read,
             DelegateTo::new(
                 untied_willow_node_user_id,
                 oyt_data_root_attribute_restriction,
@@ -158,37 +221,26 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     let queries = tokio::spawn(async move {
         loop {
-            let res = untied_mdn_node.get_user_data("bob", "email", &[]).await?;
+            let res = untied_mdn_node
+                .get_all_values_stream()
+                .await?
+                .collect::<Vec<_>>()
+                .await;
 
-            log::warn!("non-auth res {res:#?}");
+            let has_zip_value = res.iter().any(|e| e.value == alice_zip.as_bytes().to_vec());
 
-            let zip_res = untied_mdn_node
-                .get_user_data(user_id, address_attribute, &address_sub_attribute_zip)
-                .await?;
-
-            let has_zip_value = zip_res.iter().any(|e| e.value == zip.as_bytes().to_vec());
-
-            let city_res = untied_mdn_node
-                .get_user_data(user_id, address_attribute, &address_sub_attribute_city)
-                .await?;
-
-            let has_city_value = city_res.iter().any(|e| e.value == city.as_bytes().to_vec());
-
-            let address_res = untied_mdn_node
-                .get_user_data(user_id, address_attribute, &[])
-                .await?;
-
-            let has_all_required_values = address_res
+            let has_city_value = res
                 .iter()
-                .any(|e| e.value == city.as_bytes().to_vec())
+                .any(|e| e.value == alice_city.as_bytes().to_vec());
+
+            let has_all_required_values = res
+                .iter()
+                .any(|e| e.value == alice_city.as_bytes().to_vec())
                 && has_city_value
                 && has_zip_value;
 
             if has_all_required_values {
-                assert_eq!(zip_res.len(), 1);
-                assert_eq!(city_res.len(), 1);
-                assert_eq!(address_res.len(), 2);
-
+                assert_eq!(res.len(), 2);
                 break;
             }
 
