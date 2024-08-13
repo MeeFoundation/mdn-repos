@@ -1,6 +1,7 @@
 use super::support::JsonExt;
 use super::{JsonDB, JsonStore, ID_PROPERTY};
 use crate::error::Result;
+use crate::kv_store::PATH_SEPARATOR;
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
@@ -16,17 +17,17 @@ impl JsonDBImpl {
 }
 
 fn object_key(schema: &str, id: &str) -> String {
-    format!("{}/{}", schema, id)
+    format!("{schema}{PATH_SEPARATOR}{id}")
 }
 
 fn property_key(object_key: &str, property: &str) -> String {
-    format!("{}.{}", object_key, property)
+    format!("{object_key}{PATH_SEPARATOR}{property}")
 }
 
 impl JsonDB for JsonDBImpl {
     fn insert(&self, schema: String, value: Value) -> Result<String> {
         let id = self.db.generate_id()?;
-        self.db.set(object_key(&schema, &id), value)?;
+        self.db.set(object_key(&schema, &id), &value)?;
         Ok(id)
     }
 
@@ -85,6 +86,7 @@ impl JsonDB for JsonDBImpl {
 mod test {
     // use crate::json_store::storage::KVBasedJsonStoreImpl;
     use crate::{json_store::storage::KVBasedJsonStoreImpl, kv_store};
+    use assert_json_diff::assert_json_eq;
 
     use super::*;
     use serde_json::json;
@@ -162,11 +164,12 @@ mod test {
         let alice_value = db
             .find_by_id_full(SCHEMA_NAME.to_string(), alice_id.clone())
             .unwrap();
+
         let bob_value = db
             .find_by_id_full(SCHEMA_NAME.to_string(), bob_id.clone())
             .unwrap();
-        assert_eq!(alice_value, Some(alice));
-        assert_eq!(bob_value, Some(bob));
+        assert_json_eq!(alice_value, Some(alice));
+        assert_json_eq!(bob_value, Some(bob));
     }
 
     #[test]
@@ -182,12 +185,12 @@ mod test {
             )
             .unwrap();
 
-        assert_eq!(
+        assert_json_eq!(
             alice_value,
             Some(json!({
                 "name": "Alice",
                  "email": "awalker@gmail.com",
-            }))
+            })),
         );
     }
 
@@ -204,7 +207,15 @@ mod test {
         let bob_value = db
             .find_by_id_full(SCHEMA_NAME.to_string(), bob_id.clone())
             .unwrap();
+
         assert_eq!(alice_value, None);
-        assert_eq!(bob_value, Some(bob));
+        println!(
+            "bob {}",
+            bob_value
+                .clone()
+                .map(|v| serde_json::to_string_pretty(&v).unwrap())
+                .unwrap_or_default()
+        );
+        assert_json_eq!(bob_value, Some(bob));
     }
 }

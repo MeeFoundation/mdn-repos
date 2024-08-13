@@ -1,4 +1,5 @@
-use super::KVStore;
+use super::PATH_SEPARATOR;
+use super::{KVIteratorControl, KVIteratorListener, KVStore};
 use crate::error::{Error::LockError, Result};
 use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
@@ -28,12 +29,47 @@ impl KVStore for BTreeMapStore {
         Ok(db.get(path).cloned())
     }
 
-    fn range(&self, path: String) -> Result<Vec<(String, Vec<u8>)>> {
+    fn range(&self, path: String, listener: &mut Box<dyn KVIteratorListener>) -> Result<()> {
         let db = self.db.read().map_err(|e| LockError(e.to_string()))?;
         let excluded = Excluded(format!("{}{}", &path, char::MAX));
-        let range = db.range((Included(path), excluded));
-        Ok(range.map(|(k, v)| (k.clone(), v.clone())).collect())
+        let range = db.range((Included(path.clone()), excluded));
+        let mut skip_prefix = "".to_string();
+
+        for (k, v) in range {
+            let k = match k.replace(&path, "") {
+                k if k.starts_with(PATH_SEPARATOR) => k[1..].to_string(),
+                k => k,
+            };
+
+            if !skip_prefix.is_empty() && k.starts_with(&skip_prefix) {
+                continue;
+            }
+
+            match listener.on_kv(k, v) {
+                Ok(KVIteratorControl::SkipPrefix(prefix)) => {
+                    skip_prefix = prefix.clone();
+                }
+                Ok(KVIteratorControl::Next) => {}
+                Ok(KVIteratorControl::Stop) => {
+                    break;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        listener.flush()?;
+
+        Ok(())
     }
+
+    // fn filter_keys(&self, path: String, ) -> Result<Vec<String>> {
+    //     let db = self.db.read().map_err(|e| LockError(e.to_string()))?;
+    //     let excluded = Excluded(format!("{}{}", &path, char::MAX));
+    //     let keys = db
+    //         .range((Included(path), excluded))
+    //         .map(|(k, _)| k.clone())
+    //         .collect();
+    //     Ok(keys)
+    // }
 
     fn delete(&self, path: &str) -> Result<()> {
         let mut db = self.db.write().map_err(|e| LockError(e.to_string()))?;
