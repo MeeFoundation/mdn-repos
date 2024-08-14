@@ -1,14 +1,17 @@
 use crate::kv_store::{KVIteratorListener, KVStore};
 
 use super::range_iterator::*;
+use super::support::JsonExt;
 use super::JsonStore;
 use crate::error::Result;
+//issue with format!
+#[allow(unused)]
 use crate::kv_store::PATH_SEPARATOR;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use tracing::{debug, trace};
+use tracing::debug;
 
 pub struct KVBasedJsonStoreImpl {
     db: Arc<dyn KVStore + Send + Sync>,
@@ -19,42 +22,15 @@ impl KVBasedJsonStoreImpl {
     pub fn new(db: Arc<dyn KVStore + Send + Sync>) -> Self {
         Self { db }
     }
-
-    fn inner_set(db: Arc<dyn KVStore + Send + Sync>, key: String, value: &Value) -> Result<()> {
-        debug!("Inserting key: {}, value: {}", key, value);
-        match value {
-            Value::Object(obj) => {
-                for (k, v) in obj {
-                    let sub_key = format!("{key}{PATH_SEPARATOR}{k}");
-                    trace!("Inserting sub_key: {}, value: {}", &sub_key, v);
-                    Self::inner_set(db.clone(), sub_key, v)?;
-                }
-            }
-            Value::Array(arr) => {
-                if arr.is_empty() {
-                    let value_bytes = serde_json::to_vec(&arr)?;
-                    db.insert(key, value_bytes)?;
-                } else {
-                    for (i, v) in arr.into_iter().enumerate() {
-                        let sub_key = format!("{key}{PATH_SEPARATOR}{i}");
-                        trace!("Inserting sub_key: {}, value: {}", &sub_key, v);
-                        Self::inner_set(db.clone(), sub_key, v)?;
-                    }
-                }
-            }
-            _ => {
-                trace!("Inserting sub_key: {}, value: {}", &key, value);
-                let value_bytes = serde_json::to_vec(&value)?;
-                db.insert(key, value_bytes)?;
-            }
-        }
-        Ok(())
-    }
 }
 
 impl JsonStore for KVBasedJsonStoreImpl {
-    fn set(&self, key: String, value: &Value) -> Result<()> {
-        Self::inner_set(self.db.clone(), key, &value)?;
+    fn set(&self, key: String, value: Value) -> Result<()> {
+        let flatten = value.x_to_flatten_map(key);
+        for (k, v) in flatten {
+            let bytes = serde_json::to_vec(&v)?;
+            self.db.insert(k, bytes)?;
+        }
         Ok(())
     }
 
@@ -79,16 +55,28 @@ impl JsonStore for KVBasedJsonStoreImpl {
     fn generate_id(&self) -> Result<String> {
         Ok(uuid::Uuid::now_v7().to_string())
     }
+
+    fn select(&self, query: super::query::SelectQuery) -> Result<Vec<Value>> {
+        todo!()
+    }
+
+    fn execute_update(&self, query: super::query::UpdateQuery) -> Result<u128> {
+        todo!()
+    }
+
+    fn execute_delete(&self, query: super::query::DeleteQuery) -> Result<u128> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
 mod test {
 
-    use crate::kv_store;
-
     use super::*;
+    use crate::kv_store;
     use assert_json_diff::assert_json_eq;
     use serde_json::json;
+
     fn setup() -> KVBasedJsonStoreImpl {
         let kv = kv_store::new_btree_map_based();
         KVBasedJsonStoreImpl::new(kv)
@@ -97,8 +85,10 @@ mod test {
     #[test]
     fn read_write_single_value() {
         let storage = setup();
-        storage.set("key/id".to_string(), &json!("value")).unwrap();
-        let value = storage.get("key/id".to_string()).unwrap();
+        storage
+            .set(format!("key{PATH_SEPARATOR}id"), json!("value"))
+            .unwrap();
+        let value = storage.get(format!("key{PATH_SEPARATOR}id")).unwrap();
         assert_json_eq!(value, Some(json!("value")));
     }
 
@@ -106,9 +96,11 @@ mod test {
     fn read_write_array() {
         let storage = setup();
         let array = json!([1, 2, 3]);
-        storage.set("key/id".to_string(), &array).unwrap();
+        storage
+            .set(format!("key{PATH_SEPARATOR}id"), array.clone())
+            .unwrap();
         let expected = Some(array);
-        let value = storage.get("key/id".to_string()).unwrap();
+        let value = storage.get(format!("key{PATH_SEPARATOR}id")).unwrap();
         assert_json_eq!(value, expected);
     }
 
@@ -123,9 +115,12 @@ mod test {
             }
         });
 
-        storage.set("key/id".to_string(), &first).unwrap();
+        storage
+            .set(format!("key{PATH_SEPARATOR}id"), first)
+            .unwrap();
 
-        let key = "key/id/field1/embedded_field1".to_string();
+        let key =
+            format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1{PATH_SEPARATOR}embedded_field1");
         let value = storage.get(key).unwrap();
         let expected = Some(json!("embedded_value1"));
         assert_json_eq!(value, expected);
@@ -142,9 +137,11 @@ mod test {
             }
         });
 
-        storage.set("key/id".to_string(), &first).unwrap();
+        storage
+            .set(format!("key{PATH_SEPARATOR}id"), first.clone())
+            .unwrap();
 
-        let key = "key/id/field1".to_string();
+        let key = format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1");
         let value = storage.get(key).unwrap();
         let expected = Some(first.get("field1").unwrap().clone());
         assert_json_eq!(value, expected);
@@ -158,9 +155,11 @@ mod test {
             "field1": ["item1", "item2"]
         });
 
-        storage.set("key/id".to_string(), &first).unwrap();
+        storage
+            .set(format!("key{PATH_SEPARATOR}id"), first.clone())
+            .unwrap();
 
-        let key = "key/id/field1".to_string();
+        let key = format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1");
         let value = storage.get(key).unwrap();
         let expected = Some(first.get("field1").unwrap().clone());
         assert_json_eq!(value, expected);
@@ -185,9 +184,11 @@ mod test {
             ]
         });
 
-        storage.set("key/id".to_string(), &obj).unwrap();
+        storage
+            .set(format!("key{PATH_SEPARATOR}id"), obj.clone())
+            .unwrap();
 
-        let key = "key/id/field1".to_string();
+        let key = format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1");
         let value = storage.get(key).unwrap();
         let expected = obj.get("field1");
         assert_json_eq!(value, expected);

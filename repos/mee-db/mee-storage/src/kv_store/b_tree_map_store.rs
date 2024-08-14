@@ -61,16 +61,6 @@ impl KVStore for BTreeMapStore {
         Ok(())
     }
 
-    // fn filter_keys(&self, path: String, ) -> Result<Vec<String>> {
-    //     let db = self.db.read().map_err(|e| LockError(e.to_string()))?;
-    //     let excluded = Excluded(format!("{}{}", &path, char::MAX));
-    //     let keys = db
-    //         .range((Included(path), excluded))
-    //         .map(|(k, _)| k.clone())
-    //         .collect();
-    //     Ok(keys)
-    // }
-
     fn delete(&self, path: &str) -> Result<()> {
         let mut db = self.db.write().map_err(|e| LockError(e.to_string()))?;
         let excluded = Excluded(format!("{}{}", &path, char::MAX));

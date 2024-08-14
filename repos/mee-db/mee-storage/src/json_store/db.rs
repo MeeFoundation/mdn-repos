@@ -27,7 +27,7 @@ fn property_key(object_key: &str, property: &str) -> String {
 impl JsonDB for JsonDBImpl {
     fn insert(&self, schema: String, value: Value) -> Result<String> {
         let id = self.db.generate_id()?;
-        self.db.set(object_key(&schema, &id), &value)?;
+        self.db.set(object_key(&schema, &id), value)?;
         Ok(id)
     }
 
@@ -41,7 +41,7 @@ impl JsonDB for JsonDBImpl {
         let mut existing_properties = Map::new();
         for prop in selecting_properties.into_iter() {
             if prop == ID_PROPERTY {
-                existing_properties.set_id(&id);
+                existing_properties.insert(ID_PROPERTY.to_string(), Value::String(id.clone()));
                 continue;
             }
             let key = property_key(&key, &prop);
@@ -60,7 +60,7 @@ impl JsonDB for JsonDBImpl {
     fn find_by_id_full(&self, schema: String, id: String) -> Result<Option<Value>> {
         match self.db.get(object_key(&schema, &id))? {
             Some(mut value) if value.is_object() => {
-                value.set_id(&id);
+                value.x_set_id(&id);
                 Ok(Some(value))
             }
             _ => Ok(None),
@@ -149,7 +149,7 @@ mod test {
     fn insert_and_get(db: &JsonDBImpl, value: Value) -> (String, Value) {
         let id = db.insert(SCHEMA_NAME.to_string(), value.clone()).unwrap();
         let mut new_value = value.clone();
-        new_value.set_id(&id);
+        new_value.x_set_id(&id);
         (id, new_value)
     }
 
@@ -196,6 +196,31 @@ mod test {
 
     #[test]
     fn delete_object_by_id() {
+        let db = setup();
+        let (alice_id, _) = insert_and_get(&db, alice());
+        let (bob_id, bob) = insert_and_get(&db, bob());
+        db.delete(SCHEMA_NAME.to_string(), alice_id.clone())
+            .unwrap();
+        let alice_value = db
+            .find_by_id_full(SCHEMA_NAME.to_string(), alice_id.clone())
+            .unwrap();
+        let bob_value = db
+            .find_by_id_full(SCHEMA_NAME.to_string(), bob_id.clone())
+            .unwrap();
+
+        assert_eq!(alice_value, None);
+        println!(
+            "bob {}",
+            bob_value
+                .clone()
+                .map(|v| serde_json::to_string_pretty(&v).unwrap())
+                .unwrap_or_default()
+        );
+        assert_json_eq!(bob_value, Some(bob));
+    }
+
+    #[test]
+    fn select_object_by_property_value() {
         let db = setup();
         let (alice_id, _) = insert_and_get(&db, alice());
         let (bob_id, bob) = insert_and_get(&db, bob());

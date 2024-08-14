@@ -1,5 +1,4 @@
-use serde_json::{Map, Value};
-use tracing::error;
+use serde_json::Value;
 
 use super::support::*;
 use crate::error::Error::KVStoreError;
@@ -19,20 +18,6 @@ pub(super) struct KVIteratorListenerImpl {
     current_value: Value,
     result: Arc<Mutex<BTreeMap<String, Value>>>,
 }
-
-// pub enum RangeType {
-//     AllObjectsByType,
-//     CertainObject,
-//     CertainObjectProperty,
-// }
-
-// fn get_range_type(path: &str) -> RangeType {
-//     match path.matches('.').count() {
-//         0 => RangeType::AllObjectsByType,
-//         1 => RangeType::CertainObject,
-//         _ => RangeType::CertainObjectProperty,
-//     }
-// }
 
 impl KVIteratorListenerImpl {
     pub fn new(
@@ -78,7 +63,7 @@ impl KVIteratorListenerImpl {
             .map_err(|e| KVStoreError(e.to_string()))?;
 
         if !self.current_id.is_empty() {
-            self.current_value.set_id(&self.current_id);
+            self.current_value.x_set_id(&self.current_id);
         }
 
         result.insert(order_key, self.current_value.take());
@@ -97,74 +82,6 @@ impl KVIteratorListenerImpl {
         }
 
         Ok(KVIteratorControl::Next)
-    }
-
-    fn apply_pair_to_value(&mut self, k: String, v: &Vec<u8>) -> Result<()> {
-        let v: Value = serde_json::from_slice(v)?;
-        println!("->> k:{:#?}, v:{:#?}", k, v);
-        if k.is_empty() {
-            self.current_value = v;
-        } else {
-            let parts = k
-                .split(PATH_SEPARATOR)
-                .filter(|x| !x.is_empty())
-                .collect::<Vec<&str>>();
-
-            if parts.len() > 0 {
-                if self.current_value.is_null() {
-                    self.current_value = if parts[0].parse::<usize>().is_ok() {
-                        Value::Array(vec![])
-                    } else {
-                        Value::Object(Map::new())
-                    }
-                }
-
-                let mut current_obj = &mut self.current_value;
-
-                for i in 0..parts.len() {
-                    let next_obj: Value = if i == parts.len() - 1 {
-                        v.clone()
-                    } else {
-                        let next_is_array = parts[i + 1].parse::<usize>().is_ok();
-                        if next_is_array {
-                            Value::Array(vec![])
-                        } else {
-                            Value::Object(Map::new())
-                        }
-                    };
-
-                    match parts[i].parse::<usize>() {
-                        Ok(index) if current_obj.is_array() => {
-                            let array = current_obj.as_array_mut().unwrap();
-                            if array.len() <= index {
-                                array.resize(index + 1, Value::Null);
-                            }
-                            array[index].merge(next_obj);
-                            current_obj = &mut array[index];
-                        }
-                        _ if current_obj.is_object() => {
-                            current_obj = current_obj
-                                .as_object_mut()
-                                .unwrap()
-                                .entry(parts[i].to_string())
-                                .or_insert(Value::Null);
-                            current_obj.merge(next_obj);
-                        }
-                        _ => {
-                            error!("Unexpected KV store state for key: {}. Collected object: {:#?}, inserting path: {}, inserting value: {}", &self.current_id, &self.current_value, &k, &v);
-                            return Err(KVStoreError(
-                                "Unexpected KV store state for key: {key}. ".to_string(),
-                            ));
-                        }
-                    }
-                    println!(
-                        "->> current_obj: {:#?}",
-                        serde_json::to_string_pretty(current_obj)
-                    );
-                }
-            }
-        }
-        Ok(())
     }
 
     fn setup_new_object(&mut self, id: String) -> Result<()> {
@@ -195,8 +112,8 @@ impl KVIteratorListener for KVIteratorListenerImpl {
         let (id, key) = self.split_key(key);
         println!("->> id:{id}, key:{key}");
         self.setup_new_object(id)?;
-
-        self.apply_pair_to_value(key, value)?;
+        let v = serde_json::from_slice(value)?;
+        self.current_value.x_set_property(&key, v);
 
         Ok(KVIteratorControl::Next)
     }

@@ -1,4 +1,5 @@
 mod db;
+mod query;
 mod range_iterator;
 mod storage;
 mod support;
@@ -12,10 +13,14 @@ const ID_PROPERTY: &str = "@id";
 
 #[allow(unused)]
 pub trait JsonStore {
-    fn set(&self, key: String, value: &Value) -> Result<()>;
+    fn set(&self, key: String, value: Value) -> Result<()>;
     fn get(&self, key: String) -> Result<Option<Value>>;
     fn delete(&self, key: String) -> Result<()>;
     fn generate_id(&self) -> Result<String>;
+    ///
+    fn select(&self, query: query::SelectQuery) -> Result<Vec<Value>>;
+    fn execute_update(&self, query: query::UpdateQuery) -> Result<u128>;
+    fn execute_delete(&self, query: query::DeleteQuery) -> Result<u128>;
 }
 
 #[allow(dead_code)]
