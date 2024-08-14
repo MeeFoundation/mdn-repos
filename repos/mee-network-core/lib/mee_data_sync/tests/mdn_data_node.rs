@@ -92,9 +92,14 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
         format!("{alice_user_id}/{address_attribute}/0/{address_sub_attribute_zip}");
     let alice_cvv_path = format!("{alice_user_id}/payment_card/0/cvv");
     let bob_email_path = format!("{bob_user_id}/email");
+    let temp_bob_phone_path = format!("{bob_user_id}/phone");
 
     let city_record_path = oyt_mdn_node
         .make_entry_path_from_key_components(oyt_mdn_node.key_components(&alice_city_path)?)?;
+
+    oyt_mdn_node
+        .set_value(&temp_bob_phone_path, b"911".to_vec())
+        .await?;
 
     oyt_mdn_node
         .set_value(&alice_city_path, alice_city.as_bytes().to_vec())
@@ -146,6 +151,30 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     assert_eq!(res.value, alice_city.as_bytes());
     assert_eq!(res.key, alice_city_path);
+
+    let bob_phone = oyt_mdn_node
+        .get_all_values_stream()
+        .await?
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .find(|e| e.key == temp_bob_phone_path);
+
+    assert!(bob_phone.is_some());
+
+    let res = oyt_mdn_node.del_value(&temp_bob_phone_path).await?;
+
+    assert!(res);
+
+    let bob_phone = oyt_mdn_node
+        .get_all_values_stream()
+        .await?
+        .collect::<Vec<_>>()
+        .await
+        .into_iter()
+        .find(|e| e.key == temp_bob_phone_path);
+
+    assert!(bob_phone.is_none());
 
     // Untied node
     let mut rng = create_rng("untied node");
@@ -241,6 +270,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
             if has_all_required_values {
                 assert_eq!(res.len(), 2);
+
                 break;
             }
 

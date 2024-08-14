@@ -39,7 +39,7 @@ pub trait MdnAgentDataNodeKvStore {
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult;
 
-    async fn del_value(&self, key: &str) -> MeeDataSyncResult;
+    async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool>;
 
     /// Asynchronously iterates over the whole store records
     async fn get_all_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
@@ -99,8 +99,11 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
         Ok(())
     }
 
-    async fn del_value(&self, key: &str) -> MeeDataSyncResult {
-        todo!()
+    // TODO make willow entry deletion syncable
+    async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool> {
+        let res = self.remove_entries(key).await?.pop().unwrap_or(false);
+
+        Ok(res)
     }
 
     async fn get_values_stream_by_user(

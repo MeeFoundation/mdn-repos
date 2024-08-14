@@ -63,6 +63,17 @@ impl WillowDataManager {
             .try_collect()
             .await?)
     }
+    pub async fn remove_entries(&self, entries: Vec<Entry>) -> MeeDataSyncResult<Vec<bool>> {
+        let user = self.willow_user_manager.get_active_user_profile().await?;
+
+        let res = self
+            .willow_node
+            .engine
+            .remove_entries(entries, user)
+            .await?;
+
+        Ok(res)
+    }
     pub async fn read_entry_payload(&self, entry: Entry) -> MeeDataSyncResult<Option<Bytes>> {
         Ok(self.willow_node.engine.read_payload(entry).await?)
     }

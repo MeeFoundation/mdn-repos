@@ -13,7 +13,7 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use futures::{stream::BoxStream, StreamExt, TryStreamExt};
+use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
 use iroh_net::{ticket::NodeTicket, NodeAddr};
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo},
@@ -143,15 +143,58 @@ impl MdnAgentDataNodeWillowImpl {
 
         Ok(path)
     }
-    pub(crate) async fn all_values_with_entry_filter<F>(
+    pub async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
+        let comps = self.key_components(key)?;
+        let path = self.make_entry_path_from_key_components(comps)?;
+
+        let entries = self
+            .all_entries_filter(move |e| e.path() == &path)
+            .await?
+            .collect::<Vec<_>>()
+            .await;
+
+        let res = self
+            .willow_peer
+            .willow_data_manager
+            .remove_entries(entries)
+            .await?;
+
+        Ok(res)
+    }
+    pub async fn all_entries_filter<F>(
         &self,
         filter_entry_fn: F,
-    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>
+    ) -> MeeDataSyncResult<impl Stream<Item = Entry>>
     where
         F: Fn(&Entry) -> bool + Send + Sync + 'static,
     {
         let range = Range3d::new_full();
 
+        let entries = self
+            .entries_for_range(range)
+            .await?
+            .try_filter(move |e| {
+                let pred = filter_entry_fn(e);
+
+                async move { pred }
+            })
+            .filter_map(|record| async {
+                match record {
+                    Ok(record) => Some(record),
+                    Err(e) => {
+                        log::error!("Error processing entry: {e}");
+                        None
+                    }
+                }
+            });
+
+        Ok(entries)
+    }
+
+    pub async fn entries_for_range(
+        &self,
+        range: Range3d,
+    ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
         let owned_entries = self
             .willow_peer
             .willow_data_manager
@@ -192,6 +235,19 @@ impl MdnAgentDataNodeWillowImpl {
         let cap_entries_stream = futures::stream::iter(caps_entries.into_iter().map(Ok));
 
         let entries = tokio_stream::StreamExt::merge(owned_entries, cap_entries_stream);
+
+        Ok(entries)
+    }
+    pub async fn all_values_with_entry_filter<F>(
+        &self,
+        filter_entry_fn: F,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>
+    where
+        F: Fn(&Entry) -> bool + Send + Sync + 'static,
+    {
+        let range = Range3d::new_full();
+
+        let entries = self.entries_for_range(range).await?;
 
         let records = entries
             .try_filter(move |e| {
