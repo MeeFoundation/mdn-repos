@@ -9,3 +9,11 @@ pub fn path_from_bytes_slice(bytes_slice: &[&[u8]]) -> MeeDataSyncResult<Path> {
             .collect::<Vec<_>>(),
     )?)
 }
+
+pub fn display_path(path: &Path) -> String {
+    path.components()
+        .into_iter()
+        .map(|c| String::from_utf8(c.to_vec()).unwrap())
+        .collect::<Vec<_>>()
+        .join("/")
+}

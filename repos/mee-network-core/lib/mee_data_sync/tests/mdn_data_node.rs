@@ -10,11 +10,14 @@ use iroh_willow::{
 };
 use mee_data_sync::{
     mdn::{
-        agent_data_node::MdnAgentDataNodeWillowImpl,
+        node::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
         store::{KeyComponents, MdnAgentDataNodeKvStore, ShortPathAttribute},
-        traits::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
+        willow_impl::node::MdnAgentDataNodeWillowImpl,
     },
-    willow::peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
+    willow::{
+        peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
+        utils::display_path,
+    },
 };
 use rand_chacha::{rand_core::SeedableRng, ChaCha12Rng};
 use std::time::Duration;
@@ -25,15 +28,6 @@ pub fn create_rng(seed: &str) -> ChaCha12Rng {
     ChaCha12Rng::from_seed(*(seed.as_bytes()))
 }
 
-fn draw_path_from_area(area: Area) -> String {
-    area.path()
-        .components()
-        .into_iter()
-        .map(|c| String::from_utf8(c.to_vec()).unwrap())
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
 async fn progress_session_intents(mut sync_event_stream: IntentHandle) {
     loop {
         select! {
@@ -41,13 +35,13 @@ async fn progress_session_intents(mut sync_event_stream: IntentHandle) {
                 match _ev {
                     Some(e) => match e {
                         iroh_willow::session::intents::EventKind::CapabilityIntersection { area, .. } => {
-                            log::info!("CapabilityIntersection: {}", draw_path_from_area(area));
+                            log::info!("CapabilityIntersection: {}", display_path(area.path()));
                         },
                         iroh_willow::session::intents::EventKind::InterestIntersection { area, .. } => {
-                            log::info!("InterestIntersection: {}", draw_path_from_area(area.area));
+                            log::info!("InterestIntersection: {}", display_path(area.area.path()));
                         },
                         iroh_willow::session::intents::EventKind::Reconciled { area, .. } => {
-                            log::info!("Reconciled: {}", draw_path_from_area(area.area));
+                            log::info!("Reconciled: {}", display_path(area.area.path()));
                         },
                         iroh_willow::session::intents::EventKind::ReconciledAll => {},
                         iroh_willow::session::intents::EventKind::Abort { .. } => {},
@@ -189,6 +183,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     let untied_willow_node_user_id = untied_mdn_node.user_id().await?;
 
     let oyt_data_subset_restriction = RestrictArea::Restrict(Area::new(
+        // TODO test subspace capability
         AreaSubspace::Any,
         city_record_path,
         Range::full(),

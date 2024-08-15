@@ -38,3 +38,9 @@ pub enum MeeDataSyncErr {
     #[error("Willow delegation handler error: {0}")]
     WillowDelegationHandler(String),
 }
+
+impl MeeDataSyncErr {
+    pub fn missing_agent_node_data_namespace() -> Self {
+        MeeDataSyncErr::WillowNamespaceHandler("Missing data namespace".to_string())
+    }
+}

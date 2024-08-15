@@ -8,7 +8,6 @@ pub struct WillowNamespaceManager {
     willow_user_manager: WillowUserManager,
 }
 
-// TODO add namespace mapping from human-readable names to Willow IDs
 impl WillowNamespaceManager {
     pub fn new(willow_node: WillowNode, willow_user_manager: WillowUserManager) -> Self {
         Self {
@@ -64,17 +63,5 @@ impl WillowNamespaceManager {
             .await?;
 
         Ok(namespace_id)
-    }
-
-    pub async fn get_namespace_or_create(
-        &self,
-        ns_kind: NamespaceKind,
-    ) -> MeeDataSyncResult<NamespaceId> {
-        let mut nss = self.filter_namespaces_by_type(ns_kind).await?;
-
-        match nss.pop() {
-            Some(v) => Ok(v),
-            None => self.create_namespace(ns_kind).await,
-        }
     }
 }

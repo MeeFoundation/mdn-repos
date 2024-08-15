@@ -1,12 +1,13 @@
-use super::{
-    store::{
-        FullPathAttribute, KeyComponents, MdnAgentDataNodeKvStore, ReadDataRecord,
-        ShortPathAttribute,
-    },
-    traits::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
-};
+use super::namespace::{NamespaceStoreInMemory, NamespaceStoreManager};
 use crate::{
-    error::MeeDataSyncResult,
+    error::{MeeDataSyncErr, MeeDataSyncResult},
+    mdn::{
+        node::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
+        store::{
+            FullPathAttribute, KeyComponents, MdnAgentDataNodeKvStore, ReadDataRecord,
+            ShortPathAttribute,
+        },
+    },
     willow::{
         peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
         utils::path_from_bytes_slice,
@@ -20,12 +21,12 @@ use iroh_willow::{
     proto::{
         data_model::{Entry, Path},
         grouping::Range3d,
-        keys::{NamespaceId, NamespaceKind, UserId},
+        keys::UserId,
         meadowcap::AccessMode,
     },
     session::intents::IntentHandle,
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 #[async_trait]
 impl MdnAgentDataNodeNetwork for MdnAgentDataNodeWillowImpl {
@@ -67,7 +68,15 @@ impl MdnAgentDataNodeDelegation for MdnAgentDataNodeWillowImpl {
         self.willow_peer
             .willow_delegation_manager
             .delegate_capabilities(
-                CapSelector::widest(self.own_data_namespace_id.clone()),
+                CapSelector::widest(
+                    self.ns_store_manager
+                        .store
+                        .get_agent_node_data_ns()
+                        .await?
+                        .ok_or_else(MeeDataSyncErr::missing_agent_node_data_namespace)?
+                        .0
+                        .clone(),
+                ),
                 access_mode,
                 to,
             )
@@ -88,21 +97,17 @@ impl MdnAgentDataNodeUser for MdnAgentDataNodeWillowImpl {
 #[derive(Clone)]
 pub struct MdnAgentDataNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
-    pub(crate) own_data_namespace_id: NamespaceId,
+    pub(crate) ns_store_manager: NamespaceStoreManager,
 }
 
 impl MdnAgentDataNodeWillowImpl {
-    // TODO maybe it is redundant, we'll see
-    // pub(crate) const DATA_NAMESPACE_PATH_PREFIX: &'static str = "mdn";
-
     pub async fn new(willow_peer: WillowPeer) -> MeeDataSyncResult<Self> {
-        let data_namespace_id = willow_peer
-            .willow_namespace_manager
-            .get_namespace_or_create(NamespaceKind::Owned)
-            .await?;
-
         Ok(Self {
-            own_data_namespace_id: data_namespace_id,
+            ns_store_manager: NamespaceStoreManager::new(
+                Arc::new(NamespaceStoreInMemory::new()),
+                willow_peer.willow_namespace_manager.clone(),
+            )
+            .await?,
             willow_peer,
         })
     }
@@ -195,10 +200,18 @@ impl MdnAgentDataNodeWillowImpl {
         &self,
         range: Range3d,
     ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
+        let own_data_namespace_id = self
+            .ns_store_manager
+            .store
+            .get_agent_node_data_ns()
+            .await?
+            .ok_or_else(MeeDataSyncErr::missing_agent_node_data_namespace)?
+            .0;
+
         let owned_entries = self
             .willow_peer
             .willow_data_manager
-            .get_entries_stream(self.own_data_namespace_id, range.clone())
+            .get_entries_stream(own_data_namespace_id, range.clone())
             .await?;
 
         let caps_ns = self
@@ -210,7 +223,7 @@ impl MdnAgentDataNodeWillowImpl {
             .filter_map(|c| {
                 let ns = c.namespace();
 
-                if ns != self.own_data_namespace_id {
+                if ns != own_data_namespace_id {
                     Some(ns)
                 } else {
                     None
@@ -251,6 +264,13 @@ impl MdnAgentDataNodeWillowImpl {
 
         let records = entries
             .try_filter(move |e| {
+                // log::warn!(
+                //     "p: {} ns: {} ss: {}",
+                //     display_path(e.path()),
+                //     e.namespace_id(),
+                //     e.subspace_id()
+                // );
+
                 let pred = filter_entry_fn(e);
 
                 async move { pred }

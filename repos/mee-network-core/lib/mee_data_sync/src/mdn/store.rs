@@ -1,4 +1,4 @@
-use super::agent_data_node::MdnAgentDataNodeWillowImpl;
+use crate::mdn::willow_impl::node::MdnAgentDataNodeWillowImpl;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
     willow::utils::path_from_bytes_slice,
@@ -94,7 +94,16 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
 
         self.willow_peer
             .willow_data_manager
-            .insert_entry(self.own_data_namespace_id, path, value)
+            .insert_entry(
+                self.ns_store_manager
+                    .store
+                    .get_agent_node_data_ns()
+                    .await?
+                    .ok_or_else(MeeDataSyncErr::missing_agent_node_data_namespace)?
+                    .0,
+                path,
+                value,
+            )
             .await?;
 
         Ok(())
