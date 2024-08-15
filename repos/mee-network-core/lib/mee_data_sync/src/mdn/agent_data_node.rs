@@ -238,7 +238,7 @@ impl MdnAgentDataNodeWillowImpl {
 
         Ok(entries)
     }
-    pub async fn all_values_with_entry_filter<F>(
+    pub async fn all_values_filter<F>(
         &self,
         filter_entry_fn: F,
     ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>
@@ -266,6 +266,10 @@ impl MdnAgentDataNodeWillowImpl {
                         .await?;
 
                     let record = if let Some(payload) = payload {
+                        if payload.is_empty() {
+                            return Ok(None);
+                        }
+
                         let key = path
                             .components()
                             .into_iter()

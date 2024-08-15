@@ -4,7 +4,7 @@ use crate::{
     willow::node::WillowNode,
 };
 use bytes::Bytes;
-use futures::{Stream, TryStreamExt};
+use futures::{future::join_all, Stream, TryStreamExt};
 use iroh_willow::{
     form::EntryForm,
     proto::{
@@ -66,11 +66,22 @@ impl WillowDataManager {
     pub async fn remove_entries(&self, entries: Vec<Entry>) -> MeeDataSyncResult<Vec<bool>> {
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
-        let res = self
-            .willow_node
-            .engine
-            .remove_entries(entries, user)
-            .await?;
+        let res = entries.into_iter().map(|entry| async move {
+            let entry =
+                EntryForm::new_bytes(entry.namespace_id().clone(), entry.path().clone(), vec![]);
+
+            let res = self.willow_node.engine.insert(entry, user).await;
+
+            match res {
+                Ok(res) => res.1,
+                Err(e) => {
+                    log::error!("Error removing entry: {e}");
+                    false
+                }
+            }
+        });
+
+        let res = join_all(res).await.into_iter().collect::<Vec<_>>();
 
         Ok(res)
     }

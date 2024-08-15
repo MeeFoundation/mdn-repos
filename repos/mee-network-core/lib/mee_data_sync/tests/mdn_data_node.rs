@@ -93,12 +93,13 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     let alice_cvv_path = format!("{alice_user_id}/payment_card/0/cvv");
     let bob_email_path = format!("{bob_user_id}/email");
     let temp_bob_phone_path = format!("{bob_user_id}/phone");
+    let temp_bob_phone = b"911";
 
     let city_record_path = oyt_mdn_node
         .make_entry_path_from_key_components(oyt_mdn_node.key_components(&alice_city_path)?)?;
 
     oyt_mdn_node
-        .set_value(&temp_bob_phone_path, b"911".to_vec())
+        .set_value(&temp_bob_phone_path, temp_bob_phone.to_vec())
         .await?;
 
     oyt_mdn_node
@@ -170,11 +171,12 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
         .get_all_values_stream()
         .await?
         .collect::<Vec<_>>()
-        .await
-        .into_iter()
-        .find(|e| e.key == temp_bob_phone_path);
+        .await;
 
-    assert!(bob_phone.is_none());
+    assert!(bob_phone
+        .iter()
+        .find(|e| e.key == temp_bob_phone_path)
+        .is_none());
 
     // Untied node
     let mut rng = create_rng("untied node");
@@ -271,6 +273,28 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
             if has_all_required_values {
                 assert_eq!(res.len(), 2);
 
+                break;
+            }
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+
+        // removes entry in source store
+        let del = oyt_mdn_node.del_value(&alice_city_path).await?;
+
+        assert!(del);
+
+        loop {
+            let res = untied_mdn_node
+                .get_all_values_stream()
+                .await?
+                .collect::<Vec<_>>()
+                .await;
+
+            let has_no_city_value = res.iter().find(|e| e.key == alice_city_path);
+
+            // should be no value after sync
+            if has_no_city_value.is_none() {
                 break;
             }
 

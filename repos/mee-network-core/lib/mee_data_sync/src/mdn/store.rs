@@ -39,18 +39,19 @@ pub trait MdnAgentDataNodeKvStore {
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult;
 
+    /// Delete value by key (full path is required!)
     async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool>;
 
     /// Asynchronously iterates over the whole store records
     async fn get_all_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
 
-    /// Asynchronously iterates over the records for provided user ID
+    /// Asynchronously iterates over the records for the provided user ID
     async fn get_values_stream_by_user(
         &self,
         user_id: &str,
     ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
 
-    /// Asynchronously iterates over the records for provided attribute name
+    /// Asynchronously iterates over the records for the provided attribute name
     async fn get_values_stream_by_attr(
         &self,
         attribute_name: &str,
@@ -99,7 +100,6 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
         Ok(())
     }
 
-    // TODO make willow entry deletion syncable
     async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool> {
         let res = self.remove_entries(key).await?.pop().unwrap_or(false);
 
@@ -113,7 +113,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
         let user_prefix = path_from_bytes_slice(&[user_id.as_bytes()])?;
 
         let res = self
-            .all_values_with_entry_filter(move |e| user_prefix.is_prefix_of(e.path()))
+            .all_values_filter(move |e| user_prefix.is_prefix_of(e.path()))
             .await?;
 
         Ok(res)
@@ -126,7 +126,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
         let attribute_name = attribute_name.to_string();
 
         let res = self
-            .all_values_with_entry_filter(move |e| {
+            .all_values_filter(move |e| {
                 let attribute_name_component = e.path().get_component(1);
                 if let Some(attr) =
                     attribute_name_component.and_then(|c| String::from_utf8(c.to_vec()).ok())
@@ -142,7 +142,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
     }
 
     async fn get_all_values_stream(&self) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
-        let res = self.all_values_with_entry_filter(|_| true).await?;
+        let res = self.all_values_filter(|_| true).await?;
 
         Ok(res)
     }
