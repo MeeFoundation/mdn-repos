@@ -1,98 +1,18 @@
 use super::namespace::{NamespaceStoreInMemory, NamespaceStoreManager};
 use crate::{
-    error::{MeeDataSyncErr, MeeDataSyncResult},
-    mdn::{
-        node::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
-        store::{
-            FullPathAttribute, KeyComponents, MdnAgentDataNodeKvStore, ReadDataRecord,
-            ShortPathAttribute,
-        },
+    error::MeeDataSyncResult,
+    mdn::store::{
+        FullPathAttribute, KeyComponents, MdnAgentDataNodeKvStore, ReadDataRecord,
+        ShortPathAttribute,
     },
-    willow::{
-        peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
-        utils::path_from_bytes_slice,
-    },
+    willow::{peer::WillowPeer, utils::path_from_bytes_slice},
 };
-use async_trait::async_trait;
 use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
-use iroh_net::{ticket::NodeTicket, NodeAddr};
-use iroh_willow::{
-    interest::{CapSelector, CapabilityPack, DelegateTo},
-    proto::{
-        data_model::{Entry, Path},
-        grouping::Range3d,
-        keys::UserId,
-        meadowcap::AccessMode,
-    },
-    session::intents::IntentHandle,
+use iroh_willow::proto::{
+    data_model::{Entry, Path},
+    grouping::Range3d,
 };
 use std::{collections::HashSet, sync::Arc};
-
-#[async_trait]
-impl MdnAgentDataNodeNetwork for MdnAgentDataNodeWillowImpl {
-    async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket> {
-        self.willow_peer
-            .willow_network_manager
-            .iroh_node_ticket()
-            .await
-    }
-    async fn network_node_addr(&self) -> MeeDataSyncResult<NodeAddr> {
-        self.willow_peer
-            .willow_network_manager
-            .iroh_node_addr()
-            .await
-    }
-    fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult {
-        self.willow_peer
-            .willow_network_manager
-            .add_remote_peer(node_addr)
-    }
-}
-
-#[async_trait]
-impl MdnAgentDataNodeDelegation for MdnAgentDataNodeWillowImpl {
-    async fn import_capabilities_from_remote_peer(
-        &self,
-        caps: ImportCapabilitiesFromRemotePeer,
-    ) -> MeeDataSyncResult<IntentHandle> {
-        self.willow_peer
-            .willow_delegation_manager
-            .import_capabilities_from_remote_peer(caps)
-            .await
-    }
-    async fn delegate_capabilities(
-        &self,
-        access_mode: AccessMode,
-        to: DelegateTo,
-    ) -> MeeDataSyncResult<Vec<CapabilityPack>> {
-        self.willow_peer
-            .willow_delegation_manager
-            .delegate_capabilities(
-                CapSelector::widest(
-                    self.ns_store_manager
-                        .store
-                        .get_agent_node_data_ns()
-                        .await?
-                        .ok_or_else(MeeDataSyncErr::missing_agent_node_data_namespace)?
-                        .0
-                        .clone(),
-                ),
-                access_mode,
-                to,
-            )
-            .await
-    }
-}
-
-#[async_trait]
-impl MdnAgentDataNodeUser for MdnAgentDataNodeWillowImpl {
-    async fn user_id(&self) -> MeeDataSyncResult<UserId> {
-        self.willow_peer
-            .willow_user_manager
-            .get_active_user_profile()
-            .await
-    }
-}
 
 #[derive(Clone)]
 pub struct MdnAgentDataNodeWillowImpl {
@@ -111,7 +31,7 @@ impl MdnAgentDataNodeWillowImpl {
             willow_peer,
         })
     }
-    pub fn make_entry_path_from_key_components(
+    pub fn data_entry_path_from_key_components(
         &self,
         key_components: KeyComponents,
     ) -> MeeDataSyncResult<Path> {
@@ -150,10 +70,10 @@ impl MdnAgentDataNodeWillowImpl {
     }
     pub async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
         let comps = self.key_components(key)?;
-        let path = self.make_entry_path_from_key_components(comps)?;
+        let path = self.data_entry_path_from_key_components(comps)?;
 
         let entries = self
-            .all_entries_filter(move |e| e.path() == &path)
+            .all_data_entries_filter(move |e| e.path() == &path)
             .await?
             .collect::<Vec<_>>()
             .await;
@@ -166,7 +86,7 @@ impl MdnAgentDataNodeWillowImpl {
 
         Ok(res)
     }
-    pub async fn all_entries_filter<F>(
+    pub async fn all_data_entries_filter<F>(
         &self,
         filter_entry_fn: F,
     ) -> MeeDataSyncResult<impl Stream<Item = Entry>>
@@ -176,7 +96,7 @@ impl MdnAgentDataNodeWillowImpl {
         let range = Range3d::new_full();
 
         let entries = self
-            .entries_for_range(range)
+            .data_entries_for_range(range)
             .await?
             .try_filter(move |e| {
                 let pred = filter_entry_fn(e);
@@ -196,17 +116,17 @@ impl MdnAgentDataNodeWillowImpl {
         Ok(entries)
     }
 
-    pub async fn entries_for_range(
+    pub async fn data_entries_for_range(
         &self,
         range: Range3d,
     ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
-        let own_data_namespace_id = self
+        let own_data_namespace_id = self.ns_store_manager.get_agent_node_data_ns().await?.0;
+        let own_revoke_list_caps = self.ns_store_manager.get_cap_revoke_list_ns().await?.0;
+
+        let others_revoke_list_caps = self
             .ns_store_manager
-            .store
-            .get_agent_node_data_ns()
-            .await?
-            .ok_or_else(MeeDataSyncErr::missing_agent_node_data_namespace)?
-            .0;
+            .get_others_cap_revoke_list_nss()
+            .await?;
 
         let owned_entries = self
             .willow_peer
@@ -221,9 +141,14 @@ impl MdnAgentDataNodeWillowImpl {
             .await?
             .into_iter()
             .filter_map(|c| {
+                // log::warn!("cap: {c:#?}");
+
                 let ns = c.namespace();
 
-                if ns != own_data_namespace_id {
+                if ns != own_revoke_list_caps
+                    && ns != own_data_namespace_id
+                    && !others_revoke_list_caps.iter().any(|c| c.ns_id == ns)
+                {
                     Some(ns)
                 } else {
                     None
@@ -260,7 +185,7 @@ impl MdnAgentDataNodeWillowImpl {
     {
         let range = Range3d::new_full();
 
-        let entries = self.entries_for_range(range).await?;
+        let entries = self.data_entries_for_range(range).await?;
 
         let records = entries
             .try_filter(move |e| {

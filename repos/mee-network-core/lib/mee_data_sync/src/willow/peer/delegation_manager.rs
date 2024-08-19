@@ -1,18 +1,35 @@
 use super::network_manager::WillowNetworkManager;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
+    mdn::node::{MdnDataDelegationCapabilityPack, MdnDataDelegationCapabilityRole},
     willow::node::WillowNode,
 };
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests},
-    proto::meadowcap::{AccessMode, ReadAuthorisation},
+    proto::{
+        grouping::Area,
+        keys::NamespaceId,
+        meadowcap::{AccessMode, ReadAuthorisation},
+    },
     session::{intents::IntentHandle, SessionInit, SessionMode},
 };
 
+pub fn cap_granted_components(cap_pack: &CapabilityPack) -> (NamespaceId, Area) {
+    match cap_pack {
+        CapabilityPack::Read(read_cap) => (
+            *read_cap.read_cap().granted_namespace(),
+            read_cap.read_cap().granted_area(),
+        ),
+        CapabilityPack::Write(write_cap) => {
+            (*write_cap.granted_namespace(), write_cap.granted_area())
+        }
+    }
+}
+
 pub struct ImportCapabilitiesFromRemotePeer {
     pub node_ticket: String,
-    pub caps: Vec<CapabilityPack>,
+    pub caps: Vec<MdnDataDelegationCapabilityPack>,
 }
 
 /// Data sharing, sync management sessions
@@ -44,22 +61,19 @@ impl WillowDelegationManager {
         self.willow_network_manager
             .add_remote_peer(ticket.node_addr().clone())?;
 
-        self.willow_node.engine.import_caps(caps.clone()).await?;
+        self.willow_node
+            .engine
+            .import_caps(caps.iter().map(|c| c.cap_pack.clone()).collect())
+            .await?;
 
         let mut interests = Interests::builder();
 
         for cap in caps.iter() {
-            let (ns, area) = match cap {
-                CapabilityPack::Read(read_cap) => (
-                    read_cap.read_cap().granted_namespace(),
-                    read_cap.read_cap().granted_area(),
-                ),
-                CapabilityPack::Write(write_cap) => {
-                    (write_cap.granted_namespace(), write_cap.granted_area())
-                }
-            };
+            if let MdnDataDelegationCapabilityRole::MdnDataSharing = cap.cap_role {
+                let (ns, area) = cap_granted_components(&cap.cap_pack);
 
-            interests = interests.add_area(*ns, [area]);
+                interests = interests.add_area(ns, [area]);
+            }
         }
 
         let init = SessionInit::new(interests, SessionMode::Continuous);

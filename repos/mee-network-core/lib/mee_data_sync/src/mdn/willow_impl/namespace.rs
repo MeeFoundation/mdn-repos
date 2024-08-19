@@ -1,6 +1,12 @@
-use crate::{error::MeeDataSyncResult, willow::peer::namespace_manager::WillowNamespaceManager};
+use crate::{
+    error::{MeeDataSyncErr, MeeDataSyncResult},
+    willow::peer::namespace_manager::WillowNamespaceManager,
+};
 use async_trait::async_trait;
-use iroh_willow::proto::{data_model::NamespaceId, keys::NamespaceKind};
+use iroh_willow::proto::{
+    data_model::NamespaceId,
+    keys::{NamespaceKind, UserId},
+};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
@@ -11,12 +17,21 @@ pub struct AgentNodeDataNs(pub NamespaceId);
 pub struct CapabilityRevocationListNs(pub NamespaceId);
 
 #[derive(Debug, Clone)]
+pub struct OtherPeerCapabilityRevocationNs {
+    pub peer_id: UserId,
+    pub ns_id: NamespaceId,
+}
+
+#[derive(Debug, Clone)]
 pub enum NamespaceType {
     /// Owned namespace for storing actual data (persona model attributes)
     AgentNodeDataNs(AgentNodeDataNs),
 
     /// Communal namespace for capability revocation list
     CapabilityRevocationListNs(CapabilityRevocationListNs),
+
+    /// Revocations lists from other peers delegated access to this peer
+    OtherPeerCapabilityRevocationNs(OtherPeerCapabilityRevocationNs),
 }
 
 impl NamespaceType {
@@ -24,6 +39,7 @@ impl NamespaceType {
         match self {
             NamespaceType::AgentNodeDataNs(ns) => ns.0,
             NamespaceType::CapabilityRevocationListNs(ns) => ns.0,
+            NamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.ns_id,
         }
     }
 }
@@ -35,6 +51,9 @@ pub trait NamespaceStore {
     async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<Option<AgentNodeDataNs>>;
     async fn get_cap_revoke_list_ns(&self)
         -> MeeDataSyncResult<Option<CapabilityRevocationListNs>>;
+    async fn get_others_cap_revoke_list_nss(
+        &self,
+    ) -> MeeDataSyncResult<Vec<OtherPeerCapabilityRevocationNs>>;
 }
 
 #[async_trait]
@@ -51,6 +70,23 @@ impl NamespaceStore for NamespaceStoreInMemory {
             .insert(ns_type.namespace_id(), ns_type);
 
         Ok(())
+    }
+    async fn get_others_cap_revoke_list_nss(
+        &self,
+    ) -> MeeDataSyncResult<Vec<OtherPeerCapabilityRevocationNs>> {
+        let nss = self
+            .store
+            .lock()
+            .await
+            .iter()
+            .filter_map(|(_, ns)| match ns {
+                NamespaceType::OtherPeerCapabilityRevocationNs(v) => Some(v),
+                _ => None,
+            })
+            .cloned()
+            .collect();
+
+        Ok(nss)
     }
     async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<Option<AgentNodeDataNs>> {
         let ns = self
@@ -99,8 +135,7 @@ impl NamespaceStoreInMemory {
 
 #[derive(Clone)]
 pub struct NamespaceStoreManager {
-    pub(crate) store: Arc<dyn NamespaceStore + Send + Sync>,
-    willow_namespace_manager: WillowNamespaceManager,
+    store: Arc<dyn NamespaceStore + Send + Sync>,
 }
 
 impl NamespaceStoreManager {
@@ -118,6 +153,8 @@ impl NamespaceStoreManager {
                     own_data_namespace_id,
                 )))
                 .await?;
+
+            log::info!("Willow data namespace has created: {own_data_namespace_id}");
         }
 
         if store.get_cap_revoke_list_ns().await?.is_none() {
@@ -130,11 +167,60 @@ impl NamespaceStoreManager {
                     CapabilityRevocationListNs(cap_revocation_list_ns_id),
                 ))
                 .await?;
+
+            log::info!(
+                "Willow caps revocation list namespace has created: {cap_revocation_list_ns_id}"
+            );
         }
 
-        Ok(Self {
-            store,
-            willow_namespace_manager,
-        })
+        Ok(Self { store })
+    }
+    pub async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<AgentNodeDataNs> {
+        let res = self
+            .store
+            .get_agent_node_data_ns()
+            .await?
+            .ok_or_else(MeeDataSyncErr::missing_agent_node_data_namespace)?;
+
+        Ok(res)
+    }
+    pub async fn get_cap_revoke_list_ns(&self) -> MeeDataSyncResult<CapabilityRevocationListNs> {
+        let res = self
+            .store
+            .get_cap_revoke_list_ns()
+            .await?
+            .ok_or_else(MeeDataSyncErr::missing_cap_revoke_list_namespace)?;
+
+        Ok(res)
+    }
+    pub async fn set_other_peer_revocation_list_ns(
+        &self,
+        ns_id: NamespaceId,
+        peer_id: UserId,
+    ) -> MeeDataSyncResult {
+        self.store
+            .set_ns(NamespaceType::OtherPeerCapabilityRevocationNs(
+                OtherPeerCapabilityRevocationNs { peer_id, ns_id },
+            ))
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_others_cap_revoke_list_nss(
+        &self,
+    ) -> MeeDataSyncResult<Vec<OtherPeerCapabilityRevocationNs>> {
+        self.store.get_others_cap_revoke_list_nss().await
+    }
+}
+
+impl MeeDataSyncErr {
+    pub fn missing_agent_node_data_namespace() -> Self {
+        MeeDataSyncErr::WillowNamespaceHandler("Missing data namespace".to_string())
+    }
+    pub fn missing_cap_revoke_list_namespace() -> Self {
+        MeeDataSyncErr::WillowNamespaceHandler(
+            "Missing capability revocation namespace".to_string(),
+        )
     }
 }

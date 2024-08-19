@@ -11,9 +11,16 @@ pub fn path_from_bytes_slice(bytes_slice: &[&[u8]]) -> MeeDataSyncResult<Path> {
 }
 
 pub fn display_path(path: &Path) -> String {
-    path.components()
+    let p = path
+        .components()
         .into_iter()
         .map(|c| String::from_utf8(c.to_vec()).unwrap())
         .collect::<Vec<_>>()
-        .join("/")
+        .join("/");
+
+    if p.is_empty() {
+        "*".to_string()
+    } else {
+        p
+    }
 }

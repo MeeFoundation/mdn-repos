@@ -18,7 +18,11 @@ impl WillowUserManager {
         let profile = if let Some(user) = users.pop() {
             user
         } else {
-            self.willow_node.engine.create_user().await?
+            let user_id = self.willow_node.engine.create_user().await?;
+
+            log::info!("Willow user has created: {user_id}");
+
+            user_id
         };
 
         Ok(profile)

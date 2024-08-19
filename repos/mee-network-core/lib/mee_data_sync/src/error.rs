@@ -19,6 +19,9 @@ pub enum MeeDataSyncErr {
     #[error("tokio task join error: {0}")]
     TokioJoinError(#[from] JoinError),
 
+    #[error("JSON codec error: {0}")]
+    JsonCodec(#[from] serde_json::Error),
+
     #[error("willow invalid path error: {0}")]
     WillowInvalidPath(#[from] InvalidPathError),
 
@@ -37,10 +40,4 @@ pub enum MeeDataSyncErr {
 
     #[error("Willow delegation handler error: {0}")]
     WillowDelegationHandler(String),
-}
-
-impl MeeDataSyncErr {
-    pub fn missing_agent_node_data_namespace() -> Self {
-        MeeDataSyncErr::WillowNamespaceHandler("Missing data namespace".to_string())
-    }
 }
