@@ -63,12 +63,19 @@ impl WillowDataManager {
             .try_collect()
             .await?)
     }
-    pub async fn remove_entries(&self, entries: Vec<Entry>) -> MeeDataSyncResult<Vec<bool>> {
+    pub async fn remove_entries_completely(
+        &self,
+        entries: Vec<Entry>,
+    ) -> MeeDataSyncResult<Vec<bool>> {
+        Ok(self.willow_node.engine.remove_entries(entries).await?)
+    }
+    pub async fn remove_entries_softly(&self, entries: Vec<Entry>) -> MeeDataSyncResult<Vec<bool>> {
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
+        // TODO willow-iroh still has bug with empty payload, [0] as workaround at the moment
         let res = entries.into_iter().map(|entry| async move {
             let entry =
-                EntryForm::new_bytes(entry.namespace_id().clone(), entry.path().clone(), vec![]);
+                EntryForm::new_bytes(entry.namespace_id().clone(), entry.path().clone(), vec![0]);
 
             let res = self.willow_node.engine.insert(entry, user).await;
 

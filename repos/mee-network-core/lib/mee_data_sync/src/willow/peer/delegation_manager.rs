@@ -1,18 +1,16 @@
 use super::network_manager::WillowNetworkManager;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
-    mdn::node::{MdnDataDelegationCapabilityPack, MdnDataDelegationCapabilityRole},
     willow::node::WillowNode,
 };
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
-    interest::{CapSelector, CapabilityPack, DelegateTo, Interests},
+    interest::{CapSelector, CapabilityPack, DelegateTo},
     proto::{
         grouping::Area,
         keys::NamespaceId,
-        meadowcap::{AccessMode, ReadAuthorisation},
+        meadowcap::{AccessMode, McCapability, ReadAuthorisation},
     },
-    session::{intents::IntentHandle, SessionInit, SessionMode},
 };
 
 pub fn cap_granted_components(cap_pack: &CapabilityPack) -> (NamespaceId, Area) {
@@ -25,11 +23,6 @@ pub fn cap_granted_components(cap_pack: &CapabilityPack) -> (NamespaceId, Area) 
             (*write_cap.granted_namespace(), write_cap.granted_area())
         }
     }
-}
-
-pub struct ImportCapabilitiesFromRemotePeer {
-    pub node_ticket: String,
-    pub caps: Vec<MdnDataDelegationCapabilityPack>,
 }
 
 /// Data sharing, sync management sessions
@@ -48,43 +41,21 @@ impl WillowDelegationManager {
     }
     pub async fn import_capabilities_from_remote_peer(
         &self,
-        ImportCapabilitiesFromRemotePeer { caps, node_ticket }: ImportCapabilitiesFromRemotePeer,
-    ) -> MeeDataSyncResult<IntentHandle> {
+        caps: Vec<CapabilityPack>,
+        ticket: &NodeTicket,
+    ) -> MeeDataSyncResult {
         if caps.is_empty() {
             Err(MeeDataSyncErr::WillowDelegationHandler(
                 "Attempt to import empty capability list".to_string(),
             ))?;
         }
 
-        let ticket: NodeTicket = node_ticket.parse()?;
-
         self.willow_network_manager
             .add_remote_peer(ticket.node_addr().clone())?;
 
-        self.willow_node
-            .engine
-            .import_caps(caps.iter().map(|c| c.cap_pack.clone()).collect())
-            .await?;
+        self.willow_node.engine.import_caps(caps).await?;
 
-        let mut interests = Interests::builder();
-
-        for cap in caps.iter() {
-            if let MdnDataDelegationCapabilityRole::MdnDataSharing = cap.cap_role {
-                let (ns, area) = cap_granted_components(&cap.cap_pack);
-
-                interests = interests.add_area(ns, [area]);
-            }
-        }
-
-        let init = SessionInit::new(interests, SessionMode::Continuous);
-
-        let sync_intent = self
-            .willow_node
-            .engine
-            .sync_with_peer(ticket.node_addr().node_id, init)
-            .await?;
-
-        Ok(sync_intent)
+        Ok(())
     }
     pub async fn delegate_capabilities(
         &self,
@@ -99,6 +70,13 @@ impl WillowDelegationManager {
             .await?;
 
         Ok(caps)
+    }
+
+    pub async fn delete_capabilities(
+        &self,
+        cap_selector: CapSelector,
+    ) -> MeeDataSyncResult<Vec<McCapability>> {
+        Ok(self.willow_node.engine.del_caps(cap_selector).await?)
     }
 
     pub async fn list_read_caps(&self) -> MeeDataSyncResult<Vec<ReadAuthorisation>> {

@@ -5,12 +5,11 @@ use mee_data_sync::{
     mdn::{
         node::{MdnAgentDataNodeDelegation, MdnAgentDataNodeNetwork, MdnAgentDataNodeUser},
         store::MdnAgentDataNodeKvStore,
-        willow_impl::node::MdnAgentDataNodeWillowImpl,
+        willow_impl::{
+            delegation::ImportCapabilitiesFromRemotePeer, node::MdnAgentDataNodeWillowImpl,
+        },
     },
-    willow::{
-        peer::{delegation_manager::ImportCapabilitiesFromRemotePeer, WillowPeer},
-        utils::display_path,
-    },
+    willow::{peer::WillowPeer, utils::display_path},
 };
 use rand_chacha::{rand_core::SeedableRng, ChaCha12Rng};
 use std::time::Duration;
@@ -167,20 +166,20 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     assert!(bob_phone.is_some());
 
     // TODO wait for empty `iroh-willow` payload bug fix
-    // let res = oyt_mdn_node.del_value(&temp_bob_phone_path).await?;
+    let res = oyt_mdn_node.del_value(&temp_bob_phone_path).await?;
 
-    // assert!(res);
+    assert!(res);
 
-    // let bob_phone = oyt_mdn_node
-    //     .get_all_values_stream()
-    //     .await?
-    //     .collect::<Vec<_>>()
-    //     .await;
+    let bob_phone = oyt_mdn_node
+        .get_all_values_stream()
+        .await?
+        .collect::<Vec<_>>()
+        .await;
 
-    // assert!(bob_phone
-    //     .iter()
-    //     .find(|e| e.key == temp_bob_phone_path)
-    //     .is_none());
+    assert!(bob_phone
+        .iter()
+        .find(|e| e.key == temp_bob_phone_path)
+        .is_none());
 
     // Untied node
     let mut rng = create_rng("untied node");
@@ -194,6 +193,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     // single value sub-attribute sharing
     let cap_for_untied = oyt_mdn_node
+        .mdn_delegation_manager
         .delegate_read_access(&alice_city_path, untied_willow_node_user_id)
         .await?;
 
@@ -205,6 +205,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     };
 
     let sync_event_stream = untied_mdn_node
+        .mdn_delegation_manager
         .import_capabilities_from_remote_peer(caps)
         .await?;
 
@@ -212,6 +213,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     // multiple values root attribute sharing
     let cap_for_untied = oyt_mdn_node
+        .mdn_delegation_manager
         .delegate_read_access(&alice_address_path, untied_willow_node_user_id)
         .await?;
 
@@ -221,6 +223,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     };
 
     let sync_event_stream = untied_mdn_node
+        .mdn_delegation_manager
         .import_capabilities_from_remote_peer(caps)
         .await?;
 
@@ -257,40 +260,51 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
             sleep(Duration::from_secs(1)).await;
         }
 
+        // TODO wait for empty `iroh-willow` payload bug fix
+        // removes entry in source store
+        let del = oyt_mdn_node.del_value(&alice_city_path).await?;
+
+        assert!(del);
+
+        loop {
+            let res = untied_mdn_node
+                .get_all_values_stream()
+                .await?
+                .collect::<Vec<_>>()
+                .await;
+
+            log::info!("delegated data: {res:#?}");
+
+            let has_no_city_value = res.iter().find(|e| e.key == alice_city_path);
+
+            // should be no value after sync
+            if has_no_city_value.is_none() {
+                break;
+            }
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+
         oyt_mdn_node
+            .mdn_delegation_manager
             .revoke_shared_access(&alice_address_path, untied_willow_node_user_id)
             .await?;
 
         loop {
-            let res = untied_mdn_node.read_revocation_list().await?;
+            let res = untied_mdn_node
+                .get_all_values_stream()
+                .await?
+                .collect::<Vec<_>>()
+                .await;
 
-            log::info!("revocation metadata: {res:#?}");
+            log::info!("delegated data: {:#?}", res);
+
+            if res.is_empty() {
+                break;
+            }
 
             sleep(Duration::from_secs(1)).await;
         }
-
-        // TODO wait for empty `iroh-willow` payload bug fix
-        // removes entry in source store
-        // let del = oyt_mdn_node.del_value(&alice_city_path).await?;
-
-        // assert!(del);
-
-        // loop {
-        //     let res = untied_mdn_node
-        //         .get_all_values_stream()
-        //         .await?
-        //         .collect::<Vec<_>>()
-        //         .await;
-
-        //     let has_no_city_value = res.iter().find(|e| e.key == alice_city_path);
-
-        //     // should be no value after sync
-        //     if has_no_city_value.is_none() {
-        //         break;
-        //     }
-
-        //     tokio::time::sleep(Duration::from_secs(1)).await;
-        // }
 
         Ok(()) as anyhow::Result<()>
     });

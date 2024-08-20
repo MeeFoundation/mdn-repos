@@ -15,7 +15,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
     fn key_components_splitter() -> &'static str {
         "/"
     }
-    fn key_components(&self, key: &str) -> MeeDataSyncResult<KeyComponents> {
+    fn key_components(key: &str) -> MeeDataSyncResult<KeyComponents> {
         let components = key
             .split(Self::key_components_splitter())
             .collect::<Vec<_>>();
@@ -42,12 +42,12 @@ impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
     }
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult {
-        let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
+        let path = Self::data_entry_path_from_key_components(Self::key_components(key)?)?;
 
         self.willow_peer
             .willow_data_manager
             .insert_entry(
-                self.ns_store_manager.get_agent_node_data_ns().await?.0,
+                self.mdn_ns_store_manager.get_agent_node_data_ns().await?.0,
                 path,
                 value,
             )

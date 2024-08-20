@@ -1,6 +1,5 @@
-use crate::{
-    error::MeeDataSyncResult, willow::peer::delegation_manager::ImportCapabilitiesFromRemotePeer,
-};
+use super::willow_impl::delegation::ImportCapabilitiesFromRemotePeer;
+use crate::error::MeeDataSyncResult;
 use async_trait::async_trait;
 use iroh_net::{ticket::NodeTicket, NodeAddr};
 use iroh_willow::{
@@ -19,13 +18,14 @@ pub trait MdnAgentDataNodeUser {
 pub enum MdnDataDelegationCapabilityRole {
     MdnDataSharing,
     RevocationListReceiver,
-    RevocationListSender,
+    RevocationListSignalingSender,
 }
 
 #[derive(Debug)]
 pub struct MdnDataDelegationCapabilityPack {
     pub cap_pack: CapabilityPack,
     pub cap_role: MdnDataDelegationCapabilityRole,
+    pub cap_issuer: UserId,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

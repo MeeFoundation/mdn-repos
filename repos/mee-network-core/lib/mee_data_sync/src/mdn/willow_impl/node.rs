@@ -1,4 +1,7 @@
-use super::namespace::{NamespaceStoreInMemory, NamespaceStoreManager};
+use super::{
+    delegation::MdnDelegationManager,
+    namespace::{MdnNamespaceStoreManager, NamespaceStoreInMemory},
+};
 use crate::{
     error::MeeDataSyncResult,
     mdn::store::{
@@ -13,26 +16,43 @@ use iroh_willow::proto::{
     grouping::Range3d,
 };
 use std::{collections::HashSet, sync::Arc};
+use tokio::task::JoinHandle;
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct MdnAgentDataNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
-    pub(crate) ns_store_manager: NamespaceStoreManager,
+    pub(crate) mdn_ns_store_manager: MdnNamespaceStoreManager,
+    pub mdn_delegation_manager: MdnDelegationManager,
+    cap_revoke_task: Arc<JoinHandle<()>>,
+}
+
+impl Drop for MdnAgentDataNodeWillowImpl {
+    fn drop(&mut self) {
+        self.cap_revoke_task.abort();
+    }
 }
 
 impl MdnAgentDataNodeWillowImpl {
     pub async fn new(willow_peer: WillowPeer) -> MeeDataSyncResult<Self> {
+        let mdn_ns_store_manager = MdnNamespaceStoreManager::new(
+            Arc::new(NamespaceStoreInMemory::new()),
+            willow_peer.willow_namespace_manager.clone(),
+        )
+        .await?;
+
+        let mdn_delegation_manager =
+            MdnDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager.clone());
+
+        let cap_revoke_taks = mdn_delegation_manager.clone().run_revocation_handler();
+
         Ok(Self {
-            ns_store_manager: NamespaceStoreManager::new(
-                Arc::new(NamespaceStoreInMemory::new()),
-                willow_peer.willow_namespace_manager.clone(),
-            )
-            .await?,
+            cap_revoke_task: Arc::new(cap_revoke_taks),
+            mdn_delegation_manager,
+            mdn_ns_store_manager,
             willow_peer,
         })
     }
     pub fn data_entry_path_from_key_components(
-        &self,
         key_components: KeyComponents,
     ) -> MeeDataSyncResult<Path> {
         let mut path_components = vec![];
@@ -69,8 +89,8 @@ impl MdnAgentDataNodeWillowImpl {
         Ok(path)
     }
     pub async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
-        let comps = self.key_components(key)?;
-        let path = self.data_entry_path_from_key_components(comps)?;
+        let comps = Self::key_components(key)?;
+        let path = Self::data_entry_path_from_key_components(comps)?;
 
         let entries = self
             .all_data_entries_filter(move |e| e.path() == &path)
@@ -81,7 +101,7 @@ impl MdnAgentDataNodeWillowImpl {
         let res = self
             .willow_peer
             .willow_data_manager
-            .remove_entries(entries)
+            .remove_entries_softly(entries)
             .await?;
 
         Ok(res)
@@ -120,11 +140,11 @@ impl MdnAgentDataNodeWillowImpl {
         &self,
         range: Range3d,
     ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
-        let own_data_namespace_id = self.ns_store_manager.get_agent_node_data_ns().await?.0;
-        let own_revoke_list_caps = self.ns_store_manager.get_cap_revoke_list_ns().await?.0;
+        let own_data_namespace_id = self.mdn_ns_store_manager.get_agent_node_data_ns().await?.0;
+        let own_revoke_list_caps = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
 
         let others_revoke_list_caps = self
-            .ns_store_manager
+            .mdn_ns_store_manager
             .get_others_cap_revoke_list_nss()
             .await?;
 
@@ -211,7 +231,7 @@ impl MdnAgentDataNodeWillowImpl {
                         .await?;
 
                     let record = if let Some(payload) = payload {
-                        if payload.is_empty() {
+                        if payload.is_empty() || *payload == [0] {
                             return Ok(None);
                         }
 

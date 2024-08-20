@@ -31,7 +31,7 @@ pub struct ReadDataRecord {
 pub trait MdnAgentDataNodeKvStore {
     fn key_components_splitter() -> &'static str;
     /// Extracts key parts (user, attribute name, sub-attribute name, etc.) from a key.
-    fn key_components(&self, key: &str) -> MeeDataSyncResult<KeyComponents>;
+    fn key_components(key: &str) -> MeeDataSyncResult<KeyComponents>;
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult;
 

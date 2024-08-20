@@ -23,7 +23,7 @@ pub struct OtherPeerCapabilityRevocationNs {
 }
 
 #[derive(Debug, Clone)]
-pub enum NamespaceType {
+pub enum MdnNamespaceType {
     /// Owned namespace for storing actual data (persona model attributes)
     AgentNodeDataNs(AgentNodeDataNs),
 
@@ -34,20 +34,20 @@ pub enum NamespaceType {
     OtherPeerCapabilityRevocationNs(OtherPeerCapabilityRevocationNs),
 }
 
-impl NamespaceType {
+impl MdnNamespaceType {
     pub fn namespace_id(&self) -> NamespaceId {
         match self {
-            NamespaceType::AgentNodeDataNs(ns) => ns.0,
-            NamespaceType::CapabilityRevocationListNs(ns) => ns.0,
-            NamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.ns_id,
+            MdnNamespaceType::AgentNodeDataNs(ns) => ns.0,
+            MdnNamespaceType::CapabilityRevocationListNs(ns) => ns.0,
+            MdnNamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.ns_id,
         }
     }
 }
 
 #[async_trait]
-pub trait NamespaceStore {
+pub trait MdnNamespaceStore {
     async fn has_ns(&self, ns_id: NamespaceId) -> MeeDataSyncResult<bool>;
-    async fn set_ns(&self, ns_type: NamespaceType) -> MeeDataSyncResult;
+    async fn set_ns(&self, ns_type: MdnNamespaceType) -> MeeDataSyncResult;
     async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<Option<AgentNodeDataNs>>;
     async fn get_cap_revoke_list_ns(&self)
         -> MeeDataSyncResult<Option<CapabilityRevocationListNs>>;
@@ -57,13 +57,13 @@ pub trait NamespaceStore {
 }
 
 #[async_trait]
-impl NamespaceStore for NamespaceStoreInMemory {
+impl MdnNamespaceStore for NamespaceStoreInMemory {
     async fn has_ns(&self, ns_id: NamespaceId) -> MeeDataSyncResult<bool> {
         let res = self.store.lock().await.contains_key(&ns_id);
 
         Ok(res)
     }
-    async fn set_ns(&self, ns_type: NamespaceType) -> MeeDataSyncResult {
+    async fn set_ns(&self, ns_type: MdnNamespaceType) -> MeeDataSyncResult {
         self.store
             .lock()
             .await
@@ -80,7 +80,7 @@ impl NamespaceStore for NamespaceStoreInMemory {
             .await
             .iter()
             .filter_map(|(_, ns)| match ns {
-                NamespaceType::OtherPeerCapabilityRevocationNs(v) => Some(v),
+                MdnNamespaceType::OtherPeerCapabilityRevocationNs(v) => Some(v),
                 _ => None,
             })
             .cloned()
@@ -95,7 +95,7 @@ impl NamespaceStore for NamespaceStoreInMemory {
             .await
             .iter()
             .find_map(|(_, ns)| match ns {
-                NamespaceType::AgentNodeDataNs(v) => Some(v),
+                MdnNamespaceType::AgentNodeDataNs(v) => Some(v),
                 _ => None,
             })
             .cloned();
@@ -111,7 +111,7 @@ impl NamespaceStore for NamespaceStoreInMemory {
             .await
             .iter()
             .find_map(|(_, ns)| match ns {
-                NamespaceType::CapabilityRevocationListNs(v) => Some(v),
+                MdnNamespaceType::CapabilityRevocationListNs(v) => Some(v),
                 _ => None,
             })
             .cloned();
@@ -122,7 +122,7 @@ impl NamespaceStore for NamespaceStoreInMemory {
 
 #[derive(Clone)]
 pub struct NamespaceStoreInMemory {
-    store: Arc<Mutex<HashMap<NamespaceId, NamespaceType>>>,
+    store: Arc<Mutex<HashMap<NamespaceId, MdnNamespaceType>>>,
 }
 
 impl NamespaceStoreInMemory {
@@ -134,13 +134,13 @@ impl NamespaceStoreInMemory {
 }
 
 #[derive(Clone)]
-pub struct NamespaceStoreManager {
-    store: Arc<dyn NamespaceStore + Send + Sync>,
+pub struct MdnNamespaceStoreManager {
+    store: Arc<dyn MdnNamespaceStore + Send + Sync>,
 }
 
-impl NamespaceStoreManager {
+impl MdnNamespaceStoreManager {
     pub async fn new(
-        store: Arc<dyn NamespaceStore + Send + Sync>,
+        store: Arc<dyn MdnNamespaceStore + Send + Sync>,
         willow_namespace_manager: WillowNamespaceManager,
     ) -> MeeDataSyncResult<Self> {
         if store.get_agent_node_data_ns().await?.is_none() {
@@ -149,7 +149,7 @@ impl NamespaceStoreManager {
                 .await?;
 
             store
-                .set_ns(NamespaceType::AgentNodeDataNs(AgentNodeDataNs(
+                .set_ns(MdnNamespaceType::AgentNodeDataNs(AgentNodeDataNs(
                     own_data_namespace_id,
                 )))
                 .await?;
@@ -163,7 +163,7 @@ impl NamespaceStoreManager {
                 .await?;
 
             store
-                .set_ns(NamespaceType::CapabilityRevocationListNs(
+                .set_ns(MdnNamespaceType::CapabilityRevocationListNs(
                     CapabilityRevocationListNs(cap_revocation_list_ns_id),
                 ))
                 .await?;
@@ -199,7 +199,7 @@ impl NamespaceStoreManager {
         peer_id: UserId,
     ) -> MeeDataSyncResult {
         self.store
-            .set_ns(NamespaceType::OtherPeerCapabilityRevocationNs(
+            .set_ns(MdnNamespaceType::OtherPeerCapabilityRevocationNs(
                 OtherPeerCapabilityRevocationNs { peer_id, ns_id },
             ))
             .await?;

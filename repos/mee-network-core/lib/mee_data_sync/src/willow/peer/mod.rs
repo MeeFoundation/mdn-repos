@@ -4,12 +4,14 @@ use data_manager::WillowDataManager;
 use delegation_manager::WillowDelegationManager;
 use namespace_manager::WillowNamespaceManager;
 use network_manager::WillowNetworkManager;
+use session_manager::WillowSessionManager;
 use user_manager::WillowUserManager;
 
 pub mod data_manager;
 pub mod delegation_manager;
 pub mod namespace_manager;
 pub mod network_manager;
+pub mod session_manager;
 pub mod user_manager;
 
 #[derive(Clone)]
@@ -19,6 +21,7 @@ pub struct WillowPeer {
     pub willow_namespace_manager: WillowNamespaceManager,
     pub willow_network_manager: WillowNetworkManager,
     pub willow_user_manager: WillowUserManager,
+    pub willow_session_manager: WillowSessionManager,
 }
 
 impl WillowPeer {
@@ -28,6 +31,7 @@ impl WillowPeer {
         let willow_network_manager = WillowNetworkManager::new(willow_node.clone());
 
         Ok(Self {
+            willow_session_manager: WillowSessionManager::new(willow_node.clone()),
             willow_data_manager: WillowDataManager::new(
                 willow_node.clone(),
                 willow_user_manager.clone(),
