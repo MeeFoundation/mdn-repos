@@ -22,6 +22,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 async-stream = { workspace = true }
 futures = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
 assert-json-diff = { workspace = true }

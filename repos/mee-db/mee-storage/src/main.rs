@@ -1,9 +1,11 @@
 // #![feature(return_position_impl_trait_in_trait)]
 // #![feature(type_alias_impl_trait)]
 
+mod binary_kv_store;
 mod error;
-mod json_store;
-mod kv_store;
+mod json_db;
+mod json_kv_store;
+mod json_utils;
 // mod schema;
 
 // use error::{Error, Result};
@@ -11,13 +13,13 @@ mod kv_store;
 // use storage::Storage;
 // use storage::StorageBTreeMapImpl;
 
+use binary_kv_store::BinaryKVStore;
 use futures::{pin_mut, stream::StreamExt};
-use kv_store::KVStore;
 // use tokio_stream::StreamExt;
 
 #[tokio::main]
 async fn main() {
-    let store = kv_store::b_tree_map_store::BTreeMapStore::new();
+    let store = binary_kv_store::b_tree_map_store::BTreeMapStore::new();
 
     let stream = store.range("example_path".to_string()).await.unwrap();
     pin_mut!(stream);

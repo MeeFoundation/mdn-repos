@@ -13,24 +13,24 @@ pub(crate) struct KeyOrdering {
 }
 
 struct Query {
-    value_filter: Option<Box<dyn Fn(&Value) -> bool>>,
+    value_filter: Option<Box<dyn Fn(&Value) -> bool + Sync + Send>>,
     limit: Option<usize>,
     offset: usize,
 }
 
 pub(crate) struct SelectQuery {
-    key_filter: Option<Box<dyn Fn(&str) -> bool>>,
+    key_filter: Option<Box<dyn Fn(&str) -> bool + Sync + Send>>,
     ordering: KeyOrdering,
     query: Query,
 }
 
 pub(crate) struct UpdateQuery {
-    update: Option<Box<dyn Fn(&mut Value)>>,
+    update: Option<Box<dyn Fn(&mut Value) + Sync + Send>>,
     query: Query,
 }
 
 pub(crate) struct DeleteQuery {
-    key_filter: Option<Box<dyn Fn(&str) -> bool>>,
+    key_filter: Option<Box<dyn Fn(&str) -> bool + Sync + Send>>,
     query: Query,
 }
 
@@ -45,7 +45,7 @@ impl Query {
 
     pub fn filter<F>(mut self, f: F) -> Self
     where
-        F: Fn(&Value) -> bool + 'static,
+        F: Fn(&Value) -> bool + 'static + Sync + Send,
     {
         self.value_filter = Some(Box::new(f));
         self
@@ -85,7 +85,7 @@ impl SelectQuery {
 impl UpdateQuery {
     pub fn update<F>(mut self, f: F) -> Self
     where
-        F: Fn(&mut Value) + 'static,
+        F: Fn(&mut Value) + 'static + Sync + Send,
     {
         self.update = Some(Box::new(f));
         self
@@ -95,7 +95,7 @@ impl UpdateQuery {
 impl DeleteQuery {
     pub fn fields<F>(mut self, f: F) -> Self
     where
-        F: Fn(&str) -> bool + 'static,
+        F: Fn(&str) -> bool + 'static + Sync + Send,
     {
         self.key_filter = Some(Box::new(f));
         self

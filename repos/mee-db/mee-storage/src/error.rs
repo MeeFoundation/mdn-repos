@@ -7,6 +7,9 @@ pub enum Error {
     #[error("Send error: {0}")]
     SyncError(#[from] tokio::sync::mpsc::error::SendError<()>),
 
+    #[error("Regex error: {0}")]
+    Regex(#[from] regex::Error),
+
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

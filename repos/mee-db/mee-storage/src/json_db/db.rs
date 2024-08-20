@@ -1,7 +1,9 @@
-use super::support::JsonExt;
-use super::{JsonDB, JsonStore, ID_PROPERTY};
+use super::JsonDB;
+use crate::binary_kv_store::PATH_SEPARATOR;
 use crate::error::Result;
-use crate::kv_store::PATH_SEPARATOR;
+use crate::json_kv_store::{FieldFilter, JsonStore};
+use crate::json_utils::JsonExt;
+use crate::json_utils::ID_PROPERTY;
 use serde_json::{Map, Value};
 use std::sync::Arc;
 
@@ -45,7 +47,7 @@ impl JsonDB for JsonDBImpl {
                 continue;
             }
             let key = property_key(&key, &prop);
-            if let Some(value) = self.db.get(key).await? {
+            if let Some(value) = self.db.get(key, FieldFilter::All).await? {
                 existing_properties.insert(prop, value);
             }
         }
@@ -58,7 +60,7 @@ impl JsonDB for JsonDBImpl {
     }
 
     async fn find_by_id_full(&self, id: String) -> Result<Option<Value>> {
-        match self.db.get(object_key(&id)).await? {
+        match self.db.get(object_key(&id), FieldFilter::All).await? {
             Some(mut value) if value.is_object() => {
                 value.x_set_id(&id);
                 Ok(Some(value))
@@ -71,9 +73,9 @@ impl JsonDB for JsonDBImpl {
         self.db.delete(object_key(&id)).await
     }
 
-    // fn select(&self, query: super::query::SelectQuery) -> Result<Vec<Value>> {
-    //     todo!()
-    // }
+    async fn select(&self, query: super::query::SelectQuery) -> Result<Vec<Value>> {
+        todo!()
+    }
 
     // async fn execute_update(&self, query: super::query::UpdateQuery) -> Result<u128> {
     //     todo!()
@@ -86,15 +88,13 @@ impl JsonDB for JsonDBImpl {
 
 #[cfg(test)]
 mod test {
-    // use crate::json_store::storage::KVBasedJsonStoreImpl;
-    use crate::{json_store::storage::KVBasedJsonStoreImpl, kv_store};
+    use crate::json_kv_store;
     use assert_json_diff::assert_json_eq;
 
     use super::*;
     use serde_json::json;
     fn setup() -> JsonDBImpl {
-        let store = kv_store::new_btree_map_based();
-        let json_store = Arc::new(KVBasedJsonStoreImpl::new(store));
+        let json_store = json_kv_store::new_btree_map_based();
         JsonDBImpl::new(json_store)
     }
 

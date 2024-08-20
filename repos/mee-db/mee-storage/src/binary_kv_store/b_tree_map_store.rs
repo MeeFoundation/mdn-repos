@@ -1,4 +1,4 @@
-use super::{KVStore, KVStream, KV, PATH_SEPARATOR};
+use super::{BinaryKVStore, KVStream, KV, PATH_SEPARATOR};
 use crate::error::Result;
 
 use async_stream::stream;
@@ -22,7 +22,7 @@ impl BTreeMapStore {
 }
 
 #[async_trait::async_trait]
-impl KVStore for BTreeMapStore {
+impl BinaryKVStore for BTreeMapStore {
     async fn insert(&self, path: String, value: Vec<u8>) -> Result<()> {
         let mut db = self.db.write().await;
         // .map_err(|e| LockError(e.to_string()))?;
