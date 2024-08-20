@@ -19,5 +19,9 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 sled = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
 anyhow = { workspace = true }
+async-trait = { workspace = true }
+async-stream = { workspace = true }
+futures = { workspace = true }
+
 [dev-dependencies]
 assert-json-diff = { workspace = true }

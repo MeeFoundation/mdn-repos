@@ -1,15 +1,13 @@
-use crate::kv_store::{KVIteratorListener, KVStore};
-
 use super::range_iterator::*;
 use super::support::JsonExt;
 use super::JsonStore;
 use crate::error::Result;
+use crate::kv_store::KVStore;
 //issue with format!
 #[allow(unused)]
 use crate::kv_store::PATH_SEPARATOR;
 use serde_json::Value;
-use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use tracing::debug;
 
@@ -24,48 +22,39 @@ impl KVBasedJsonStoreImpl {
     }
 }
 
+#[async_trait::async_trait]
 impl JsonStore for KVBasedJsonStoreImpl {
-    fn set(&self, key: String, value: Value) -> Result<()> {
+    async fn set(&self, key: String, value: Value) -> Result<()> {
         let flatten = value.x_to_flatten_map(key);
+        let mut batch = vec![];
         for (k, v) in flatten {
             let bytes = serde_json::to_vec(&v)?;
-            self.db.insert(k, bytes)?;
+            batch.push((k, bytes));
         }
+
+        self.db.insert_many(batch).await?;
+
         Ok(())
     }
 
-    fn get(&self, key: String) -> Result<Option<Value>> {
+    async fn get(&self, key: String) -> Result<Option<Value>> {
         debug!("Getting value for key: {key}");
-        let map = BTreeMap::new();
-        let result = Arc::new(Mutex::new(map));
-        let listener: KVIteratorListenerImpl =
-            KVIteratorListenerImpl::new(None, None, None, None, 0, result.clone());
-        let mut listener: Box<dyn KVIteratorListener> = Box::new(listener);
-        self.db.range(key.clone(), &mut listener)?;
-        let x = result.lock().unwrap().iter().next().map(|(_, v)| v.clone());
-        Ok(x)
+        let s = self.db.range(key.clone()).await?;
+        let mut ri = KVIteratorListenerImpl::new(None, None, None, None, 0);
+
+        let r = ri.collect(s).await?;
+
+        Ok(r.first().cloned())
     }
 
-    fn delete(&self, key: String) -> Result<()> {
+    async fn delete(&self, key: String) -> Result<()> {
         let db = self.db.clone();
-        db.delete(&key)?;
+        db.delete(&key).await?;
         Ok(())
     }
 
-    fn generate_id(&self) -> Result<String> {
+    async fn generate_id(&self) -> Result<String> {
         Ok(uuid::Uuid::now_v7().to_string())
-    }
-
-    fn select(&self, query: super::query::SelectQuery) -> Result<Vec<Value>> {
-        todo!()
-    }
-
-    fn execute_update(&self, query: super::query::UpdateQuery) -> Result<u128> {
-        todo!()
-    }
-
-    fn execute_delete(&self, query: super::query::DeleteQuery) -> Result<u128> {
-        todo!()
     }
 }
 
@@ -82,30 +71,32 @@ mod test {
         KVBasedJsonStoreImpl::new(kv)
     }
 
-    #[test]
-    fn read_write_single_value() {
+    #[tokio::test]
+    async fn read_write_single_value() {
         let storage = setup();
         storage
             .set(format!("key{PATH_SEPARATOR}id"), json!("value"))
+            .await
             .unwrap();
-        let value = storage.get(format!("key{PATH_SEPARATOR}id")).unwrap();
+        let value = storage.get(format!("key{PATH_SEPARATOR}id")).await.unwrap();
         assert_json_eq!(value, Some(json!("value")));
     }
 
-    #[test]
-    fn read_write_array() {
+    #[tokio::test]
+    async fn read_write_array() {
         let storage = setup();
         let array = json!([1, 2, 3]);
         storage
             .set(format!("key{PATH_SEPARATOR}id"), array.clone())
+            .await
             .unwrap();
         let expected = Some(array);
-        let value = storage.get(format!("key{PATH_SEPARATOR}id")).unwrap();
+        let value = storage.get(format!("key{PATH_SEPARATOR}id")).await.unwrap();
         assert_json_eq!(value, expected);
     }
 
-    #[test]
-    fn read_props_of_embedded_objects() {
+    #[tokio::test]
+    async fn read_props_of_embedded_objects() {
         let storage = setup();
 
         let first = json!({
@@ -117,17 +108,18 @@ mod test {
 
         storage
             .set(format!("key{PATH_SEPARATOR}id"), first)
+            .await
             .unwrap();
 
         let key =
             format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1{PATH_SEPARATOR}embedded_field1");
-        let value = storage.get(key).unwrap();
+        let value = storage.get(key).await.unwrap();
         let expected = Some(json!("embedded_value1"));
         assert_json_eq!(value, expected);
     }
 
-    #[test]
-    fn read_embedded_objects() {
+    #[tokio::test]
+    async fn read_embedded_objects() {
         let storage = setup();
 
         let first = json!({
@@ -139,16 +131,17 @@ mod test {
 
         storage
             .set(format!("key{PATH_SEPARATOR}id"), first.clone())
+            .await
             .unwrap();
 
         let key = format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1");
-        let value = storage.get(key).unwrap();
+        let value = storage.get(key).await.unwrap();
         let expected = Some(first.get("field1").unwrap().clone());
         assert_json_eq!(value, expected);
     }
 
-    #[test]
-    fn read_embedded_arrays() {
+    #[tokio::test]
+    async fn read_embedded_arrays() {
         let storage = setup();
 
         let first = json!({
@@ -157,16 +150,17 @@ mod test {
 
         storage
             .set(format!("key{PATH_SEPARATOR}id"), first.clone())
+            .await
             .unwrap();
 
         let key = format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1");
-        let value = storage.get(key).unwrap();
+        let value = storage.get(key).await.unwrap();
         let expected = Some(first.get("field1").unwrap().clone());
         assert_json_eq!(value, expected);
     }
 
-    #[test]
-    fn read_embedded_arrays_with_objects() {
+    #[tokio::test]
+    async fn read_embedded_arrays_with_objects() {
         let storage = setup();
 
         let obj = json!({
@@ -186,10 +180,11 @@ mod test {
 
         storage
             .set(format!("key{PATH_SEPARATOR}id"), obj.clone())
+            .await
             .unwrap();
 
         let key = format!("key{PATH_SEPARATOR}id{PATH_SEPARATOR}field1");
-        let value = storage.get(key).unwrap();
+        let value = storage.get(key).await.unwrap();
         let expected = obj.get("field1");
         assert_json_eq!(value, expected);
     }

@@ -1,32 +1,37 @@
 use serde_json::Value;
 
 use super::support::*;
-use crate::error::Error::KVStoreError;
+use super::ID_PREFIX;
 use crate::error::Result;
-use crate::kv_store::{KVIteratorControl, KVIteratorListener, ID_PREFIX, PATH_SEPARATOR};
+use crate::kv_store::{KVStream, PATH_SEPARATOR};
+use futures::StreamExt;
 use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::sync::Mutex;
-pub(super) struct KVIteratorListenerImpl {
-    value_filter: Option<Box<dyn Fn(&Value) -> bool>>,
+
+pub enum KVIteratorControl {
     #[allow(unused)]
-    key_filter: Option<Box<dyn Fn(&str) -> bool>>,
-    ordering: Option<Box<dyn Fn(&Value) -> String>>,
+    SkipPrefix(String),
+    Next,
+    Stop,
+}
+pub(super) struct KVIteratorListenerImpl {
+    value_filter: Option<Box<dyn Fn(&Value) -> bool + Send + Sync>>,
+    #[allow(unused)]
+    key_filter: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
+    ordering: Option<Box<dyn Fn(&Value) -> String + Send + Sync>>,
     left_capacity: Option<usize>,
     offset: usize,
     current_id: String,
     current_value: Value,
-    result: Arc<Mutex<BTreeMap<String, Value>>>,
+    result: BTreeMap<String, Value>,
 }
 
 impl KVIteratorListenerImpl {
     pub fn new(
-        value_filter: Option<Box<dyn Fn(&Value) -> bool>>,
-        key_filter: Option<Box<dyn Fn(&str) -> bool>>,
-        ordering: Option<Box<dyn Fn(&Value) -> String>>,
+        value_filter: Option<Box<dyn Fn(&Value) -> bool + Send + Sync>>,
+        key_filter: Option<Box<dyn Fn(&str) -> bool + Send + Sync>>,
+        ordering: Option<Box<dyn Fn(&Value) -> String + Send + Sync>>,
         limit: Option<usize>,
         offset: usize,
-        result: Arc<Mutex<BTreeMap<String, Value>>>,
     ) -> Self {
         let left_capacity = limit.map(|limit| limit + offset);
         Self {
@@ -37,8 +42,22 @@ impl KVIteratorListenerImpl {
             offset,
             current_id: "".to_string(),
             current_value: Value::Null,
-            result,
+            result: BTreeMap::new(),
         }
+    }
+
+    pub async fn collect(&mut self, mut kv_byte_stream: KVStream) -> Result<Vec<Value>> {
+        while let Some((k, v)) = kv_byte_stream.next().await {
+            let control = self.on_kv(k, &v);
+            match control {
+                Ok(KVIteratorControl::Next) => {}
+                Ok(KVIteratorControl::Stop) => break,
+                Err(e) => return Err(e),
+                _ => {}
+            }
+        }
+        self.flush()?;
+        Ok(self.result.values().cloned().collect())
     }
 
     fn add_to_result(&mut self) -> Result<KVIteratorControl> {
@@ -57,10 +76,7 @@ impl KVIteratorListenerImpl {
             .map(|f| f(&self.current_value))
             .unwrap_or_else(|| self.current_id.to_string());
 
-        let mut result = self
-            .result
-            .lock()
-            .map_err(|e| KVStoreError(e.to_string()))?;
+        let result = &mut self.result;
 
         if !self.current_id.is_empty() {
             self.current_value.x_set_id(&self.current_id);
@@ -104,9 +120,7 @@ impl KVIteratorListenerImpl {
             ("".to_string(), key)
         }
     }
-}
 
-impl KVIteratorListener for KVIteratorListenerImpl {
     fn on_kv(&mut self, key: String, value: &Vec<u8>) -> Result<KVIteratorControl> {
         println!("->> key:{key}");
         let (id, key) = self.split_key(key);
@@ -120,11 +134,7 @@ impl KVIteratorListener for KVIteratorListenerImpl {
 
     fn flush(&mut self) -> Result<()> {
         self.add_to_result()?;
-        let mut result = self
-            .result
-            .lock()
-            .map_err(|e| KVStoreError(e.to_string()))?;
-
+        let result = &mut self.result;
         for _ in 0..self.offset {
             if let Some(last_key) = result.first_key_value().map(|(k, _)| k.clone()) {
                 result.remove(&last_key);

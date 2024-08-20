@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused)]
+
 use serde_json::Value;
 
 pub(crate) enum OrderingType {

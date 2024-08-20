@@ -16,28 +16,28 @@ impl JsonDBImpl {
     }
 }
 
-fn object_key(schema: &str, id: &str) -> String {
-    format!("{schema}{PATH_SEPARATOR}{id}")
+fn object_key(id: &str) -> String {
+    format!("{ID_PROPERTY}{id}")
 }
 
 fn property_key(object_key: &str, property: &str) -> String {
     format!("{object_key}{PATH_SEPARATOR}{property}")
 }
 
+#[async_trait::async_trait]
 impl JsonDB for JsonDBImpl {
-    fn insert(&self, schema: String, value: Value) -> Result<String> {
-        let id = self.db.generate_id()?;
-        self.db.set(object_key(&schema, &id), value)?;
+    async fn insert(&self, value: Value) -> Result<String> {
+        let id = self.db.generate_id().await?;
+        self.db.set(object_key(&id), value).await?;
         Ok(id)
     }
 
-    fn find_by_id(
+    async fn find_by_id(
         &self,
-        schema: String,
         id: String,
         selecting_properties: Vec<String>,
     ) -> Result<Option<Value>> {
-        let key = object_key(&schema, &id);
+        let key = object_key(&id);
         let mut existing_properties = Map::new();
         for prop in selecting_properties.into_iter() {
             if prop == ID_PROPERTY {
@@ -45,7 +45,7 @@ impl JsonDB for JsonDBImpl {
                 continue;
             }
             let key = property_key(&key, &prop);
-            if let Some(value) = self.db.get(key)? {
+            if let Some(value) = self.db.get(key).await? {
                 existing_properties.insert(prop, value);
             }
         }
@@ -57,8 +57,8 @@ impl JsonDB for JsonDBImpl {
         }
     }
 
-    fn find_by_id_full(&self, schema: String, id: String) -> Result<Option<Value>> {
-        match self.db.get(object_key(&schema, &id))? {
+    async fn find_by_id_full(&self, id: String) -> Result<Option<Value>> {
+        match self.db.get(object_key(&id)).await? {
             Some(mut value) if value.is_object() => {
                 value.x_set_id(&id);
                 Ok(Some(value))
@@ -67,19 +67,21 @@ impl JsonDB for JsonDBImpl {
         }
     }
 
-    fn delete(&self, schema: String, id: String) -> Result<()> {
-        self.db.delete(object_key(&schema, &id))
+    async fn delete(&self, id: String) -> Result<()> {
+        self.db.delete(object_key(&id)).await
     }
 
-    #[allow(unused)]
-    fn find_by_properties_eq(
-        &self,
-        schema: String,
-        filter: Value,
-        selecting_properties: Vec<String>,
-    ) -> Result<Vec<Value>> {
-        todo!()
-    }
+    // fn select(&self, query: super::query::SelectQuery) -> Result<Vec<Value>> {
+    //     todo!()
+    // }
+
+    // async fn execute_update(&self, query: super::query::UpdateQuery) -> Result<u128> {
+    //     todo!()
+    // }
+
+    // async fn execute_delete(&self, query: super::query::DeleteQuery) -> Result<u128> {
+    //     todo!()
+    // }
 }
 
 #[cfg(test)]
@@ -146,43 +148,37 @@ mod test {
         })
     }
 
-    fn insert_and_get(db: &JsonDBImpl, value: Value) -> (String, Value) {
-        let id = db.insert(SCHEMA_NAME.to_string(), value.clone()).unwrap();
+    async fn insert_and_get(db: &JsonDBImpl, value: Value) -> (String, Value) {
+        let id = db.insert(value.clone()).await.unwrap();
         let mut new_value = value.clone();
         new_value.x_set_id(&id);
         (id, new_value)
     }
 
-    const SCHEMA_NAME: &str = "users";
-
-    #[test]
-    fn insert_and_read_object_by_id() {
+    #[tokio::test]
+    async fn insert_and_read_object_by_id() {
         let db = setup();
-        let (alice_id, alice) = insert_and_get(&db, alice());
-        let (bob_id, bob) = insert_and_get(&db, bob());
+        let (alice_id, alice) = insert_and_get(&db, alice()).await;
+        let (bob_id, bob) = insert_and_get(&db, bob()).await;
 
-        let alice_value = db
-            .find_by_id_full(SCHEMA_NAME.to_string(), alice_id.clone())
-            .unwrap();
+        let alice_value = db.find_by_id_full(alice_id.clone()).await.unwrap();
 
-        let bob_value = db
-            .find_by_id_full(SCHEMA_NAME.to_string(), bob_id.clone())
-            .unwrap();
+        let bob_value = db.find_by_id_full(bob_id.clone()).await.unwrap();
         assert_json_eq!(alice_value, Some(alice));
         assert_json_eq!(bob_value, Some(bob));
     }
 
-    #[test]
-    fn read_selected_properties_by_object_id() {
+    #[tokio::test]
+    async fn read_selected_properties_by_object_id() {
         let db = setup();
-        let (alice_id, _) = insert_and_get(&db, alice());
+        let (alice_id, _) = insert_and_get(&db, alice()).await;
 
         let alice_value = db
             .find_by_id(
-                SCHEMA_NAME.to_string(),
                 alice_id.clone(),
                 vec!["name".to_string(), "email".to_string()],
             )
+            .await
             .unwrap();
 
         assert_json_eq!(
@@ -194,19 +190,14 @@ mod test {
         );
     }
 
-    #[test]
-    fn delete_object_by_id() {
+    #[tokio::test]
+    async fn delete_object_by_id() {
         let db = setup();
-        let (alice_id, _) = insert_and_get(&db, alice());
-        let (bob_id, bob) = insert_and_get(&db, bob());
-        db.delete(SCHEMA_NAME.to_string(), alice_id.clone())
-            .unwrap();
-        let alice_value = db
-            .find_by_id_full(SCHEMA_NAME.to_string(), alice_id.clone())
-            .unwrap();
-        let bob_value = db
-            .find_by_id_full(SCHEMA_NAME.to_string(), bob_id.clone())
-            .unwrap();
+        let (alice_id, _) = insert_and_get(&db, alice()).await;
+        let (bob_id, bob) = insert_and_get(&db, bob()).await;
+        db.delete(alice_id.clone()).await.unwrap();
+        let alice_value = db.find_by_id_full(alice_id.clone()).await.unwrap();
+        let bob_value = db.find_by_id_full(bob_id.clone()).await.unwrap();
 
         assert_eq!(alice_value, None);
         println!(
@@ -219,19 +210,14 @@ mod test {
         assert_json_eq!(bob_value, Some(bob));
     }
 
-    #[test]
-    fn select_object_by_property_value() {
+    #[tokio::test]
+    async fn select_object_by_property_value() {
         let db = setup();
-        let (alice_id, _) = insert_and_get(&db, alice());
-        let (bob_id, bob) = insert_and_get(&db, bob());
-        db.delete(SCHEMA_NAME.to_string(), alice_id.clone())
-            .unwrap();
-        let alice_value = db
-            .find_by_id_full(SCHEMA_NAME.to_string(), alice_id.clone())
-            .unwrap();
-        let bob_value = db
-            .find_by_id_full(SCHEMA_NAME.to_string(), bob_id.clone())
-            .unwrap();
+        let (alice_id, _) = insert_and_get(&db, alice()).await;
+        let (bob_id, bob) = insert_and_get(&db, bob()).await;
+        db.delete(alice_id.clone()).await.unwrap();
+        let alice_value = db.find_by_id_full(alice_id.clone()).await.unwrap();
+        let bob_value = db.find_by_id_full(bob_id.clone()).await.unwrap();
 
         assert_eq!(alice_value, None);
         println!(

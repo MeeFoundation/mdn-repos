@@ -10,37 +10,37 @@ use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
 
 const ID_PROPERTY: &str = "@id";
+const ID_PREFIX: &str = "id:";
 
 #[allow(unused)]
+#[async_trait::async_trait]
 pub trait JsonStore {
-    fn set(&self, key: String, value: Value) -> Result<()>;
-    fn get(&self, key: String) -> Result<Option<Value>>;
-    fn delete(&self, key: String) -> Result<()>;
-    fn generate_id(&self) -> Result<String>;
-    ///
-    fn select(&self, query: query::SelectQuery) -> Result<Vec<Value>>;
-    fn execute_update(&self, query: query::UpdateQuery) -> Result<u128>;
-    fn execute_delete(&self, query: query::DeleteQuery) -> Result<u128>;
+    async fn set(&self, key: String, value: Value) -> Result<()>;
+    async fn get(&self, key: String) -> Result<Option<Value>>;
+    async fn delete(&self, key: String) -> Result<()>;
+    async fn generate_id(&self) -> Result<String>;
+
+    // async fn select(&self, query: query::SelectQuery) -> Result<Vec<Value>>;
+    // async fn execute_update(&self, query: query::UpdateQuery) -> Result<u128>;
+    // async fn execute_delete(&self, query: query::DeleteQuery) -> Result<u128>;
 }
 
 #[allow(dead_code)]
+#[async_trait::async_trait]
 pub trait JsonDB {
-    fn insert(&self, schema: String, value: Value) -> Result<String>;
-    fn find_by_id(
+    async fn insert(&self, value: Value) -> Result<String>;
+    async fn find_by_id(
         &self,
-        schema: String,
         id: String,
         selecting_properties: Vec<String>,
     ) -> Result<Option<Value>>;
-    fn find_by_id_full(&self, schema: String, id: String) -> Result<Option<Value>>;
-    fn delete(&self, schema: String, id: String) -> Result<()>;
+    async fn find_by_id_full(&self, id: String) -> Result<Option<Value>>;
+    async fn delete(&self, id: String) -> Result<()>;
 
-    fn find_by_properties_eq(
-        &self,
-        schema: String,
-        filter: Value,
-        selecting_properties: Vec<String>,
-    ) -> Result<Vec<Value>>;
+    // ///
+    // fn select(&self, query: query::SelectQuery) -> Result<Vec<Value>>;
+    // fn execute_update(&self, query: query::UpdateQuery) -> Result<u128>;
+    // fn execute_delete(&self, query: query::DeleteQuery) -> Result<u128>;
 }
 #[allow(dead_code)]
 pub(crate) fn new_btree_map_based() -> Arc<dyn JsonDB + Send + Sync> {
