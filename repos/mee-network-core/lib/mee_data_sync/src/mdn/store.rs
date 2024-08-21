@@ -1,4 +1,4 @@
-use crate::error::MeeDataSyncResult;
+use crate::error::{MeeDataSyncErr, MeeDataSyncResult};
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
@@ -27,12 +27,35 @@ pub struct ReadDataRecord {
     pub value: Vec<u8>,
 }
 
+pub const KEY_COMPONENTS_SPLITTER: &str = "/";
+
+/// Extracts key parts (user, attribute name, sub-attribute name, etc.) from a key.
+pub fn key_components(key: &str) -> MeeDataSyncResult<KeyComponents> {
+    let components = key.split(KEY_COMPONENTS_SPLITTER).collect::<Vec<_>>();
+
+    let kc = match &components[..] {
+        [user_id, attribute_name] => KeyComponents::ShortPathAttribute(ShortPathAttribute {
+            user_id: user_id.to_string(),
+            attribute_name: attribute_name.to_string(),
+        }),
+        [user_id, attribute_name, attribute_instance_id, sub_attribute_name] => {
+            KeyComponents::FullPathAttribute(FullPathAttribute {
+                user_id: user_id.to_string(),
+                attribute_name: attribute_name.to_string(),
+                attribute_instance_id: attribute_instance_id.to_string(),
+                sub_attribute_name: sub_attribute_name.to_string(),
+            })
+        }
+        _ => Err(MeeDataSyncErr::SyncedKvStorage(format!(
+            "Error parsing key components: Invalid key: {key}"
+        )))?,
+    };
+
+    Ok(kc)
+}
+
 #[async_trait]
 pub trait MdnAgentDataNodeKvStore {
-    fn key_components_splitter() -> &'static str;
-    /// Extracts key parts (user, attribute name, sub-attribute name, etc.) from a key.
-    fn key_components(key: &str) -> MeeDataSyncResult<KeyComponents>;
-
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult;
 
     /// Delete value by key (full path is required!)

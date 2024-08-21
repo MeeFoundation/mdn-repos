@@ -1,10 +1,7 @@
 use super::node::MdnAgentDataNodeWillowImpl;
 use crate::{
-    error::{MeeDataSyncErr, MeeDataSyncResult},
-    mdn::store::{
-        FullPathAttribute, KeyComponents, MdnAgentDataNodeKvStore, ReadDataRecord,
-        ShortPathAttribute,
-    },
+    error::MeeDataSyncResult,
+    mdn::store::{key_components, MdnAgentDataNodeKvStore, ReadDataRecord},
     willow::utils::path_from_bytes_slice,
 };
 use async_trait::async_trait;
@@ -12,37 +9,8 @@ use futures::stream::BoxStream;
 
 #[async_trait]
 impl MdnAgentDataNodeKvStore for MdnAgentDataNodeWillowImpl {
-    fn key_components_splitter() -> &'static str {
-        "/"
-    }
-    fn key_components(key: &str) -> MeeDataSyncResult<KeyComponents> {
-        let components = key
-            .split(Self::key_components_splitter())
-            .collect::<Vec<_>>();
-
-        let kc = match &components[..] {
-            [user_id, attribute_name] => KeyComponents::ShortPathAttribute(ShortPathAttribute {
-                user_id: user_id.to_string(),
-                attribute_name: attribute_name.to_string(),
-            }),
-            [user_id, attribute_name, attribute_instance_id, sub_attribute_name] => {
-                KeyComponents::FullPathAttribute(FullPathAttribute {
-                    user_id: user_id.to_string(),
-                    attribute_name: attribute_name.to_string(),
-                    attribute_instance_id: attribute_instance_id.to_string(),
-                    sub_attribute_name: sub_attribute_name.to_string(),
-                })
-            }
-            _ => Err(MeeDataSyncErr::SyncedKvStorage(format!(
-                "Error parsing key components: Invalid key: {key}"
-            )))?,
-        };
-
-        Ok(kc)
-    }
-
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult {
-        let path = Self::data_entry_path_from_key_components(Self::key_components(key)?)?;
+        let path = Self::data_entry_path_from_key_components(key_components(key)?)?;
 
         self.willow_peer
             .willow_data_manager

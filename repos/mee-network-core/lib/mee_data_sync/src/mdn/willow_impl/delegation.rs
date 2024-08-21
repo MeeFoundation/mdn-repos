@@ -6,11 +6,11 @@ use crate::{
             MdnAgentDataNodeDelegation, MdnDataDelegationCapabilityPack,
             MdnDataDelegationCapabilityRole, MdnDataRevocationListRecord,
         },
-        store::MdnAgentDataNodeKvStore,
+        store::key_components,
     },
     willow::{
         peer::{delegation_manager::cap_granted_components, WillowPeer},
-        utils::path_from_bytes_slice,
+        utils::{is_empty_entry_payload, path_from_bytes_slice},
     },
 };
 use async_trait::async_trait;
@@ -54,7 +54,7 @@ impl MdnDelegationManager {
         caps: Vec<MdnDataRevocationListRecord>,
     ) -> MeeDataSyncResult<Vec<McCapability>> {
         let tasks = caps.into_iter().map(|cap| async move {
-            let comps = MdnAgentDataNodeWillowImpl::key_components(&cap.shared_data_path)?;
+            let comps = key_components(&cap.shared_data_path)?;
             let path = MdnAgentDataNodeWillowImpl::data_entry_path_from_key_components(comps)?;
 
             let cap_selector = CapSelector::new(
@@ -229,7 +229,7 @@ impl MdnAgentDataNodeDelegation for MdnDelegationManager {
                         .await?;
 
                     let record = if let Some(payload) = payload {
-                        if payload.is_empty() || *payload == [0] {
+                        if is_empty_entry_payload(&payload) {
                             return Ok(None);
                         }
 
@@ -290,7 +290,7 @@ impl MdnAgentDataNodeDelegation for MdnDelegationManager {
         let revoke_list_ns = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
 
         let shared_data_path = MdnAgentDataNodeWillowImpl::data_entry_path_from_key_components(
-            MdnAgentDataNodeWillowImpl::key_components(&shared_data_path)?,
+            key_components(&shared_data_path)?,
         )?;
 
         let cap_issuer = self

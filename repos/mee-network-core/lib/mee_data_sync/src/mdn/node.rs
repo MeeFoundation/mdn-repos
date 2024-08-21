@@ -1,4 +1,7 @@
-use super::willow_impl::delegation::ImportCapabilitiesFromRemotePeer;
+use super::{
+    store::MdnAgentDataNodeKvStore,
+    willow_impl::delegation::{ImportCapabilitiesFromRemotePeer, MdnDelegationManager},
+};
 use crate::error::MeeDataSyncResult;
 use async_trait::async_trait;
 use iroh_net::{ticket::NodeTicket, NodeAddr};
@@ -10,7 +13,7 @@ use iroh_willow::{
 use serde::{Deserialize, Serialize};
 
 #[async_trait]
-pub trait MdnAgentDataNodeUser {
+pub trait MdnAgentDataNodeUserOps {
     async fn user_id(&self) -> MeeDataSyncResult<UserId>;
 }
 
@@ -65,8 +68,14 @@ pub trait MdnAgentDataNodeDelegation {
 }
 
 #[async_trait]
-pub trait MdnAgentDataNodeNetwork {
+pub trait MdnAgentDataNodeNetworkOps {
     async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket>;
     async fn network_node_addr(&self) -> MeeDataSyncResult<NodeAddr>;
     fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult;
+}
+
+pub trait MdnAgentDataNode:
+    MdnAgentDataNodeNetworkOps + MdnAgentDataNodeUserOps + MdnAgentDataNodeKvStore
+{
+    fn mdn_delegation_manager(&self) -> MdnDelegationManager;
 }

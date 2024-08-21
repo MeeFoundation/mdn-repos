@@ -4,11 +4,17 @@ use super::{
 };
 use crate::{
     error::MeeDataSyncResult,
-    mdn::store::{
-        FullPathAttribute, KeyComponents, MdnAgentDataNodeKvStore, ReadDataRecord,
-        ShortPathAttribute,
+    mdn::{
+        node::MdnAgentDataNode,
+        store::{
+            key_components, FullPathAttribute, KeyComponents, ReadDataRecord, ShortPathAttribute,
+            KEY_COMPONENTS_SPLITTER,
+        },
     },
-    willow::{peer::WillowPeer, utils::path_from_bytes_slice},
+    willow::{
+        peer::WillowPeer,
+        utils::{is_empty_entry_payload, path_from_bytes_slice},
+    },
 };
 use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
 use iroh_willow::proto::{
@@ -22,13 +28,19 @@ use tokio::task::JoinHandle;
 pub struct MdnAgentDataNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
     pub(crate) mdn_ns_store_manager: MdnNamespaceStoreManager,
-    pub mdn_delegation_manager: MdnDelegationManager,
+    mdn_delegation_manager: MdnDelegationManager,
     cap_revoke_task: Arc<JoinHandle<()>>,
 }
 
 impl Drop for MdnAgentDataNodeWillowImpl {
     fn drop(&mut self) {
         self.cap_revoke_task.abort();
+    }
+}
+
+impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
+    fn mdn_delegation_manager(&self) -> MdnDelegationManager {
+        self.mdn_delegation_manager.clone()
     }
 }
 
@@ -89,7 +101,7 @@ impl MdnAgentDataNodeWillowImpl {
         Ok(path)
     }
     pub async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
-        let comps = Self::key_components(key)?;
+        let comps = key_components(key)?;
         let path = Self::data_entry_path_from_key_components(comps)?;
 
         let entries = self
@@ -231,7 +243,7 @@ impl MdnAgentDataNodeWillowImpl {
                         .await?;
 
                     let record = if let Some(payload) = payload {
-                        if payload.is_empty() || *payload == [0] {
+                        if is_empty_entry_payload(&payload) {
                             return Ok(None);
                         }
 
@@ -246,7 +258,7 @@ impl MdnAgentDataNodeWillowImpl {
                                 }
                             })
                             .collect::<Vec<_>>()
-                            .join(<Self as MdnAgentDataNodeKvStore>::key_components_splitter());
+                            .join(KEY_COMPONENTS_SPLITTER);
 
                         Some(ReadDataRecord {
                             key,

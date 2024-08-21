@@ -1,10 +1,10 @@
 use super::node::MdnAgentDataNodeWillowImpl;
-use crate::{error::MeeDataSyncResult, mdn::node::MdnAgentDataNodeUser};
+use crate::{error::MeeDataSyncResult, mdn::node::MdnAgentDataNodeUserOps};
 use async_trait::async_trait;
 use iroh_willow::proto::keys::UserId;
 
 #[async_trait]
-impl MdnAgentDataNodeUser for MdnAgentDataNodeWillowImpl {
+impl MdnAgentDataNodeUserOps for MdnAgentDataNodeWillowImpl {
     async fn user_id(&self) -> MeeDataSyncResult<UserId> {
         self.willow_peer
             .willow_user_manager

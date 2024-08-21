@@ -1,7 +1,7 @@
 use super::user_manager::WillowUserManager;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
-    willow::node::WillowNode,
+    willow::{node::WillowNode, utils::empty_entry_payload},
 };
 use bytes::Bytes;
 use futures::{future::join_all, Stream, TryStreamExt};
@@ -72,10 +72,13 @@ impl WillowDataManager {
     pub async fn remove_entries_softly(&self, entries: Vec<Entry>) -> MeeDataSyncResult<Vec<bool>> {
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
-        // TODO willow-iroh still has bug with empty payload, [0] as workaround at the moment
+        // TODO willow-iroh still has bug with empty payload
         let res = entries.into_iter().map(|entry| async move {
-            let entry =
-                EntryForm::new_bytes(entry.namespace_id().clone(), entry.path().clone(), vec![0]);
+            let entry = EntryForm::new_bytes(
+                entry.namespace_id().clone(),
+                entry.path().clone(),
+                empty_entry_payload().to_vec(),
+            );
 
             let res = self.willow_node.engine.insert(entry, user).await;
 

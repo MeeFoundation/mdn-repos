@@ -1,4 +1,5 @@
 use crate::error::MeeDataSyncResult;
+use bytes::Bytes;
 use iroh_willow::proto::data_model::{Component, Path};
 
 pub fn path_from_bytes_slice(bytes_slice: &[&[u8]]) -> MeeDataSyncResult<Path> {
@@ -23,4 +24,12 @@ pub fn display_path(path: &Path) -> String {
     } else {
         p
     }
+}
+
+pub fn empty_entry_payload() -> [u8; 1] {
+    [0]
+}
+
+pub fn is_empty_entry_payload(payload: &Bytes) -> bool {
+    payload.is_empty() || **payload == empty_entry_payload()
 }

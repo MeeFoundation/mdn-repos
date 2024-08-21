@@ -1,10 +1,10 @@
 use super::node::MdnAgentDataNodeWillowImpl;
-use crate::{error::MeeDataSyncResult, mdn::node::MdnAgentDataNodeNetwork};
+use crate::{error::MeeDataSyncResult, mdn::node::MdnAgentDataNodeNetworkOps};
 use async_trait::async_trait;
 use iroh_net::{ticket::NodeTicket, NodeAddr};
 
 #[async_trait]
-impl MdnAgentDataNodeNetwork for MdnAgentDataNodeWillowImpl {
+impl MdnAgentDataNodeNetworkOps for MdnAgentDataNodeWillowImpl {
     async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket> {
         self.willow_peer
             .willow_network_manager
