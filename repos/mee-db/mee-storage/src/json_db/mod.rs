@@ -1,9 +1,10 @@
+use crate::json_kv_store::JsonStream;
+use crate::query_el::SelectQuery;
 use crate::{error::Result, json_kv_store};
 use serde_json::Value;
 use std::sync::Arc;
 
 mod db;
-mod query;
 
 #[allow(dead_code)]
 #[async_trait::async_trait]
@@ -18,7 +19,7 @@ pub trait JsonDB {
     async fn delete(&self, id: String) -> Result<()>;
 
     // ///
-    async fn select(&self, query: query::SelectQuery) -> Result<Vec<Value>>;
+    async fn stream(&self, path: &str, query: SelectQuery) -> Result<JsonStream>;
     // fn select(&self, query: query::SelectQuery) -> Result<Vec<Value>>;
     // fn execute_update(&self, query: query::UpdateQuery) -> Result<u128>;
     // fn execute_delete(&self, query: query::DeleteQuery) -> Result<u128>;

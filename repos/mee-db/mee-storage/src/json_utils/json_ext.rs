@@ -1,4 +1,5 @@
-use super::support::{apply_property, inner_set, merge_json};
+#![allow(unused)]
+use super::support::{apply_property, get_property, inner_set, merge_json};
 use super::ID_PROPERTY;
 #[allow(unused_imports)]
 use crate::binary_kv_store::PATH_SEPARATOR;
@@ -10,8 +11,9 @@ pub trait JsonExt {
     #[allow(unused)]
     fn x_get_id(&self) -> Option<&str>;
 
-    #[allow(unused)]
     fn x_set_property(&mut self, key: &str, value: Value) -> &mut Self;
+
+    fn x_get_property<'a>(&'a self, key: &'a str) -> Option<&'a Value>;
 
     fn x_merge(&mut self, other: Value) -> &mut Self;
 
@@ -31,6 +33,10 @@ impl JsonExt for Value {
     fn x_set_property(&mut self, key: &str, value: Value) -> &mut Self {
         apply_property(self, key, value);
         self
+    }
+
+    fn x_get_property<'a>(&'a self, key: &'a str) -> Option<&'a Value> {
+        get_property(self, key)
     }
 
     fn x_merge(&mut self, other: Value) -> &mut Self {
@@ -149,6 +155,30 @@ mod test {
                     "field4": ["value4", "value5"]
                 }
             })
+        );
+    }
+
+    #[test]
+    fn get_complex_property() {
+        let obj = json!({
+            "field1": "value1",
+            "field2": {
+                "field3": "value3",
+                "field4": ["value4", "value5"]
+            }
+        });
+        assert_eq!(obj.x_get_property("field1"), Some(&json!("value1")));
+        assert_eq!(
+            obj.x_get_property(&format!("field2{PATH_SEPARATOR}field3")),
+            Some(&json!("value3"))
+        );
+        assert_eq!(
+            obj.x_get_property(&format!("field2{PATH_SEPARATOR}field4{PATH_SEPARATOR}0")),
+            Some(&json!("value4"))
+        );
+        assert_eq!(
+            obj.x_get_property(&format!("field2{PATH_SEPARATOR}field4{PATH_SEPARATOR}1")),
+            Some(&json!("value5"))
         );
     }
 

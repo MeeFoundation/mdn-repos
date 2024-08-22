@@ -51,7 +51,7 @@ impl BinaryKVStore for BTreeMapStore {
     }
 
     async fn insert_many(&self, batch: Vec<KV>) -> Result<()> {
-        let mut db = self.db.write().await; //.map_err(|e| LockError(e.to_string()))?;
+        let mut db = self.db.write().await;
         for (k, v) in batch {
             db.insert(k, v);
         }

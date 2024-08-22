@@ -1,5 +1,5 @@
 #![allow(unused)]
-use crate::{binary_kv_store::PATH_SEPARATOR, error::Result};
+use crate::{binary_kv_store::PATH_SEPARATOR, error::Result, json_utils::ID_PROPERTY};
 use regex::Regex;
 
 pub enum FieldFilter {
@@ -11,11 +11,16 @@ pub const ANY_PATH_SEGMENT: &str = "*";
 pub const ANY_PATH_SEGMENT_REPLACEMENT: &str = "[^{PATH_SEPARATOR}]*";
 
 impl FieldFilter {
-    pub fn try_from_patterns(patterns: Vec<String>, with_id: bool) -> Result<Self> {
+    pub fn try_from_patterns(patterns: Vec<String>) -> Result<Self> {
         let mut regexes = Vec::with_capacity(patterns.len());
+        let mut with_id = false;
         for pattern in patterns {
-            let r = pattern.replace(ANY_PATH_SEGMENT, ANY_PATH_SEGMENT_REPLACEMENT);
-            regexes.push(Regex::new(&r)?);
+            if pattern == ID_PROPERTY {
+                with_id = true;
+            } else {
+                let r = pattern.replace(ANY_PATH_SEGMENT, ANY_PATH_SEGMENT_REPLACEMENT);
+                regexes.push(Regex::new(&r)?);
+            }
         }
         Ok(FieldFilter::Patters { regexes, with_id })
     }

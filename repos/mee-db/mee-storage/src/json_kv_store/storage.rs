@@ -23,20 +23,24 @@ impl KVBasedJsonStoreImpl {
     }
 }
 
-// -- region: private methods
+// #region private methods
 
 fn split_key(key: String) -> (String, String) {
     if key.starts_with(ID_PREFIX) {
         let mut split = key.splitn(2, PATH_SEPARATOR);
-        let id = split.next().unwrap_or("").to_string();
+        let id = split
+            .next()
+            .unwrap_or("")
+            .replace(ID_PREFIX, "")
+            .to_string();
         let key = split.next().unwrap_or("").to_string();
         (id, key)
     } else {
-        ("".to_string(), key)
+        (String::new(), key)
     }
 }
 
-// -- endregion
+// #endregion
 
 #[async_trait::async_trait]
 impl JsonStore for KVBasedJsonStoreImpl {
@@ -67,16 +71,13 @@ impl JsonStore for KVBasedJsonStoreImpl {
         Ok(())
     }
 
-    async fn generate_id(&self) -> Result<String> {
-        Ok(uuid::Uuid::now_v7().to_string())
-    }
-
+    // str: enything
     async fn range(&self, key: String, select_fields: FieldFilter) -> Result<JsonStream> {
-        let kv_byte_stream = self.db.range(key.clone()).await.unwrap();
+        let kv_byte_stream = self.db.range(key.clone()).await?;
 
         let s = stream! {
             let mut current_value = Value::Null;
-            let mut current_id = "".to_string();
+            let mut current_id = String::new();
             for await kv in kv_byte_stream {
                 let (key, value) = kv;
                 let (id, key) = split_key(key);
@@ -280,7 +281,7 @@ mod test {
 
         let key = format!("key");
         let field_filter =
-            FieldFilter::try_from_patterns(vec!["field1".to_string(), "field3".to_string()], false)
+            FieldFilter::try_from_patterns(vec!["field1".to_string(), "field3".to_string()])
                 .unwrap();
 
         let value = storage.range(key, field_filter).await.unwrap();
@@ -342,19 +343,19 @@ mod test {
         let expected = Some(json!(
             [
                 {
-                    "@id": "id:0",
+                    "@id": "0",
                     "field1": "value11",
                     "field2": "value12",
                     "field3": "value13",
                 },
                 {
-                    "@id": "id:1",
+                    "@id": "1",
                     "field1": "value21",
                     "field2": "value22",
                     "field3": "value23",
                 },
                 {
-                    "@id": "id:2",
+                    "@id": "2",
                     "field1": "value31",
                 }
             ]

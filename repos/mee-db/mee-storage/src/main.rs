@@ -6,6 +6,7 @@ mod error;
 mod json_db;
 mod json_kv_store;
 mod json_utils;
+mod query_el;
 // mod schema;
 
 // use error::{Error, Result};
@@ -25,7 +26,7 @@ async fn main() {
     pin_mut!(stream);
     while let Some((key, value)) = stream.next().await {
         //     Ok(
-        println!("Key: {}, Value: {:?}", key, value);
+        println!("Key: {key}, Value: {value:?}");
         // Err(e) => eprintln!("Error: {:?}", e),
     }
 }

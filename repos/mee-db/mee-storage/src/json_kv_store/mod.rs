@@ -17,7 +17,6 @@ pub trait JsonStore {
     async fn set(&self, key: String, value: Value) -> Result<()>;
     async fn get(&self, key: String, select_fields: FieldFilter) -> Result<Option<Value>>;
     async fn delete(&self, key: String) -> Result<()>;
-    async fn generate_id(&self) -> Result<String>;
     async fn range(&self, key: String, select_fields: FieldFilter) -> Result<JsonStream>;
 }
 

@@ -53,7 +53,7 @@ pub(super) fn apply_property(current: &mut Value, k: &str, v: Value) {
             .filter(|x| !x.is_empty())
             .collect::<Vec<&str>>();
 
-        if parts.len() > 0 {
+        if !parts.is_empty() {
             if current.is_null() {
                 *current = if parts[0].parse::<usize>().is_ok() {
                     Value::Array(vec![])
@@ -99,5 +99,38 @@ pub(super) fn apply_property(current: &mut Value, k: &str, v: Value) {
                 }
             }
         }
+    }
+}
+
+pub(super) fn get_property<'a>(current: &'a Value, k: &'a str) -> Option<&'a Value> {
+    if k.is_empty() {
+        Some(current)
+    } else {
+        let parts = k
+            .split(PATH_SEPARATOR)
+            .filter(|x| !x.is_empty())
+            .collect::<Vec<&str>>();
+
+        let mut current_obj = current;
+
+        for part in parts {
+            match part.parse::<usize>() {
+                Ok(index) if current_obj.is_array() => {
+                    let array = current_obj.as_array().unwrap();
+                    if array.len() <= index {
+                        return None;
+                    }
+                    current_obj = &array[index];
+                }
+                _ if current_obj.is_object() => {
+                    current_obj = current_obj.as_object().unwrap().get(part)?;
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+
+        Some(current_obj)
     }
 }

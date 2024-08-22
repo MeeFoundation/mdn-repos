@@ -5,7 +5,7 @@ pub enum Error {
     #[error("JSON parsing error: {0}")]
     JsonParsing(#[from] serde_json::Error),
     #[error("Send error: {0}")]
-    SyncError(#[from] tokio::sync::mpsc::error::SendError<()>),
+    Sync(#[from] tokio::sync::mpsc::error::SendError<()>),
 
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
