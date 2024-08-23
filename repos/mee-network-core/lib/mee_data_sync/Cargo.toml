@@ -10,9 +10,11 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 futures = { workspace = true }
+futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+uuid = { workspace = true, features = ["v4"]}
 
 bytes = { version = "1.4", features = ["serde"] }
 tokio-stream = "0.1"

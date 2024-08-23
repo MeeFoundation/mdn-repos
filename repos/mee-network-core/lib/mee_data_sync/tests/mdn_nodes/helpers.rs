@@ -1,4 +1,4 @@
-use crate::common::{mdn_node::create_node, utils::progress_session_intents};
+use crate::common::utils::progress_session_intents;
 use futures::{future::join_all, StreamExt};
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::proto::keys::UserId;
@@ -21,6 +21,7 @@ pub enum TestCase {
 pub struct ShareDataAndSyncParams {
     pub node_name: String,
     pub delegate_from_node: Arc<dyn MdnAgentDataNode + Send + Sync>,
+    pub other_mdn_node: Arc<dyn MdnAgentDataNode + Send + Sync>,
     pub delegate_from_ticket: NodeTicket,
     pub alice_address_path: String,
     pub alice_city_path: String,
@@ -29,11 +30,12 @@ pub struct ShareDataAndSyncParams {
     pub ready_for_next_test_scenario_tx: Sender<TestCase>,
 }
 
-const SLEEP_BETWEEN_FETCH_MS: u64 = 100;
+const SLEEP_BETWEEN_FETCH_MS: u64 = 500;
 
 pub async fn share_data_and_sync(
     ShareDataAndSyncParams {
         node_name,
+        other_mdn_node,
         delegate_from_node,
         delegate_from_ticket,
         alice_address_path,
@@ -43,8 +45,6 @@ pub async fn share_data_and_sync(
         ready_for_next_test_scenario_tx,
     }: ShareDataAndSyncParams,
 ) -> MeeDataSyncResult {
-    let other_mdn_node = create_node(&node_name).await?;
-
     // The ID actually comes with a first Other node request to OYT after MDS discovery process
     let other_willow_node_user_id = other_mdn_node.user_id().await?;
 
@@ -95,7 +95,7 @@ pub async fn share_data_and_sync(
                     .collect::<Vec<_>>()
                     .await;
 
-                log::info!("[{node_name}]: delegated data: {res:#?}");
+                log::info!("[{node_name}]: delegated data: {}", res.len());
 
                 let has_zip_value = res.iter().any(|e| e.value == alice_zip.as_bytes().to_vec());
 
@@ -129,7 +129,7 @@ pub async fn share_data_and_sync(
                     .collect::<Vec<_>>()
                     .await;
 
-                log::info!("[{node_name}] delegated data after deletion: {res:#?}");
+                log::info!("[{node_name}] delegated data after deletion: {}", res.len());
 
                 let has_no_city_value = res.iter().find(|e| e.key == alice_city_path);
 
@@ -155,8 +155,8 @@ pub async fn share_data_and_sync(
                     .await;
 
                 log::info!(
-                    "[{node_name}] delegated data after cap revocation: {:#?}",
-                    res
+                    "[{node_name}] delegated data after cap revocation: {}",
+                    res.len()
                 );
 
                 if res.is_empty() {

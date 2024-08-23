@@ -3110,6 +3110,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "futures",
+ "futures-util",
  "iroh-base",
  "iroh-blobs",
  "iroh-net",
@@ -3121,6 +3122,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-stream",
+ "uuid",
 ]
 
 [[package]]

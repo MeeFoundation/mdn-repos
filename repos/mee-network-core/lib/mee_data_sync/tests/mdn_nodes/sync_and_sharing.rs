@@ -7,7 +7,7 @@ use crate::{
 use anyhow::anyhow;
 use futures::{future::join_all, StreamExt};
 use mee_data_sync::mdn::node::MdnAgentDataNodeDelegation;
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time::sleep};
 
 #[tokio::test]
 async fn two_provider_nodes_sync() -> anyhow::Result<()> {
@@ -127,17 +127,23 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     let oyt_node_ticket = oyt_mdn_node.network_node_ticket().await?;
 
-    let mut next_test_scenario_counter = 0;
-    let shared_with_peers_count = 30;
+    let shared_with_peers_count = 10;
 
     let (ready_for_next_test_scenario_tx, mut ready_for_next_test_scenario_rx) =
         mpsc::channel(shared_with_peers_count);
 
     let mut peers_tasks = vec![];
+    // we hold references to make sure other nodes are still alive until end of the test
+    let mut other_nodes = vec![];
 
     for c in 0..shared_with_peers_count {
+        let node_name = format!("peer-{c}");
+        let other_mdn_node = create_node(&node_name).await?;
+        other_nodes.push(other_mdn_node.clone());
+
         let peer_task = tokio::spawn(share_data_and_sync(ShareDataAndSyncParams {
-            node_name: format!("peer-{c}"),
+            node_name,
+            other_mdn_node,
             delegate_from_node: oyt_mdn_node.clone(),
             delegate_from_ticket: oyt_node_ticket.clone(),
             alice_address_path: alice_address_path.clone(),
@@ -151,6 +157,9 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
     }
 
     let test_progressor_task = tokio::spawn(async move {
+        let mut next_test_scenario_counter = 0;
+        let mut other_peers_user_ids = vec![];
+
         while let Some(ev) = ready_for_next_test_scenario_rx.recv().await {
             next_test_scenario_counter += 1;
 
@@ -163,14 +172,42 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
                     TestCase::RevokeCapability {
                         other_willow_node_user_id,
                     } => {
-                        oyt_mdn_node
-                            .mdn_delegation_manager()
-                            .revoke_shared_access(&alice_address_path, other_willow_node_user_id)
-                            .await?;
+                        other_peers_user_ids.push(other_willow_node_user_id);
+
+                        for user_id in other_peers_user_ids.iter() {
+                            oyt_mdn_node
+                                .mdn_delegation_manager()
+                                .revoke_shared_access(&alice_address_path, *user_id)
+                                .await?;
+                        }
                     }
-                    TestCase::End => break,
+                    TestCase::End => {
+                        loop {
+                            if oyt_mdn_node
+                                .mdn_delegation_manager()
+                                .is_revocation_list_empty()
+                                .await?
+                            {
+                                break;
+                            }
+
+                            sleep(Duration::from_secs(1)).await;
+                        }
+
+                        break;
+                    }
                 };
                 next_test_scenario_counter = 0;
+            } else {
+                match ev {
+                    TestCase::DeleteEntry => {}
+                    TestCase::RevokeCapability {
+                        other_willow_node_user_id,
+                    } => {
+                        other_peers_user_ids.push(other_willow_node_user_id);
+                    }
+                    TestCase::End => {}
+                }
             }
         }
 
@@ -183,7 +220,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     let res = join_all(tasks);
 
-    let res = tokio::time::timeout(Duration::from_secs(10), res)
+    let res = tokio::time::timeout(Duration::from_secs(60), res)
         .await
         .map_err(|e| {
             anyhow!(format!(

@@ -15,7 +15,7 @@ pub fn display_path(path: &Path) -> String {
     let p = path
         .components()
         .into_iter()
-        .map(|c| String::from_utf8(c.to_vec()).unwrap())
+        .map(|c| String::from_utf8(c.to_vec()).unwrap_or("invalid-utf8-string".to_string()))
         .collect::<Vec<_>>()
         .join("/");
 
@@ -32,4 +32,13 @@ pub fn empty_entry_payload() -> [u8; 1] {
 
 pub fn is_empty_entry_payload(payload: &Bytes) -> bool {
     payload.is_empty() || **payload == empty_entry_payload()
+}
+
+/// TODO find a better way to suffix path component
+pub fn path_suffix(path: &Path, i: usize) -> MeeDataSyncResult<Path> {
+    let path = path.suffix_components(i).collect::<Vec<_>>();
+    let path = path.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
+    let path = path_from_bytes_slice(path.as_slice())?;
+
+    Ok(path)
 }

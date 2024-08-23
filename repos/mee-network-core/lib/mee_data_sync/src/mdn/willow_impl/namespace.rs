@@ -10,16 +10,16 @@ use iroh_willow::proto::{
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct AgentNodeDataNs(pub NamespaceId);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CapabilityRevocationListNs(pub NamespaceId);
 
 #[derive(Debug, Clone)]
 pub struct OtherPeerCapabilityRevocationNs {
     pub peer_id: UserId,
-    pub ns_id: NamespaceId,
+    pub revocation_ns: NamespaceId,
 }
 
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl MdnNamespaceType {
         match self {
             MdnNamespaceType::AgentNodeDataNs(ns) => ns.0,
             MdnNamespaceType::CapabilityRevocationListNs(ns) => ns.0,
-            MdnNamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.ns_id,
+            MdnNamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.revocation_ns,
         }
     }
 }
@@ -159,7 +159,7 @@ impl MdnNamespaceStoreManager {
 
         if store.get_cap_revoke_list_ns().await?.is_none() {
             let cap_revocation_list_ns_id = willow_namespace_manager
-                .create_namespace(NamespaceKind::Communal)
+                .create_namespace(NamespaceKind::Owned)
                 .await?;
 
             store
@@ -195,12 +195,15 @@ impl MdnNamespaceStoreManager {
     }
     pub async fn set_other_peer_revocation_list_ns(
         &self,
-        ns_id: NamespaceId,
+        revocation_ns: NamespaceId,
         peer_id: UserId,
     ) -> MeeDataSyncResult {
         self.store
             .set_ns(MdnNamespaceType::OtherPeerCapabilityRevocationNs(
-                OtherPeerCapabilityRevocationNs { peer_id, ns_id },
+                OtherPeerCapabilityRevocationNs {
+                    peer_id,
+                    revocation_ns,
+                },
             ))
             .await?;
 

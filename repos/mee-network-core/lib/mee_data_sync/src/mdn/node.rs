@@ -18,17 +18,22 @@ pub trait MdnAgentDataNodeUserOps {
 }
 
 #[derive(Debug)]
-pub enum MdnDataDelegationCapabilityRole {
-    MdnDataSharing,
-    RevocationListReceiver,
-    RevocationListSignalingSender,
+pub struct MdnDataDelegationCapabilityPack {
+    pub data_source_namespace: MdnDataDelegationCapabilityPackObject,
+    pub revocation_list_receiver_namespace: MdnDataDelegationCapabilityPackObject,
+    pub revocation_list_sender_namespace: MdnDataDelegationCapabilityPackObject,
 }
 
 #[derive(Debug)]
-pub struct MdnDataDelegationCapabilityPack {
-    pub cap_pack: CapabilityPack,
-    pub cap_role: MdnDataDelegationCapabilityRole,
+pub struct MdnDataDelegationCapabilityPackObject {
+    pub cap_pack: Vec<CapabilityPack>,
     pub cap_issuer: UserId,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MdnDataRevocationListResponse {
+    pub record: MdnDataRevocationListRecord,
+    pub signal_revocation_ns: NamespaceId,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,6 +41,8 @@ pub struct MdnDataRevocationListRecord {
     pub shared_data_path: String,
     pub data_owner: UserId,
     pub data_owner_ns: NamespaceId,
+    pub revocation_id: String,
+    pub revocation_receiver: UserId,
 }
 
 impl MdnDataRevocationListRecord {
@@ -58,13 +65,14 @@ pub trait MdnAgentDataNodeDelegation {
         &self,
         data_subset_path: &str,
         delegate_to: UserId,
-    ) -> MeeDataSyncResult<Vec<MdnDataDelegationCapabilityPack>>;
+    ) -> MeeDataSyncResult<MdnDataDelegationCapabilityPack>;
     async fn revoke_shared_access(
         &self,
         data_subset_path: &str,
         revoke_from: UserId,
     ) -> MeeDataSyncResult;
-    async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListRecord>>;
+    async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>>;
+    async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool>;
 }
 
 #[async_trait]

@@ -1,5 +1,6 @@
 use iroh_net::endpoint::ConnectionError;
 use iroh_willow::proto::data_model::InvalidPathError;
+use std::{array::TryFromSliceError, string::FromUtf8Error};
 use tokio::task::JoinError;
 
 pub type MeeDataSyncResult<T = ()> = Result<T, MeeDataSyncErr>;
@@ -27,6 +28,12 @@ pub enum MeeDataSyncErr {
 
     #[error("std::sync::Mutex error: {0}")]
     StdMutex(String),
+
+    #[error("std TryFromSliceError: {0}")]
+    StdTryFromSliceError(#[from] TryFromSliceError),
+
+    #[error("std FromUtf8Error: {0}")]
+    StdFromUtf8Error(#[from] FromUtf8Error),
 
     // domain errors
     #[error("Error during synced KV-storage operation: {0}")]

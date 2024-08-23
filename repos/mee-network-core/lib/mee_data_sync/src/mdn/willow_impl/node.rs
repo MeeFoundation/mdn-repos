@@ -29,12 +29,14 @@ pub struct MdnAgentDataNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
     pub(crate) mdn_ns_store_manager: MdnNamespaceStoreManager,
     mdn_delegation_manager: MdnDelegationManager,
-    cap_revoke_task: Arc<JoinHandle<()>>,
+    cap_revoke_receiver_task: Arc<JoinHandle<()>>,
+    cap_revoke_sender_task: Arc<JoinHandle<()>>,
 }
 
 impl Drop for MdnAgentDataNodeWillowImpl {
     fn drop(&mut self) {
-        self.cap_revoke_task.abort();
+        self.cap_revoke_receiver_task.abort();
+        self.cap_revoke_sender_task.abort();
     }
 }
 
@@ -53,12 +55,14 @@ impl MdnAgentDataNodeWillowImpl {
         .await?;
 
         let mdn_delegation_manager =
-            MdnDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager.clone());
+            MdnDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager.clone()).await?;
 
-        let cap_revoke_taks = mdn_delegation_manager.clone().run_revocation_handler();
+        let (cap_revoke_receiver_task, cap_revoke_sender_task) =
+            mdn_delegation_manager.clone().run_revocation_handlers();
 
         Ok(Self {
-            cap_revoke_task: Arc::new(cap_revoke_taks),
+            cap_revoke_receiver_task: Arc::new(cap_revoke_receiver_task),
+            cap_revoke_sender_task: Arc::new(cap_revoke_sender_task),
             mdn_delegation_manager,
             mdn_ns_store_manager,
             willow_peer,
@@ -179,7 +183,9 @@ impl MdnAgentDataNodeWillowImpl {
 
                 if ns != own_revoke_list_caps
                     && ns != own_data_namespace_id
-                    && !others_revoke_list_caps.iter().any(|c| c.ns_id == ns)
+                    && !others_revoke_list_caps
+                        .iter()
+                        .any(|c| c.revocation_ns == ns)
                 {
                     Some(ns)
                 } else {
