@@ -1,15 +1,14 @@
 use crate::{
     common::mdn_node::create_node,
-    mdn_nodes::helpers::{share_data_and_sync, ShareDataAndSyncParams, TestCase},
+    mdn_providers::helpers::{share_data_and_sync, ShareDataAndSyncParams, TestCase},
 };
 use anyhow::anyhow;
 use futures::{future::join_all, StreamExt};
-use mee_data_sync::mdn::traits::delegation::MdnAgentDataNodeDelegation;
 use std::time::Duration;
 use tokio::{sync::mpsc, time::sleep};
 
 #[tokio::test]
-async fn two_provider_nodes_sync() -> anyhow::Result<()> {
+async fn providers_read_access_sharing() -> anyhow::Result<()> {
     // iroh_test::logging::setup_multithreaded();
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
@@ -31,13 +30,11 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
 
     let alice_address_path = format!("{alice_user_id}/{address_attribute}");
 
-    let alice_city_path =
-        format!("{alice_user_id}/{address_attribute}/0/{address_sub_attribute_city}");
+    let alice_city_path = format!("{alice_address_path}/0/{address_sub_attribute_city}");
 
     let bob_city_path = format!("{bob_user_id}/{address_attribute}/0/{address_sub_attribute_city}");
 
-    let alice_zip_path =
-        format!("{alice_user_id}/{address_attribute}/0/{address_sub_attribute_zip}");
+    let alice_zip_path = format!("{alice_address_path}/0/{address_sub_attribute_zip}");
 
     let alice_cvv_path = format!("{alice_user_id}/payment_card/0/cvv");
     let bob_email_path = format!("{bob_user_id}/email");
@@ -176,7 +173,7 @@ async fn two_provider_nodes_sync() -> anyhow::Result<()> {
                         for user_id in other_peers_user_ids.iter() {
                             oyt_mdn_node
                                 .mdn_delegation_manager()
-                                .revoke_shared_access(&alice_address_path, *user_id)
+                                .revoke_shared_access_from_provider(&alice_address_path, *user_id)
                                 .await?;
                         }
                     }

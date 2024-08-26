@@ -5,8 +5,8 @@ use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        traits::{delegation::MdnAgentDataNodeDelegation, node::MdnAgentDataNode},
-        willow_impl::delegation::ImportCapabilitiesFromRemotePeer,
+        provider::delegation::{ImportCapabilitiesFromProvider, MdnAgentProviderNodeDelegation},
+        traits::node::MdnAgentProviderNode,
     },
 };
 use std::{sync::Arc, time::Duration};
@@ -20,8 +20,8 @@ pub enum TestCase {
 
 pub struct ShareDataAndSyncParams {
     pub node_name: String,
-    pub delegate_from_node: Arc<dyn MdnAgentDataNode + Send + Sync>,
-    pub other_mdn_node: Arc<dyn MdnAgentDataNode + Send + Sync>,
+    pub delegate_from_node: Arc<dyn MdnAgentProviderNode + Send + Sync>,
+    pub other_mdn_node: Arc<dyn MdnAgentProviderNode + Send + Sync>,
     pub delegate_from_ticket: NodeTicket,
     pub alice_address_path: String,
     pub alice_city_path: String,
@@ -51,17 +51,17 @@ pub async fn share_data_and_sync(
     // single value sub-attribute sharing
     let cap_for_other = delegate_from_node
         .mdn_delegation_manager()
-        .delegate_read_access(&alice_city_path, other_willow_node_user_id)
+        .delegate_read_access_to_provider(&alice_city_path, other_willow_node_user_id)
         .await?;
 
-    let caps = ImportCapabilitiesFromRemotePeer {
+    let caps = ImportCapabilitiesFromProvider {
         node_ticket: delegate_from_ticket.to_string(),
         caps: cap_for_other,
     };
 
     let sync_event_stream = other_mdn_node
         .mdn_delegation_manager()
-        .import_capabilities_from_remote_peer(caps)
+        .import_capabilities_from_provider(caps)
         .await?;
 
     let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream));
@@ -69,17 +69,17 @@ pub async fn share_data_and_sync(
     // multiple values root attribute sharing
     let cap_for_other = delegate_from_node
         .mdn_delegation_manager()
-        .delegate_read_access(&alice_address_path, other_willow_node_user_id)
+        .delegate_read_access_to_provider(&alice_address_path, other_willow_node_user_id)
         .await?;
 
-    let caps = ImportCapabilitiesFromRemotePeer {
+    let caps = ImportCapabilitiesFromProvider {
         node_ticket: delegate_from_ticket.to_string(),
         caps: cap_for_other,
     };
 
     let sync_event_stream = other_mdn_node
         .mdn_delegation_manager()
-        .import_capabilities_from_remote_peer(caps)
+        .import_capabilities_from_provider(caps)
         .await?;
 
     let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream));

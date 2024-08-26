@@ -1,61 +1,56 @@
 use super::{
-    delegation::MdnDelegationManager,
-    namespace::{MdnNamespaceStoreManager, NamespaceStoreInMemory},
+    delegation::{MdnAgentProviderNodeDelegation, MdnProviderDelegationManager},
+    namespace::{MdnNamespaceStoreManager, MdnProviderNamespaceStoreInMemory},
 };
 use crate::{
     error::MeeDataSyncResult,
     mdn::traits::{
-        node::MdnAgentDataNode,
+        node::MdnAgentProviderNode,
         store::{
-            key_components, FullPathAttribute, KeyComponents, ReadDataRecord, ShortPathAttribute,
+            data_entry_path_from_key_components, key_components, ReadDataRecord,
             KEY_COMPONENTS_SPLITTER,
         },
     },
-    willow::{
-        peer::WillowPeer,
-        utils::{is_empty_entry_payload, path_from_bytes_slice},
-    },
+    willow::{peer::WillowPeer, utils::is_empty_entry_payload},
 };
 use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
-use iroh_willow::proto::{
-    data_model::{Entry, Path},
-    grouping::Range3d,
-};
+use iroh_willow::proto::{data_model::Entry, grouping::Range3d};
 use std::{collections::HashSet, sync::Arc};
 use tokio::task::JoinHandle;
 
 // #[derive(Clone)]
-pub struct MdnAgentDataNodeWillowImpl {
+pub struct MdnAgentProviderNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
     pub(crate) mdn_ns_store_manager: MdnNamespaceStoreManager,
-    mdn_delegation_manager: MdnDelegationManager,
+    mdn_delegation_manager: Arc<MdnProviderDelegationManager>,
     cap_revoke_receiver_task: Arc<JoinHandle<()>>,
     cap_revoke_sender_task: Arc<JoinHandle<()>>,
 }
 
-impl Drop for MdnAgentDataNodeWillowImpl {
+impl Drop for MdnAgentProviderNodeWillowImpl {
     fn drop(&mut self) {
         self.cap_revoke_receiver_task.abort();
         self.cap_revoke_sender_task.abort();
     }
 }
 
-impl MdnAgentDataNode for MdnAgentDataNodeWillowImpl {
-    fn mdn_delegation_manager(&self) -> MdnDelegationManager {
+impl MdnAgentProviderNode for MdnAgentProviderNodeWillowImpl {
+    fn mdn_delegation_manager(&self) -> Arc<dyn MdnAgentProviderNodeDelegation + Send + Sync> {
         self.mdn_delegation_manager.clone()
     }
 }
 
-impl MdnAgentDataNodeWillowImpl {
+impl MdnAgentProviderNodeWillowImpl {
     pub async fn new(willow_peer: WillowPeer) -> MeeDataSyncResult<Self> {
         let mdn_ns_store_manager = MdnNamespaceStoreManager::new(
-            Arc::new(NamespaceStoreInMemory::new()),
+            Arc::new(MdnProviderNamespaceStoreInMemory::new()),
             willow_peer.willow_namespace_manager.clone(),
         )
         .await?;
 
         let mdn_delegation_manager =
-            MdnDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager.clone()).await?;
+            MdnProviderDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager.clone())
+                .await?;
 
         let (cap_revoke_receiver_task, cap_revoke_sender_task) =
             mdn_delegation_manager.clone().run_revocation_handlers();
@@ -63,50 +58,15 @@ impl MdnAgentDataNodeWillowImpl {
         Ok(Self {
             cap_revoke_receiver_task: Arc::new(cap_revoke_receiver_task),
             cap_revoke_sender_task: Arc::new(cap_revoke_sender_task),
-            mdn_delegation_manager,
+            mdn_delegation_manager: Arc::new(mdn_delegation_manager),
             mdn_ns_store_manager,
             willow_peer,
         })
     }
-    pub fn data_entry_path_from_key_components(
-        key_components: KeyComponents,
-    ) -> MeeDataSyncResult<Path> {
-        let mut path_components = vec![];
 
-        match key_components {
-            KeyComponents::FullPathAttribute(FullPathAttribute {
-                user_id,
-                attribute_name,
-                attribute_instance_id,
-                sub_attribute_name,
-            }) => {
-                path_components.extend(vec![
-                    user_id,
-                    attribute_name,
-                    attribute_instance_id,
-                    sub_attribute_name,
-                ]);
-            }
-            KeyComponents::ShortPathAttribute(ShortPathAttribute {
-                user_id,
-                attribute_name,
-            }) => {
-                path_components.extend(vec![user_id, attribute_name]);
-            }
-        }
-
-        let path_components = path_components
-            .iter()
-            .map(String::as_bytes)
-            .collect::<Vec<_>>();
-
-        let path = path_from_bytes_slice(&path_components)?;
-
-        Ok(path)
-    }
     pub async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
         let comps = key_components(key)?;
-        let path = Self::data_entry_path_from_key_components(comps)?;
+        let path = data_entry_path_from_key_components(comps)?;
 
         let entries = self
             .all_data_entries_filter(move |e| e.path() == &path)
@@ -214,13 +174,10 @@ impl MdnAgentDataNodeWillowImpl {
 
         Ok(entries)
     }
-    pub async fn all_values_filter<F>(
+    pub async fn all_values_filter(
         &self,
-        filter_entry_fn: F,
-    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>
-    where
-        F: Fn(&Entry) -> bool + Send + Sync + 'static,
-    {
+        filter_entry_fn: Box<dyn Fn(&Entry) -> bool + Send + Sync + 'static>,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
         let range = Range3d::new_full();
 
         let entries = self.data_entries_for_range(range).await?;

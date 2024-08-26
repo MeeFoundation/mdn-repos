@@ -1,13 +1,12 @@
-use super::{namespace::MdnNamespaceStoreManager, node::MdnAgentDataNodeWillowImpl};
+use super::namespace::MdnNamespaceStoreManager;
 use crate::{
     error::MeeDataSyncResult,
     mdn::traits::{
         delegation::{
-            MdnAgentDataNodeDelegation, MdnDataDelegationCapabilityPack,
-            MdnDataDelegationCapabilityPackObject, MdnDataRevocationListRecord,
-            MdnDataRevocationListResponse,
+            revocation_done_record_path, revocation_list_record_path,
+            revocation_list_record_path_prefix, REVOCATION_LIST_PATH_PREFIX,
         },
-        store::key_components,
+        store::{data_entry_path_from_key_components, key_components},
     },
     willow::{
         peer::{delegation_manager::cap_granted_components, WillowPeer},
@@ -17,6 +16,7 @@ use crate::{
 use async_trait::async_trait;
 use futures::{future::join_all, StreamExt};
 use iroh_net::ticket::NodeTicket;
+use iroh_willow::{interest::CapabilityPack, proto::data_model::NamespaceId};
 use iroh_willow::{
     interest::{AreaSelector, CapSelector, DelegateTo, Interests, ReceiverSelector, RestrictArea},
     proto::{
@@ -27,44 +27,94 @@ use iroh_willow::{
     },
     session::{intents::IntentHandle, SessionInit, SessionMode},
 };
+use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};
 
-const REVOCATION_LIST_PATH_PREFIX: &str = "revocation_request";
-const REVOCATION_DONE_PATH_PREFIX: &str = "revocation_done";
-
-pub fn revocation_done_record_path(user_id: UserId, cap_id: &str) -> MeeDataSyncResult<Path> {
-    path_from_bytes_slice(&[
-        REVOCATION_DONE_PATH_PREFIX.as_bytes(),
-        user_id.to_string().as_bytes(),
-        cap_id.as_bytes(),
-    ])
+#[derive(Debug)]
+pub struct MdnDataDelegationCapabilityPack {
+    pub data_source_namespace: MdnDataDelegationCapabilityPackObject,
+    pub revocation_list_receiver_namespace: MdnDataDelegationCapabilityPackObject,
+    pub revocation_list_sender_namespace: MdnDataDelegationCapabilityPackObject,
 }
 
-pub fn revocation_list_record_path(user_id: UserId, cap_id: &str) -> MeeDataSyncResult<Path> {
-    path_from_bytes_slice(&[
-        REVOCATION_LIST_PATH_PREFIX.as_bytes(),
-        user_id.to_string().as_bytes(),
-        cap_id.as_bytes(),
-    ])
+#[derive(Debug)]
+pub struct MdnDataDelegationCapabilityPackObject {
+    pub cap_pack: Vec<CapabilityPack>,
+    pub cap_issuer: UserId,
 }
 
-pub fn revocation_list_record_path_prefix(user_id: UserId) -> MeeDataSyncResult<Path> {
-    path_from_bytes_slice(&[
-        REVOCATION_LIST_PATH_PREFIX.as_bytes(),
-        user_id.to_string().as_bytes(),
-    ])
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MdnDataRevocationListResponse {
+    pub record: MdnDataRevocationListRecord,
+    pub signal_revocation_ns: NamespaceId,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MdnDataRevocationListRecord {
+    pub shared_data_path: String,
+    pub data_owner: UserId,
+    pub data_owner_ns: NamespaceId,
+    pub revocation_id: String,
+    pub revocation_receiver: UserId,
+}
+
+impl MdnDataRevocationListRecord {
+    pub fn encode(&self) -> MeeDataSyncResult<Vec<u8>> {
+        Ok(serde_json::to_vec(self)?)
+    }
+    pub fn decode(bytes: &[u8]) -> MeeDataSyncResult<Self> {
+        Ok(serde_json::from_slice(bytes)?)
+    }
+}
+
+// TODO make abstract over willow specific details
+#[async_trait]
+pub trait MdnAgentProviderNodeDelegation {
+    /// Imports permission to write the provider list of their capabilities into data owner namespace
+    async fn import_cap_list_from_data_owner(
+        &self,
+        data_owner_cap_list_ns: NamespaceId,
+    ) -> MeeDataSyncResult<()>;
+
+    async fn import_capabilities_from_provider(
+        &self,
+        caps: ImportCapabilitiesFromProvider,
+    ) -> MeeDataSyncResult<IntentHandle>;
+
+    /// Delegates read access from one provider to another one
+    async fn delegate_read_access_to_provider(
+        &self,
+        data_subset_path: &str,
+        delegate_to: UserId,
+    ) -> MeeDataSyncResult<MdnDataDelegationCapabilityPack>;
+
+    /// Revokes data access from one provider by another one
+    async fn revoke_shared_access_from_provider(
+        &self,
+        data_subset_path: &str,
+        revoke_from: UserId,
+    ) -> MeeDataSyncResult;
+
+    /// Owner means MDN user (e.g. local/virtual wallet holder)
+    async fn delegate_full_access_to_owner(
+        &self,
+        delegate_to: UserId,
+    ) -> MeeDataSyncResult<MdnDataDelegationCapabilityPack>;
+
+    async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>>;
+    async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool>;
 }
 
 #[derive(Clone)]
-pub struct MdnDelegationManager {
+pub struct MdnProviderDelegationManager {
     willow_peer: WillowPeer,
     mdn_ns_store_manager: MdnNamespaceStoreManager,
     revocation_record_prefix_path: Path,
     current_user_id: UserId,
 }
 
-impl MdnDelegationManager {
+impl MdnProviderDelegationManager {
     pub async fn new(
         willow_peer: WillowPeer,
         mdn_ns_store_manager: MdnNamespaceStoreManager,
@@ -105,7 +155,7 @@ impl MdnDelegationManager {
     ) -> MeeDataSyncResult {
         let tasks = caps.into_iter().map(|cap| async move {
             let comps = key_components(&cap.record.shared_data_path)?;
-            let path = MdnAgentDataNodeWillowImpl::data_entry_path_from_key_components(comps)?;
+            let path = data_entry_path_from_key_components(comps)?;
 
             let cap_selector = CapSelector::new(
                 cap.record.data_owner_ns,
@@ -296,21 +346,35 @@ impl MdnDelegationManager {
     }
 }
 
-pub struct ImportCapabilitiesFromRemotePeer {
+pub struct ImportCapabilitiesFromProvider {
     pub node_ticket: String,
     pub caps: MdnDataDelegationCapabilityPack,
 }
 
+pub struct ImportCapabilitiesForDataOwner {
+    pub node_ticket: String,
+    pub caps: String,
+}
+
 #[async_trait]
-impl MdnAgentDataNodeDelegation for MdnDelegationManager {
+impl MdnAgentProviderNodeDelegation for MdnProviderDelegationManager {
+    async fn import_cap_list_from_data_owner(
+        &self,
+        data_owner_cap_list_ns: NamespaceId,
+    ) -> MeeDataSyncResult<()> {
+        self.mdn_ns_store_manager
+            .set_data_owner_cap_list(data_owner_cap_list_ns)
+            .await
+    }
     async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool> {
         Ok(self
             .is_revocation_list_empty(&self.revocation_list_entries().await?)
             .await?)
     }
-    async fn import_capabilities_from_remote_peer(
+
+    async fn import_capabilities_from_provider(
         &self,
-        ImportCapabilitiesFromRemotePeer { node_ticket, caps }: ImportCapabilitiesFromRemotePeer,
+        ImportCapabilitiesFromProvider { node_ticket, caps }: ImportCapabilitiesFromProvider,
     ) -> MeeDataSyncResult<IntentHandle> {
         if let Some(cap) = caps.revocation_list_receiver_namespace.cap_pack.first() {
             let (revocation_ns, _) = cap_granted_components(&cap);
@@ -434,7 +498,7 @@ impl MdnAgentDataNodeDelegation for MdnDelegationManager {
 
         Ok(res)
     }
-    async fn revoke_shared_access(
+    async fn revoke_shared_access_from_provider(
         &self,
         shared_data_path: &str,
         revoke_from: UserId,
@@ -462,7 +526,13 @@ impl MdnAgentDataNodeDelegation for MdnDelegationManager {
 
         Ok(())
     }
-    async fn delegate_read_access(
+    async fn delegate_full_access_to_owner(
+        &self,
+        delegate_to: UserId,
+    ) -> MeeDataSyncResult<MdnDataDelegationCapabilityPack> {
+        todo!()
+    }
+    async fn delegate_read_access_to_provider(
         &self,
         shared_data_path: &str,
         delegate_to: UserId,
@@ -471,9 +541,8 @@ impl MdnAgentDataNodeDelegation for MdnDelegationManager {
         // TODO subscribe to this namespace and check signals from peers with revoked capabilities
         let revoke_list_ns = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
 
-        let shared_data_path = MdnAgentDataNodeWillowImpl::data_entry_path_from_key_components(
-            key_components(&shared_data_path)?,
-        )?;
+        let shared_data_path =
+            data_entry_path_from_key_components(key_components(&shared_data_path)?)?;
 
         let cap_issuer = self
             .willow_peer

@@ -16,6 +16,9 @@ pub struct AgentNodeDataNs(pub NamespaceId);
 #[derive(Debug, Clone, Copy)]
 pub struct CapabilityRevocationListNs(pub NamespaceId);
 
+#[derive(Debug, Clone, Copy)]
+pub struct DataOwnerCapabilityListNs(pub NamespaceId);
+
 #[derive(Debug, Clone)]
 pub struct OtherPeerCapabilityRevocationNs {
     pub peer_id: UserId,
@@ -27,8 +30,11 @@ pub enum MdnNamespaceType {
     /// Owned namespace for storing actual data (persona model attributes)
     AgentNodeDataNs(AgentNodeDataNs),
 
-    /// Communal namespace for capability revocation list
+    /// Owned namespace for capability revocation list
     CapabilityRevocationListNs(CapabilityRevocationListNs),
+
+    /// Owned (by local wallet holder) namespace with a list of all capabilities that shares user's data access between providers
+    DataOwnerCapabilityListNs(DataOwnerCapabilityListNs),
 
     /// Revocations lists from other peers delegated access to this peer
     OtherPeerCapabilityRevocationNs(OtherPeerCapabilityRevocationNs),
@@ -40,24 +46,28 @@ impl MdnNamespaceType {
             MdnNamespaceType::AgentNodeDataNs(ns) => ns.0,
             MdnNamespaceType::CapabilityRevocationListNs(ns) => ns.0,
             MdnNamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.revocation_ns,
+            MdnNamespaceType::DataOwnerCapabilityListNs(ns) => ns.0,
         }
     }
 }
 
 #[async_trait]
-pub trait MdnNamespaceStore {
+pub trait MdnProviderNamespaceStore {
     async fn has_ns(&self, ns_id: NamespaceId) -> MeeDataSyncResult<bool>;
     async fn set_ns(&self, ns_type: MdnNamespaceType) -> MeeDataSyncResult;
     async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<Option<AgentNodeDataNs>>;
     async fn get_cap_revoke_list_ns(&self)
         -> MeeDataSyncResult<Option<CapabilityRevocationListNs>>;
+    async fn get_data_owner_cap_list_ns(
+        &self,
+    ) -> MeeDataSyncResult<Option<DataOwnerCapabilityListNs>>;
     async fn get_others_cap_revoke_list_nss(
         &self,
     ) -> MeeDataSyncResult<Vec<OtherPeerCapabilityRevocationNs>>;
 }
 
 #[async_trait]
-impl MdnNamespaceStore for NamespaceStoreInMemory {
+impl MdnProviderNamespaceStore for MdnProviderNamespaceStoreInMemory {
     async fn has_ns(&self, ns_id: NamespaceId) -> MeeDataSyncResult<bool> {
         let res = self.store.lock().await.contains_key(&ns_id);
 
@@ -118,14 +128,30 @@ impl MdnNamespaceStore for NamespaceStoreInMemory {
 
         Ok(ns)
     }
+    async fn get_data_owner_cap_list_ns(
+        &self,
+    ) -> MeeDataSyncResult<Option<DataOwnerCapabilityListNs>> {
+        let ns = self
+            .store
+            .lock()
+            .await
+            .iter()
+            .find_map(|(_, ns)| match ns {
+                MdnNamespaceType::DataOwnerCapabilityListNs(v) => Some(v),
+                _ => None,
+            })
+            .cloned();
+
+        Ok(ns)
+    }
 }
 
 #[derive(Clone)]
-pub struct NamespaceStoreInMemory {
+pub struct MdnProviderNamespaceStoreInMemory {
     store: Arc<Mutex<HashMap<NamespaceId, MdnNamespaceType>>>,
 }
 
-impl NamespaceStoreInMemory {
+impl MdnProviderNamespaceStoreInMemory {
     pub fn new() -> Self {
         Self {
             store: Arc::new(Mutex::new(HashMap::new())),
@@ -135,12 +161,12 @@ impl NamespaceStoreInMemory {
 
 #[derive(Clone)]
 pub struct MdnNamespaceStoreManager {
-    store: Arc<dyn MdnNamespaceStore + Send + Sync>,
+    store: Arc<dyn MdnProviderNamespaceStore + Send + Sync>,
 }
 
 impl MdnNamespaceStoreManager {
     pub async fn new(
-        store: Arc<dyn MdnNamespaceStore + Send + Sync>,
+        store: Arc<dyn MdnProviderNamespaceStore + Send + Sync>,
         willow_namespace_manager: WillowNamespaceManager,
     ) -> MeeDataSyncResult<Self> {
         if store.get_agent_node_data_ns().await?.is_none() {
@@ -175,6 +201,18 @@ impl MdnNamespaceStoreManager {
 
         Ok(Self { store })
     }
+    pub async fn set_data_owner_cap_list(
+        &self,
+        data_owner_capability_list_ns_id: NamespaceId,
+    ) -> MeeDataSyncResult {
+        self.store
+            .set_ns(MdnNamespaceType::DataOwnerCapabilityListNs(
+                DataOwnerCapabilityListNs(data_owner_capability_list_ns_id),
+            ))
+            .await?;
+
+        Ok(())
+    }
     pub async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<AgentNodeDataNs> {
         let res = self
             .store
@@ -190,6 +228,15 @@ impl MdnNamespaceStoreManager {
             .get_cap_revoke_list_ns()
             .await?
             .ok_or_else(MeeDataSyncErr::missing_cap_revoke_list_namespace)?;
+
+        Ok(res)
+    }
+    pub async fn get_data_owner_cap_list_ns(&self) -> MeeDataSyncResult<DataOwnerCapabilityListNs> {
+        let res = self
+            .store
+            .get_data_owner_cap_list_ns()
+            .await?
+            .ok_or_else(MeeDataSyncErr::missing_data_owner_cap_list_namespace)?;
 
         Ok(res)
     }
@@ -224,6 +271,11 @@ impl MeeDataSyncErr {
     pub fn missing_cap_revoke_list_namespace() -> Self {
         MeeDataSyncErr::WillowNamespaceHandler(
             "Missing capability revocation namespace".to_string(),
+        )
+    }
+    pub fn missing_data_owner_cap_list_namespace() -> Self {
+        MeeDataSyncErr::WillowNamespaceHandler(
+            "Missing data owner capability revocation namespace".to_string(),
         )
     }
 }
