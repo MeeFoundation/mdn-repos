@@ -5,7 +5,7 @@ use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        node::{MdnAgentDataNode, MdnAgentDataNodeDelegation},
+        traits::{delegation::MdnAgentDataNodeDelegation, node::MdnAgentDataNode},
         willow_impl::delegation::ImportCapabilitiesFromRemotePeer,
     },
 };

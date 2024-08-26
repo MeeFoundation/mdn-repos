@@ -1,21 +1,13 @@
-use super::{
-    store::MdnAgentDataNodeKvStore,
-    willow_impl::delegation::{ImportCapabilitiesFromRemotePeer, MdnDelegationManager},
+use crate::{
+    error::MeeDataSyncResult, mdn::willow_impl::delegation::ImportCapabilitiesFromRemotePeer,
 };
-use crate::error::MeeDataSyncResult;
 use async_trait::async_trait;
-use iroh_net::{ticket::NodeTicket, NodeAddr};
 use iroh_willow::{
     interest::CapabilityPack,
-    proto::keys::{NamespaceId, UserId},
+    proto::{data_model::NamespaceId, keys::UserId},
     session::intents::IntentHandle,
 };
 use serde::{Deserialize, Serialize};
-
-#[async_trait]
-pub trait MdnAgentDataNodeUserOps {
-    async fn user_id(&self) -> MeeDataSyncResult<UserId>;
-}
 
 #[derive(Debug)]
 pub struct MdnDataDelegationCapabilityPack {
@@ -73,17 +65,4 @@ pub trait MdnAgentDataNodeDelegation {
     ) -> MeeDataSyncResult;
     async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>>;
     async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool>;
-}
-
-#[async_trait]
-pub trait MdnAgentDataNodeNetworkOps {
-    async fn network_node_ticket(&self) -> MeeDataSyncResult<NodeTicket>;
-    async fn network_node_addr(&self) -> MeeDataSyncResult<NodeAddr>;
-    fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult;
-}
-
-pub trait MdnAgentDataNode:
-    MdnAgentDataNodeNetworkOps + MdnAgentDataNodeUserOps + MdnAgentDataNodeKvStore
-{
-    fn mdn_delegation_manager(&self) -> MdnDelegationManager;
 }

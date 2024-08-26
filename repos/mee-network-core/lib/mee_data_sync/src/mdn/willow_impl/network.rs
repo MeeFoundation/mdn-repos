@@ -1,5 +1,5 @@
 use super::node::MdnAgentDataNodeWillowImpl;
-use crate::{error::MeeDataSyncResult, mdn::node::MdnAgentDataNodeNetworkOps};
+use crate::{error::MeeDataSyncResult, mdn::traits::network::MdnAgentDataNodeNetworkOps};
 use async_trait::async_trait;
 use iroh_net::{ticket::NodeTicket, NodeAddr};
 

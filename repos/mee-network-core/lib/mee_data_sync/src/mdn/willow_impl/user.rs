@@ -1,5 +1,5 @@
 use super::node::MdnAgentDataNodeWillowImpl;
-use crate::{error::MeeDataSyncResult, mdn::node::MdnAgentDataNodeUserOps};
+use crate::{error::MeeDataSyncResult, mdn::traits::user::MdnAgentDataNodeUserOps};
 use async_trait::async_trait;
 use iroh_willow::proto::keys::UserId;
 

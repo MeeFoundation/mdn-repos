@@ -1,7 +1,7 @@
 use super::utils::create_rng;
 use mee_data_sync::{
     error::MeeDataSyncResult,
-    mdn::{node::MdnAgentDataNode, willow_impl::node::MdnAgentDataNodeWillowImpl},
+    mdn::{traits::node::MdnAgentDataNode, willow_impl::node::MdnAgentDataNodeWillowImpl},
     willow::peer::WillowPeer,
 };
 use std::sync::Arc;

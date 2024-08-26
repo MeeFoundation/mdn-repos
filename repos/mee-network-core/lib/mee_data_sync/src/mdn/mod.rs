@@ -1,3 +1,2 @@
-pub mod node;
-pub mod store;
+pub mod traits;
 pub mod willow_impl;

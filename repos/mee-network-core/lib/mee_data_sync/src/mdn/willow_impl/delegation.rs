@@ -1,8 +1,8 @@
 use super::{namespace::MdnNamespaceStoreManager, node::MdnAgentDataNodeWillowImpl};
 use crate::{
     error::MeeDataSyncResult,
-    mdn::{
-        node::{
+    mdn::traits::{
+        delegation::{
             MdnAgentDataNodeDelegation, MdnDataDelegationCapabilityPack,
             MdnDataDelegationCapabilityPackObject, MdnDataRevocationListRecord,
             MdnDataRevocationListResponse,

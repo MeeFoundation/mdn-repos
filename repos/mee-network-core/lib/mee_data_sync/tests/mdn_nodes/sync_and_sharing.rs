@@ -1,12 +1,11 @@
-use std::time::Duration;
-
 use crate::{
     common::mdn_node::create_node,
     mdn_nodes::helpers::{share_data_and_sync, ShareDataAndSyncParams, TestCase},
 };
 use anyhow::anyhow;
 use futures::{future::join_all, StreamExt};
-use mee_data_sync::mdn::node::MdnAgentDataNodeDelegation;
+use mee_data_sync::mdn::traits::delegation::MdnAgentDataNodeDelegation;
+use std::time::Duration;
 use tokio::{sync::mpsc, time::sleep};
 
 #[tokio::test]

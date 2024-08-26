@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     error::MeeDataSyncResult,
-    mdn::{
+    mdn::traits::{
         node::MdnAgentDataNode,
         store::{
             key_components, FullPathAttribute, KeyComponents, ReadDataRecord, ShortPathAttribute,

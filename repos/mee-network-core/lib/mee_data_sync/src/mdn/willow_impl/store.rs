@@ -1,7 +1,7 @@
 use super::node::MdnAgentDataNodeWillowImpl;
 use crate::{
     error::MeeDataSyncResult,
-    mdn::store::{key_components, MdnAgentDataNodeKvStore, ReadDataRecord},
+    mdn::traits::store::{key_components, MdnAgentDataNodeKvStore, ReadDataRecord},
     willow::utils::path_from_bytes_slice,
 };
 use async_trait::async_trait;
