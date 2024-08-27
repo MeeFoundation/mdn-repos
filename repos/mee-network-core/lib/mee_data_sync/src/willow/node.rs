@@ -1,4 +1,4 @@
-use crate::error::{MeeDataSyncErr, MeeDataSyncResult};
+use crate::error::MeeDataSyncResult;
 use iroh_net::{ticket::NodeTicket, Endpoint, NodeId};
 use iroh_willow::{
     engine::{AcceptOpts, Engine},
@@ -59,11 +59,7 @@ impl WillowNode {
     }
 
     pub async fn shutdown(self) -> MeeDataSyncResult<()> {
-        let accept_task = self
-            .accept_task
-            .lock()
-            .map_err(|e| MeeDataSyncErr::StdMutex(e.to_string()))?
-            .take();
+        let accept_task = self.accept_task.lock()?.take();
 
         if let Some(accept_task) = accept_task {
             accept_task.abort();

@@ -1,5 +1,5 @@
 use crate::{
-    common::mdn_node::create_node,
+    common::mdn_node::create_provider_node,
     mdn_providers::helpers::{share_data_and_sync, ShareDataAndSyncParams, TestCase},
 };
 use anyhow::anyhow;
@@ -16,7 +16,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
         .filter_module("tracing::span", log::LevelFilter::Warn)
         .init();
 
-    let oyt_mdn_node = create_node("oyt node").await?;
+    let oyt_mdn_node = create_provider_node("oyt node").await?;
 
     let alice_user_id = "alice";
     let bob_user_id = "bob";
@@ -134,7 +134,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
 
     for c in 0..shared_with_peers_count {
         let node_name = format!("peer-{c}");
-        let other_mdn_node = create_node(&node_name).await?;
+        let other_mdn_node = create_provider_node(&node_name).await?;
         other_nodes.push(other_mdn_node.clone());
 
         let peer_task = tokio::spawn(share_data_and_sync(ShareDataAndSyncParams {
@@ -170,11 +170,23 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
                     } => {
                         other_peers_user_ids.push(other_willow_node_user_id);
 
+                        let cap_list = oyt_mdn_node
+                            .mdn_delegation_manager()
+                            .delegated_caps()
+                            .await?;
+
                         for user_id in other_peers_user_ids.iter() {
-                            oyt_mdn_node
-                                .mdn_delegation_manager()
-                                .revoke_shared_access_from_provider(&alice_address_path, *user_id)
-                                .await?;
+                            if let Some(cap) = cap_list.iter().find(|c| &c.cap_receiver == user_id)
+                            {
+                                oyt_mdn_node
+                                    .mdn_delegation_manager()
+                                    .revoke_shared_access_from_provider(
+                                        &cap.capability_id,
+                                        &cap.shared_data_path,
+                                        *user_id,
+                                    )
+                                    .await?;
+                            }
                         }
                     }
                     TestCase::End => {

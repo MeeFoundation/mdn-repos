@@ -1,6 +1,6 @@
 use iroh_net::endpoint::ConnectionError;
 use iroh_willow::proto::data_model::InvalidPathError;
-use std::{array::TryFromSliceError, string::FromUtf8Error};
+use std::{array::TryFromSliceError, string::FromUtf8Error, sync::PoisonError};
 use tokio::task::JoinError;
 
 pub type MeeDataSyncResult<T = ()> = Result<T, MeeDataSyncErr>;
@@ -47,4 +47,10 @@ pub enum MeeDataSyncErr {
 
     #[error("Willow delegation handler error: {0}")]
     WillowDelegationHandler(String),
+}
+
+impl<T> From<PoisonError<T>> for MeeDataSyncErr {
+    fn from(v: PoisonError<T>) -> Self {
+        Self::StdMutex(v.to_string())
+    }
 }

@@ -3,19 +3,19 @@ use super::{
     user::MdnAgentDataNodeUserOps,
 };
 use crate::mdn::{
-    data_owner::delegation::MdnAgentDataOwnerNodeDelegation,
-    provider::delegation::MdnAgentProviderNodeDelegation,
+    data_owner::delegation::MdnDataOwnerDelegationManager,
+    provider::delegation::manager::MdnProviderDelegationManager,
 };
 use std::sync::Arc;
 
 pub trait MdnAgentProviderNode:
     MdnAgentDataNodeNetworkOps + MdnAgentDataNodeUserOps + MdnAgentDataNodeKvStore
 {
-    fn mdn_delegation_manager(&self) -> Arc<dyn MdnAgentProviderNodeDelegation + Send + Sync>;
+    fn mdn_delegation_manager(&self) -> Arc<dyn MdnProviderDelegationManager + Send + Sync>;
 }
 
 pub trait MdnAgentDataOwnerNode:
     MdnAgentDataNodeNetworkOps + MdnAgentDataNodeUserOps + MdnAgentDataNodeKvStore
 {
-    fn mdn_delegation_manager(&self) -> Arc<dyn MdnAgentDataOwnerNodeDelegation + Send + Sync>;
+    fn mdn_delegation_manager(&self) -> MdnDataOwnerDelegationManager;
 }

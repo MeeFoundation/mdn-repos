@@ -1,18 +1,24 @@
 use super::{
-    delegation::{MdnAgentProviderNodeDelegation, MdnProviderDelegationManager},
-    namespace::{MdnNamespaceStoreManager, MdnProviderNamespaceStoreInMemory},
+    caps::{MdnProviderCapabilityInMemoryStore, MdnProviderCapabilityManager},
+    delegation::{
+        manager::MdnProviderDelegationManager, MdnProviderDelegationManagerImpl,
+    },
+    namespace::{MdnProviderNamespaceStoreInMemory, MdnProviderNamespaceStoreManager},
 };
 use crate::{
     error::MeeDataSyncResult,
     mdn::traits::{
+        network::MdnAgentDataNodeNetworkOps,
         node::MdnAgentProviderNode,
         store::{
             data_entry_path_from_key_components, key_components, ReadDataRecord,
             KEY_COMPONENTS_SPLITTER,
         },
+        user::MdnAgentDataNodeUserOps,
     },
     willow::{peer::WillowPeer, utils::is_empty_entry_payload},
 };
+use async_trait::async_trait;
 use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
 use iroh_willow::proto::{data_model::Entry, grouping::Range3d};
 use std::{collections::HashSet, sync::Arc};
@@ -21,43 +27,47 @@ use tokio::task::JoinHandle;
 // #[derive(Clone)]
 pub struct MdnAgentProviderNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
-    pub(crate) mdn_ns_store_manager: MdnNamespaceStoreManager,
-    mdn_delegation_manager: Arc<MdnProviderDelegationManager>,
-    cap_revoke_receiver_task: Arc<JoinHandle<()>>,
-    cap_revoke_sender_task: Arc<JoinHandle<()>>,
+    pub(crate) mdn_ns_store_manager: MdnProviderNamespaceStoreManager,
+    mdn_delegation_manager: Arc<MdnProviderDelegationManagerImpl>,
+    background_jobs: Arc<Vec<JoinHandle<()>>>,
 }
 
 impl Drop for MdnAgentProviderNodeWillowImpl {
     fn drop(&mut self) {
-        self.cap_revoke_receiver_task.abort();
-        self.cap_revoke_sender_task.abort();
+        for job in self.background_jobs.iter() {
+            job.abort();
+        }
     }
 }
 
 impl MdnAgentProviderNode for MdnAgentProviderNodeWillowImpl {
-    fn mdn_delegation_manager(&self) -> Arc<dyn MdnAgentProviderNodeDelegation + Send + Sync> {
+    fn mdn_delegation_manager(&self) -> Arc<dyn MdnProviderDelegationManager + Send + Sync> {
         self.mdn_delegation_manager.clone()
     }
 }
 
 impl MdnAgentProviderNodeWillowImpl {
     pub async fn new(willow_peer: WillowPeer) -> MeeDataSyncResult<Self> {
-        let mdn_ns_store_manager = MdnNamespaceStoreManager::new(
+        let mdn_ns_store_manager = MdnProviderNamespaceStoreManager::new(
             Arc::new(MdnProviderNamespaceStoreInMemory::new()),
             willow_peer.willow_namespace_manager.clone(),
         )
         .await?;
 
-        let mdn_delegation_manager =
-            MdnProviderDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager.clone())
-                .await?;
+        let mdn_provider_capability_manager =
+            MdnProviderCapabilityManager::new(Arc::new(MdnProviderCapabilityInMemoryStore::new()));
 
-        let (cap_revoke_receiver_task, cap_revoke_sender_task) =
-            mdn_delegation_manager.clone().run_revocation_handlers();
+        let mdn_delegation_manager = MdnProviderDelegationManagerImpl::new(
+            willow_peer.clone(),
+            mdn_ns_store_manager.clone(),
+            mdn_provider_capability_manager,
+        )
+        .await?;
+
+        let background_jobs = mdn_delegation_manager.clone().run_background_jobs();
 
         Ok(Self {
-            cap_revoke_receiver_task: Arc::new(cap_revoke_receiver_task),
-            cap_revoke_sender_task: Arc::new(cap_revoke_sender_task),
+            background_jobs: Arc::new(background_jobs),
             mdn_delegation_manager: Arc::new(mdn_delegation_manager),
             mdn_ns_store_manager,
             willow_peer,
@@ -245,5 +255,19 @@ impl MdnAgentProviderNodeWillowImpl {
             });
 
         Ok(records.boxed())
+    }
+}
+
+#[async_trait]
+impl MdnAgentDataNodeNetworkOps for MdnAgentProviderNodeWillowImpl {
+    fn willow_peer(&self) -> WillowPeer {
+        self.willow_peer.clone()
+    }
+}
+
+#[async_trait]
+impl MdnAgentDataNodeUserOps for MdnAgentProviderNodeWillowImpl {
+    fn willow_peer(&self) -> WillowPeer {
+        self.willow_peer.clone()
     }
 }

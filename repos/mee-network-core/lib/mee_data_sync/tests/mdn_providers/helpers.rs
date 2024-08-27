@@ -5,7 +5,7 @@ use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        provider::delegation::{ImportCapabilitiesFromProvider, MdnAgentProviderNodeDelegation},
+        provider::delegation::manager::ImportCapabilitiesFromProvider,
         traits::node::MdnAgentProviderNode,
     },
 };
