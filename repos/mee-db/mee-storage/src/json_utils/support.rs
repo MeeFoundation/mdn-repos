@@ -134,3 +134,65 @@ pub(super) fn get_property<'a>(current: &'a Value, k: &'a str) -> Option<&'a Val
         Some(current_obj)
     }
 }
+
+pub(super) fn get_property_pattern<'a>(current: &'a Value, k: &'a str) -> Option<Value> {
+    if k.is_empty() {
+        Some(current.clone())
+    } else {
+        let parts = k
+            .split(PATH_SEPARATOR)
+            .filter(|x| !x.is_empty())
+            .collect::<Vec<&str>>();
+
+        let mut current_obj = current;
+
+        for i in 0..parts.len() {
+            let part = parts[i];
+            if part == "*" {
+                if current_obj.is_array() {
+                    let mut result = Value::Array(vec![]);
+                    let mut arr = result.as_array_mut().unwrap();
+                    for v in current_obj.as_array().unwrap() {
+                        if let Some(v) = get_property_pattern(
+                            v,
+                            &parts[i + 1..].join(&PATH_SEPARATOR.to_string()),
+                        ) {
+                            arr.push(v);
+                        }
+                    }
+                    return Some(result);
+                } else if current_obj.is_object() {
+                    let mut result = Value::Object(Map::new());
+                    let mut obj = result.as_object_mut().unwrap();
+                    for (k, v) in current_obj.as_object().unwrap() {
+                        if let Some(v) = get_property_pattern(
+                            v,
+                            &parts[i + 1..].join(&PATH_SEPARATOR.to_string()),
+                        ) {
+                            obj.insert(k.to_string(), v);
+                        }
+                    }
+                    return Some(result);
+                }
+            } else {
+                match part.parse::<usize>() {
+                    Ok(index) if current_obj.is_array() => {
+                        let array = current_obj.as_array().unwrap();
+                        if array.len() <= index {
+                            return None;
+                        }
+                        current_obj = &array[index];
+                    }
+                    _ if current_obj.is_object() => {
+                        current_obj = current_obj.as_object().unwrap().get(part)?;
+                    }
+                    _ => {
+                        return None;
+                    }
+                }
+            }
+        }
+
+        Some(current_obj.clone())
+    }
+}

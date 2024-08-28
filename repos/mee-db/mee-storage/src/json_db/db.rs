@@ -7,9 +7,11 @@ use crate::json_utils::ID_PREFIX;
 use crate::json_utils::ID_PROPERTY;
 use crate::query_el::SelectQuery;
 use async_stream::stream;
-use futures::stream::StreamExt;
+use chrono::offset;
+use futures::stream::{Skip, StreamExt};
 use serde_json::{Map, Value};
 use std::sync::Arc;
+use tracing::field;
 pub struct JsonDBImpl {
     db: Arc<dyn JsonStore + Send + Sync>,
 }
@@ -80,56 +82,32 @@ impl JsonDB for JsonDBImpl {
         self.db.delete(object_key(&id)).await
     }
 
-    async fn stream(
-        &self,
-        key: &str,
-        SelectQuery {
+    async fn stream(&self, key: &str, query: SelectQuery) -> Result<JsonStream> {
+        let field_filter = query.get_field_filter()?;
+        let stream = self.db.range(key.to_string(), field_filter).await?;
+        let SelectQuery {
             select_clause,
             where_clause,
             limit,
             offset,
-            field_filter,
-        }: SelectQuery,
-    ) -> Result<JsonStream> {
-        let stream = self.db.range(key.to_string(), field_filter).await?;
+        }: SelectQuery = query;
 
-        let stream = stream! {
-            let mut skip_left = offset;
-            let mut take_left = limit.unwrap_or(0);
-            for await v in stream {
-                if where_clause.filter(&v) {
-                    if skip_left > 0 {
-                        skip_left -= 1;
-                    }else if limit.is_none() {
-                        yield select_clause.get_value(v);
-                    }else if take_left > 0 {
-                        take_left -= 1;
-                    }else{
-                        break;
+        let mut stream = stream
+            .filter_map(move |v| {
+                let where_clause = where_clause.clone();
+                let select_clause = select_clause.clone();
+                async move {
+                    if where_clause.filter(&v) {
+                        Some(select_clause.get_value(v))
+                    } else {
+                        None::<Value>
                     }
                 }
-            }
-        }
-        .boxed();
-        // let stream = stream
-        //     .filter_map(|v| async move {
-        //         if where_clause.filter(&v) {
-        //             Some(Ok(select_clause.get_value(v)))
-        //         } else {
-        //             None
-        //         }
-        //     })
-        //     .skip(offset)
-        //     .take(limit.unwrap_or(usize::MAX));
+            })
+            .skip(offset.unwrap_or(0))
+            .take(limit.unwrap_or(usize::MAX));
 
-        // Ok(if let Some(limit) = limit {
-        //     stream = stream.take(limit)
-        // } else {
-        //     stream
-        // }
-        // .boxed())
-        // ;
-        Ok(stream)
+        Ok(stream.boxed())
     }
 
     // async fn execute_update(&self, query: super::query::UpdateQuery) -> Result<u128> {
@@ -145,9 +123,13 @@ impl JsonDB for JsonDBImpl {
 mod test {
     use crate::{
         json_kv_store,
-        query_el::{CheckOperator, Expr, SelectClauseBuilder, SelectQueryBuilder, WhereClause},
+        query_el::{
+            CheckOperator::*, Expr::*, Operation::*, SelectClauseBuilder, SelectQueryBuilder,
+            WhereClause::*,
+        },
     };
     use assert_json_diff::assert_json_eq;
+    use futures::FutureExt;
 
     use super::*;
     use serde_json::json;
@@ -193,7 +175,7 @@ mod test {
                 "number": "1234 567 9012 3456",
                 "expire": "2023-12-01",
                 "cvv": "123",
-                "isssuer": "Visa",
+                "isssuer": "Mastercard",
             },
             {
                 "holder": "Bob Smith",
@@ -346,17 +328,17 @@ mod test {
         let carol_payment_card_number = carol.x_get_property(&first_payment_card_number).unwrap();
 
         let select_by_name = SelectQueryBuilder::select_all_fields()
-            .where_clause(WhereClause::Check(
-                Expr::Field("name".to_string()),
-                CheckOperator::Equal(Expr::Val(bob_name.clone())),
+            .where_clause(Check(
+                Field("name".to_string()),
+                Equal(Val(bob_name.clone())),
             ))
             .build()
             .unwrap();
 
         let select_by_payment_card_number = SelectQueryBuilder::select_all_fields()
-            .where_clause(WhereClause::Check(
-                Expr::Field(first_payment_card_number.clone()),
-                CheckOperator::Equal(Expr::Val(carol_payment_card_number.clone())),
+            .where_clause(Check(
+                Field(first_payment_card_number.clone()),
+                Equal(Val(carol_payment_card_number.clone())),
             ))
             .build()
             .unwrap();
@@ -374,10 +356,6 @@ mod test {
             .unwrap()
             .collect::<Vec<_>>()
             .await;
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&by_payment_card_number).unwrap()
-        );
 
         assert_json_eq!(by_name, json!([bob]));
         assert_json_eq!(by_payment_card_number, json!([carol]));
@@ -392,10 +370,7 @@ mod test {
         let (_, dan) = insert_and_get(&db, dan()).await;
 
         let select_by_age = SelectQueryBuilder::select_all_fields()
-            .where_clause(WhereClause::Check(
-                Expr::Field("age".to_string()),
-                CheckOperator::GreaterThan(Expr::Val(json!(30))),
-            ))
+            .where_clause(Check(Field("age".to_string()), GreaterThan(Val(json!(30)))))
             .build()
             .unwrap();
 
@@ -418,10 +393,7 @@ mod test {
         let _ = insert_and_get(&db, dan()).await;
 
         let select_by_age = SelectQueryBuilder::select_all_fields()
-            .where_clause(WhereClause::Check(
-                Expr::Field("age".to_string()),
-                CheckOperator::LessThan(Expr::Val(json!(30))),
-            ))
+            .where_clause(Check(Field("age".to_string()), LessThan(Val(json!(30)))))
             .build()
             .unwrap();
 
@@ -432,6 +404,7 @@ mod test {
             .collect::<Vec<_>>()
             .await;
 
+        dbg!(&res);
         assert_json_eq!(res, json!([bob]));
     }
 
@@ -445,7 +418,7 @@ mod test {
 
         let select = SelectQueryBuilder::select(
             SelectClauseBuilder::new()
-                .add_field_as(Expr::Field("name".to_string()), "".to_string())
+                .add_field_as(Field("name".to_string()), "".to_string())
                 .build(),
         )
         .build()
@@ -466,6 +439,100 @@ mod test {
                 carol.get("name"),
                 dan.get("name")
             ])
+        );
+    }
+
+    #[tokio::test]
+    async fn select_by_value_of_embedded_array() {
+        let db = setup();
+        let (_, alice) = insert_and_get(&db, alice()).await;
+        let (_, bob) = insert_and_get(&db, bob()).await;
+        let (_, carol) = insert_and_get(&db, carol()).await;
+        let (_, dan) = insert_and_get(&db, dan()).await;
+
+        let select_visa = SelectQueryBuilder::select_all_fields()
+            .where_clause(Check(
+                Field(format!(
+                    "payment_cards{PATH_SEPARATOR}*{PATH_SEPARATOR}isssuer"
+                )),
+                Contains(Val(json!("Visa"))),
+            ))
+            .build()
+            .unwrap();
+
+        let select_not_visa = SelectQueryBuilder::select_all_fields()
+            .where_clause(Check(
+                Field(format!(
+                    "payment_cards{PATH_SEPARATOR}*{PATH_SEPARATOR}isssuer"
+                )),
+                NotContains(Val(json!("Visa"))),
+            ))
+            .build()
+            .unwrap();
+
+        let res_visa = db
+            .stream("", select_visa)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>()
+            .await;
+        let res_not_visa = db
+            .stream("", select_not_visa)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>()
+            .await;
+
+        assert_json_eq!(res_visa, json!([alice, carol, dan]));
+        assert_json_eq!(res_not_visa, json!([bob]));
+    }
+
+    #[tokio::test]
+    async fn select_value_from_embedded_array() {
+        let db = setup();
+        let (_, alice) = insert_and_get(&db, alice()).await;
+
+        let select_clause = SelectClauseBuilder::new()
+            .add_field_as(
+                Operation {
+                    op: First,
+                    ex: Box::new(Field(format!(
+                        "payment_cards{PATH_SEPARATOR}*{PATH_SEPARATOR}number"
+                    ))),
+                },
+                "card_number".to_string(),
+            )
+            .add_field(Field("name".to_string()))
+            .add_field_as(
+                Operation {
+                    op: First,
+                    ex: Box::new(Field(format!(
+                        "payment_cards{PATH_SEPARATOR}*{PATH_SEPARATOR}isssuer"
+                    ))),
+                },
+                "isssuer".to_string(),
+            )
+            .build()
+            .pack();
+
+        let select = SelectQueryBuilder::select(select_clause).build().unwrap();
+
+        let res = db
+            .stream("", select)
+            .await
+            .unwrap()
+            .collect::<Vec<_>>()
+            .await;
+
+        println!("!!!! {}", serde_json::to_string_pretty(&res).unwrap());
+
+        assert_json_eq!(
+            res,
+            json!([{
+                "name": "Alice",
+                "card_number": "1234 5678 9011 3456",
+                "isssuer": "Visa"
+            }])
         );
     }
 }

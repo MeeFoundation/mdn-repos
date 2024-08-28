@@ -1,5 +1,5 @@
 #![allow(unused)]
-use super::support::{apply_property, get_property, inner_set, merge_json};
+use super::support::{apply_property, get_property, get_property_pattern, inner_set, merge_json};
 use super::ID_PROPERTY;
 #[allow(unused_imports)]
 use crate::binary_kv_store::PATH_SEPARATOR;
@@ -14,6 +14,8 @@ pub trait JsonExt {
     fn x_set_property(&mut self, key: &str, value: Value) -> &mut Self;
 
     fn x_get_property<'a>(&'a self, key: &'a str) -> Option<&'a Value>;
+
+    fn x_get_property_pattern(&self, pattern: &str) -> Option<Value>;
 
     fn x_merge(&mut self, other: Value) -> &mut Self;
 
@@ -49,12 +51,17 @@ impl JsonExt for Value {
         inner_set(&mut map, prefix, self);
         map
     }
+
+    fn x_get_property_pattern(&self, pattern: &str) -> Option<Value> {
+        get_property_pattern(self, pattern)
+    }
 }
 
 #[cfg(test)]
 mod test {
 
     use super::*;
+    use assert_json_diff::assert_json_eq;
     use serde_json::json;
 
     #[test]
@@ -179,6 +186,91 @@ mod test {
         assert_eq!(
             obj.x_get_property(&format!("field2{PATH_SEPARATOR}field4{PATH_SEPARATOR}1")),
             Some(&json!("value5"))
+        );
+    }
+
+    #[test]
+    fn get_pattern_property() {
+        let obj = json!({
+                "name": "Dan",
+                "last_name": "Brown",
+                "age": 40,
+                "email": "bdan@yahoo.com",
+                "payment_cards": [
+                {
+                    "holder": "Dan Brown",
+                    "number": "1234 5678 9015 3456",
+                    "expire": "2023-12-01",
+                    "cvv": "123",
+                    "isssuer": "Visa",
+                    "history": [
+                        {
+                            "date": "2021-01-01",
+                            "amount": 100.0
+                        },
+                        {
+                            "date": "2021-02-01",
+                            "amount": 200.0
+                        }
+                    ]
+                },
+                {
+                    "holder": "Dan Brown",
+                    "number": "9999 5678 9014 3456",
+                    "expire": "2028-12-01",
+                    "cvv": "321",
+                    "isssuer": "Mastercard",
+                     "consumption": [
+                        {
+                            "date": "2021-02-12",
+                            "amount": 300.0
+                        },
+                        {
+                            "date": "2021-04-10",
+                            "amount": 400.0
+                        }
+                    ],
+                    "recharge": {
+                        "first":{
+                            "date": "2021-02-12",
+                            "amount": 500.0
+                        },
+                        "second":{
+                            "date": "2021-04-10",
+                            "amount": 600.0
+                        }
+                    }
+
+                }
+                ]
+        });
+
+        assert_json_eq!(
+            obj.x_get_property_pattern("payment_cards/*/number"),
+            Some(&json!(["1234 5678 9015 3456", "9999 5678 9014 3456"]))
+        );
+        assert_json_eq!(
+            obj.x_get_property_pattern("*/*/*/*/amount"),
+            Some(&json!({
+            "payment_cards": [
+                {
+                "history": [
+                    100.0,
+                    200.0
+                ]
+                },
+                {
+                "consumption": [
+                    300.0,
+                    400.0
+                ],
+                "recharge": {
+                    "first": 500.0,
+                    "second": 600.0
+                }
+                }
+            ]
+            }))
         );
     }
 

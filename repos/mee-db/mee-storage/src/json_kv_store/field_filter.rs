@@ -1,14 +1,19 @@
 #![allow(unused)]
 use crate::{binary_kv_store::PATH_SEPARATOR, error::Result, json_utils::ID_PROPERTY};
 use regex::Regex;
+use serde::{de, Deserialize, Serialize};
 
+#[derive(Debug, Clone, Default)]
 pub enum FieldFilter {
+    #[default]
     All,
-    Patters { regexes: Vec<Regex>, with_id: bool },
+    Patters {
+        regexes: Vec<Regex>,
+        with_id: bool,
+    },
 }
 
 pub const ANY_PATH_SEGMENT: &str = "*";
-pub const ANY_PATH_SEGMENT_REPLACEMENT: &str = "[^{PATH_SEPARATOR}]*";
 
 impl FieldFilter {
     pub fn try_from_patterns(patterns: Vec<String>) -> Result<Self> {
@@ -18,7 +23,7 @@ impl FieldFilter {
             if pattern == ID_PROPERTY {
                 with_id = true;
             } else {
-                let r = pattern.replace(ANY_PATH_SEGMENT, ANY_PATH_SEGMENT_REPLACEMENT);
+                let r = pattern.replace(ANY_PATH_SEGMENT, r#"\w*"#);
                 regexes.push(Regex::new(&r)?);
             }
         }

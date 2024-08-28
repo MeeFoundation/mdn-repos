@@ -10,3 +10,7 @@ pub use expression::*;
 pub use query::*;
 pub use select_clause::*;
 pub use where_clause::*;
+
+fn is_false(b: &bool) -> bool {
+    !b
+}

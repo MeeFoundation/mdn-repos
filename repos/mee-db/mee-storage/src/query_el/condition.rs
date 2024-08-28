@@ -2,6 +2,7 @@
 #![allow(unused)]
 
 use crate::binary_kv_store::PATH_SEPARATOR;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cmp::Ordering;
 use tracing::{error, warn};
@@ -11,16 +12,28 @@ use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
 
 use super::expression::Expr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum CheckOperator {
-    Equal(Expr),
+    #[serde(rename = "$ne")]
     NotEqual(Expr),
+    #[serde(rename = "$gt")]
     GreaterThan(Expr),
+    #[serde(rename = "$ge")]
     GreaterThanOrEqual(Expr),
+    #[serde(rename = "$lt")]
     LessThan(Expr),
+    #[serde(rename = "$le")]
     LessThanOrEqual(Expr),
+    #[serde(rename = "$exists")]
     Exists,
+    #[serde(rename = "$not_exists")]
     NotExists,
+    #[serde(rename = "$in")]
+    Contains(Expr),
+    #[serde(rename = "$nin")]
+    NotContains(Expr),
+    #[serde(untagged)]
+    Equal(Expr),
 }
 
 impl CheckOperator {
@@ -87,6 +100,33 @@ impl CheckOperator {
                         false
                     }
                     _ => false,
+                }
+            }
+            CheckOperator::Contains(expr) => {
+                match (expr_to_compare.get_value(value), expr.get_value(value)) {
+                    (Some(Value::Array(array)), Some(item)) => {
+                        let res = array.iter().any(|i| *i == item);
+                        res
+                    }
+                    (Some(Value::String(str)), Some(Value::String(substring))) => {
+                        str.contains(substring.as_str())
+                    }
+                    _ => {
+                        warn!("Operation {self:?} works only for arrays and strings");
+                        false
+                    }
+                }
+            }
+            CheckOperator::NotContains(expr) => {
+                match (expr_to_compare.get_value(value), expr.get_value(value)) {
+                    (Some(Value::Array(array)), Some(item)) => array.iter().all(|i| *i != item),
+                    (Some(Value::String(str)), Some(Value::String(substring))) => {
+                        !str.contains(substring.as_str())
+                    }
+                    _ => {
+                        warn!("Operation {self:?} works only for arrays and strings");
+                        false
+                    }
                 }
             }
             CheckOperator::Exists => expr_to_compare.get_value(value).is_some(),
@@ -296,5 +336,96 @@ mod tests {
         let op = CheckOperator::NotExists;
         assert!(!op.apply_to(&val, &Expr::Field(format!("field2{PATH_SEPARATOR}field4"))));
         assert!(op.apply_to(&val, &Expr::Field(format!("field2{PATH_SEPARATOR}field6"))));
+    }
+
+    #[test]
+    fn check_operator_contains_array() {
+        let val = json!({
+                "field1":["value1", "value2"],
+                "field2":["value3"],
+                "field3":"value2"
+        });
+
+        let op = CheckOperator::Contains(Expr::Val(Value::String("value2".to_string())));
+        assert!(op.apply_to(&val, &Expr::Field("field1".to_string())));
+        assert!(!op.apply_to(&val, &Expr::Field("field2".to_string())));
+        assert!(op.apply_to(&val, &Expr::Field("field3".to_string())));
+    }
+
+    #[test]
+    fn check_operator_not_contains_array() {
+        let val = json!({
+                "field1":["value1", "value2"],
+                "field2":["value3"],
+                "field3":"value1"
+        });
+
+        let op = CheckOperator::NotContains(Expr::Val(Value::String("value2".to_string())));
+        assert!(!op.apply_to(&val, &Expr::Field("field1".to_string())));
+        assert!(op.apply_to(&val, &Expr::Field("field2".to_string())));
+        assert!(op.apply_to(&val, &Expr::Field("field3".to_string())));
+    }
+
+    #[test]
+    fn check_operator_contains_str() {
+        let val = json!({
+                "field1":"12",
+                "field2":"3",
+                "field3":2
+        });
+
+        let op = CheckOperator::Contains(Expr::Val(Value::String("2".to_string())));
+        assert!(op.apply_to(&val, &Expr::Field("field1".to_string())));
+        assert!(!op.apply_to(&val, &Expr::Field("field2".to_string())));
+        assert!(!op.apply_to(&val, &Expr::Field("field3".to_string())));
+    }
+
+    #[test]
+    fn check_operator_not_contains_str() {
+        let val = json!({
+                "field1":"12",
+                "field2":"3",
+                "field3":1
+        });
+
+        let op = CheckOperator::NotContains(Expr::Val(Value::String("2".to_string())));
+        assert!(!op.apply_to(&val, &Expr::Field("field1".to_string())));
+        assert!(op.apply_to(&val, &Expr::Field("field2".to_string())));
+        assert!(!op.apply_to(&val, &Expr::Field("field3".to_string())));
+    }
+
+    #[test]
+    fn check_operator_contains_with_pattern() {
+        let val = json!({
+            "name": "Alice",
+            "last_name": "Walker",
+            "age": 30,
+            "email": "awalker@gmail.com",
+            "payment_cards": [
+                {
+                    "holder": "Alice Walker",
+                    "number": "1234 5678 9011 3456",
+                    "expire": "2023-12-01",
+                    "cvv": "123",
+                    "isssuer": "Visa",
+                },
+                {
+                    "holder": "Alice Walker",
+                    "number": "9999 5678 9012 3456",
+                    "expire": "2028-12-01",
+                    "cvv": "321",
+                    "isssuer": "Mastercard",
+                }
+            ]
+        });
+
+        let field = Expr::Field(format!(
+            "payment_cards{PATH_SEPARATOR}*{PATH_SEPARATOR}isssuer"
+        ));
+
+        assert!(CheckOperator::Contains(Expr::Val(json!("Visa"))).apply_to(&val, &field));
+        assert!(!CheckOperator::NotContains(Expr::Val(json!("Visa"))).apply_to(&val, &field));
+        assert!(!CheckOperator::Contains(Expr::Val(json!("Mm"))).apply_to(&val, &field));
+        assert!(CheckOperator::NotContains(Expr::Val(json!("Mm"))).apply_to(&val, &field));
     }
 }
