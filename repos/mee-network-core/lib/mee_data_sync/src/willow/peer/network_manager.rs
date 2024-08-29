@@ -10,6 +10,16 @@ impl WillowNetworkManager {
     pub fn new(willow_node: WillowNode) -> Self {
         Self { willow_node }
     }
+    pub fn remote_peers(&self) -> MeeDataSyncResult<Vec<NodeAddr>> {
+        let res = self
+            .willow_node
+            .endpoint
+            .remote_info_iter()
+            .map(Into::into)
+            .collect();
+
+        Ok(res)
+    }
     pub fn add_remote_peer(&self, node_addr: NodeAddr) -> MeeDataSyncResult {
         self.willow_node.endpoint.add_node_addr(node_addr)?;
 

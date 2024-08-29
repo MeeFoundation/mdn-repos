@@ -4,7 +4,7 @@ use crate::{
     willow::{node::WillowNode, utils::empty_entry_payload},
 };
 use bytes::Bytes;
-use futures::{future::join_all, Stream, TryStreamExt};
+use futures::{future::join_all, Stream, StreamExt, TryStreamExt};
 use iroh_willow::{
     form::{EntryForm, SubspaceForm},
     proto::{
@@ -27,6 +27,7 @@ impl WillowDataManager {
             willow_user_manager,
         }
     }
+    // TODO change entry return value
     pub async fn insert_entry(
         &self,
         namespace_id: NamespaceId,
@@ -36,9 +37,9 @@ impl WillowDataManager {
         let entry = EntryForm::new_bytes(namespace_id, path, bytes);
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
-        let res = self.willow_node.engine.insert(entry, user).await?;
+        let (e, i) = self.willow_node.engine.insert_entry(entry, user).await?;
 
-        Ok(res)
+        Ok((e.entry().clone(), i))
     }
     pub async fn get_entries_stream(
         &self,
@@ -50,6 +51,7 @@ impl WillowDataManager {
             .engine
             .get_entries(namespace, range)
             .await?
+            .map(|en| en.map(|e| e.entry().clone()))
             .map_err(MeeDataSyncErr::from))
     }
     pub async fn get_entries(
@@ -80,7 +82,7 @@ impl WillowDataManager {
                 empty_entry_payload().to_vec(),
             );
 
-            let res = self.willow_node.engine.insert(entry, user).await;
+            let res = self.willow_node.engine.insert_entry(entry, user).await;
 
             match res {
                 Ok(res) => res.1,
@@ -112,7 +114,7 @@ impl WillowDataManager {
 
             entry.subspace_id = SubspaceForm::Exact(user_id);
 
-            let res = self.willow_node.engine.insert(entry, user).await;
+            let res = self.willow_node.engine.insert_entry(entry, user).await;
 
             match res {
                 Ok(res) => res.1,

@@ -1,8 +1,6 @@
 use super::{
     caps::{MdnProviderCapabilityInMemoryStore, MdnProviderCapabilityManager},
-    delegation::{
-        manager::MdnProviderDelegationManager, MdnProviderDelegationManagerImpl,
-    },
+    delegation::{manager::MdnProviderDelegationManager, MdnProviderDelegationManagerImpl},
     namespace::{MdnProviderNamespaceStoreInMemory, MdnProviderNamespaceStoreManager},
 };
 use crate::{
@@ -129,6 +127,11 @@ impl MdnAgentProviderNodeWillowImpl {
         let own_data_namespace_id = self.mdn_ns_store_manager.get_agent_node_data_ns().await?.0;
         let own_revoke_list_caps = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
 
+        let data_owner_revoke_list_caps = self
+            .mdn_ns_store_manager
+            .get_data_owner_cap_list_ns()
+            .await?;
+
         let others_revoke_list_caps = self
             .mdn_ns_store_manager
             .get_others_cap_revoke_list_nss()
@@ -156,6 +159,9 @@ impl MdnAgentProviderNodeWillowImpl {
                     && !others_revoke_list_caps
                         .iter()
                         .any(|c| c.revocation_ns == ns)
+                    && data_owner_revoke_list_caps
+                        .map(|dns| ns != dns.0)
+                        .unwrap_or(false)
                 {
                     Some(ns)
                 } else {

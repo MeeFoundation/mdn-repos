@@ -1,30 +1,34 @@
 use super::{caps::MdnProviderCapabilityManager, namespace::MdnProviderNamespaceStoreManager};
 use crate::{
     error::MeeDataSyncResult,
-    mdn::traits::{
-        delegation::{
-            revocation_done_record_path, revocation_list_record_path_prefix,
-            REVOCATION_LIST_PATH_PREFIX,
+    mdn::{
+        traits::{
+            delegation::{
+                cap_list_record_path, revocation_done_record_path,
+                revocation_request_record_path_prefix, CAPABILITY_LIST_PATH_PREFIX,
+                REVOCATION_REQUEST_PATH_PREFIX,
+            },
+            store::{data_entry_path_from_key_components, key_components},
         },
-        store::{data_entry_path_from_key_components, key_components},
+        utils::find_revocation_cap_pairs,
     },
-    willow::{
-        peer::WillowPeer,
-        utils::{display_path, is_empty_entry_payload, path_from_bytes_slice, path_suffix},
-    },
+    willow::{peer::WillowPeer, utils::path_from_bytes_slice},
 };
 use futures::future::join_all;
-use iroh_willow::proto::data_model::NamespaceId;
+use iroh_willow::{interest::UserSelector, proto::data_model::NamespaceId};
 use iroh_willow::{
-    interest::{AreaSelector, CapSelector, ReceiverSelector},
+    interest::{AreaSelector, CapSelector},
     proto::{
         data_model::{Entry, Path},
         grouping::{Area, AreaExt, AreaSubspace, Range3d},
         keys::UserId,
     },
 };
-use manager::{MdnDataRevocationListResponse, MdnProviderDelegationManager};
-use std::{str::FromStr, sync::Arc, time::Duration};
+use manager::{
+    MdnDataRevocationListRecord, MdnDataRevocationListResponse, MdnProviderCapabilityPackForOwner,
+    MdnProviderDelegationManager,
+};
+use std::{sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};
 
 pub mod manager;
@@ -49,7 +53,7 @@ impl MdnProviderDelegationManagerImpl {
             .get_active_user_profile()
             .await?;
 
-        let revocation_record_prefix_path = revocation_list_record_path_prefix(user_id)?;
+        let revocation_record_prefix_path = revocation_request_record_path_prefix(user_id)?;
 
         Ok(Self {
             mdn_provider_capability_manager,
@@ -85,7 +89,7 @@ impl MdnProviderDelegationManagerImpl {
 
             let cap_selector = CapSelector::new(
                 cap.record.data_owner_ns,
-                ReceiverSelector::Exact(self.current_user_id),
+                UserSelector::Exact(self.current_user_id),
                 AreaSelector::ContainsArea(Area::new(
                     AreaSubspace::Id(cap.record.data_owner),
                     path,
@@ -146,80 +150,176 @@ impl MdnProviderDelegationManagerImpl {
 
         Ok(revocation_list)
     }
-    async fn is_revocation_list_empty(
-        &self,
-        revocation_list: &Vec<Entry>,
-    ) -> MeeDataSyncResult<bool> {
-        let mut payloads = vec![];
 
-        for e in revocation_list.iter() {
-            let p = self
+    async fn send_signal_to_owner_cap_list(&self, req_path: Path) -> MeeDataSyncResult {
+        if let Some(owner_cap_list) = self
+            .mdn_ns_store_manager
+            .get_data_owner_cap_list_ns()
+            .await?
+        {
+            let data_owner_cap_list = self
                 .willow_peer
                 .willow_data_manager
-                .read_entry_payload(e.clone())
+                .get_entries(owner_cap_list.0, Range3d::new_full())
                 .await?;
-            if let Some(p) = p {
-                payloads.push((display_path(e.path()), p));
+
+            let req_in_owner_list = data_owner_cap_list
+                .into_iter()
+                .find(|e| e.path() == &req_path);
+
+            if let Some(req_in_owner_list) = req_in_owner_list {
+                let mut record = self
+                    .willow_peer
+                    .willow_data_manager
+                    .map_payload([req_in_owner_list], |e| e.clone(), |_, p| Ok(p.to_vec()))
+                    .await?;
+
+                if let Some(record) = record.pop() {
+                    let cap_id = req_path.get_component(2);
+
+                    if let Some(cap_id) = cap_id {
+                        let cap_id = String::from_utf8(cap_id.to_vec())?;
+                        let local_cap_list =
+                            self.mdn_provider_capability_manager.store.list_caps()?;
+                        let removed = local_cap_list.iter().find(|c| c.capability_id == cap_id);
+
+                        if let Some(removed) = removed {
+                            self.mdn_provider_capability_manager
+                                .store
+                                .del_cap(&removed.capability_id)?;
+
+                            let path = revocation_done_record_path(
+                                removed.cap_receiver,
+                                &removed.capability_id,
+                            )?;
+
+                            self.willow_peer
+                                .willow_data_manager
+                                .insert_entry(owner_cap_list.0, path, record)
+                                .await?;
+                        }
+                    }
+                }
             }
         }
 
-        let pred = payloads.iter().all(|(_, p)| is_empty_entry_payload(p));
-
-        Ok(pred)
+        Ok(())
     }
     async fn clean_up_revocation_list(&self) -> MeeDataSyncResult {
         let revocation_list = self.revocation_list_entries().await?;
 
-        if self.is_revocation_list_empty(&revocation_list).await? {
+        if self
+            .willow_peer
+            .willow_data_manager
+            .is_entry_list_payload_empty(&revocation_list)
+            .await?
+        {
             return Ok(());
         }
 
-        let pref = path_from_bytes_slice(&[REVOCATION_LIST_PATH_PREFIX.as_bytes()])?;
+        let cap_pairs = find_revocation_cap_pairs(revocation_list)?;
 
-        let (request_list, readiness_list): (Vec<_>, Vec<_>) = revocation_list
+        for (user, req, res) in cap_pairs {
+            let req_path = req.path().clone();
+
+            self.willow_peer
+                .willow_data_manager
+                .remove_entries_softly(vec![req])
+                .await?;
+
+            self.willow_peer
+                .willow_data_manager
+                .remove_entries_softly_for_subspace(vec![res], user)
+                .await?;
+
+            self.send_signal_to_owner_cap_list(req_path).await?;
+        }
+
+        Ok(())
+    }
+    async fn handle_owner_revocation_list(
+        &self,
+        cap_list_entries: Vec<Entry>,
+    ) -> MeeDataSyncResult {
+        let cap_prefix = path_from_bytes_slice(&[CAPABILITY_LIST_PATH_PREFIX.as_bytes()])?;
+        let revoke_req_prefix =
+            path_from_bytes_slice(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?;
+
+        let cap_req_list: Vec<_> = cap_list_entries
             .into_iter()
-            .partition(|e| e.path().is_prefixed_by(&pref));
+            .filter(|c| {
+                c.path().is_prefixed_by(&cap_prefix) || c.path().is_prefixed_by(&revoke_req_prefix)
+            })
+            .collect();
 
-        for req in request_list {
-            let common_path = path_suffix(req.path(), 1)?;
+        let cap_req_pairs = find_revocation_cap_pairs(cap_req_list)?;
 
-            let req_res = readiness_list.iter().find_map(|e| {
-                let res = || {
-                    let path = path_suffix(e.path(), 1)?;
-                    let user_id = path.get_component(0);
+        let cap_revoke_req_list = self
+            .willow_peer
+            .willow_data_manager
+            .map_payload(
+                cap_req_pairs.into_iter().map(|c| c.1),
+                |p| p.clone(),
+                |_e, p| Ok(MdnDataRevocationListRecord::decode(&p)?),
+            )
+            .await?;
 
-                    if let Some(user_id) = user_id {
-                        let user = UserId::from_str(&String::from_utf8(user_id.to_vec())?)?;
+        let local_caps = self.mdn_provider_capability_manager.store.list_caps()?;
 
-                        if &user == e.subspace_id() && path == common_path {
-                            return MeeDataSyncResult::Ok(Some((user, req.clone(), e.clone())));
-                        }
-                    }
+        for cap in cap_revoke_req_list {
+            let local_cap = local_caps
+                .iter()
+                .find(|c| c.capability_id == cap.revocation_id);
 
-                    MeeDataSyncResult::Ok(None)
-                };
-
-                match res() {
-                    Ok(v) => v,
-                    Err(e) => {
-                        log::error!("Error looking for revocation list readiness entries: {e}");
-                        None
-                    }
-                }
-            });
-
-            if let Some((user, req, res)) = req_res {
-                self.willow_peer
-                    .willow_data_manager
-                    .remove_entries_softly(vec![req])
-                    .await?;
-
-                self.willow_peer
-                    .willow_data_manager
-                    .remove_entries_softly_for_subspace(vec![res], user)
-                    .await?;
+            if local_cap.is_some() {
+                self.revoke_shared_access_from_provider(
+                    &cap.revocation_id,
+                    &cap.shared_data_path,
+                    cap.revocation_receiver,
+                )
+                .await?;
             }
         }
+
+        Ok(())
+    }
+    async fn check_data_owner_cap_list(&self, cap_list_ns: NamespaceId) -> MeeDataSyncResult {
+        let local_cap_list = self.mdn_provider_capability_manager.store.list_caps()?;
+
+        let mut data_owner_cap_list = self
+            .willow_peer
+            .willow_data_manager
+            .get_entries(cap_list_ns, Range3d::new_full())
+            .await?;
+
+        for local_cap in local_cap_list.iter() {
+            let cap_path = cap_list_record_path(local_cap.cap_receiver, &local_cap.capability_id)?;
+            let cap_in_owner_list = data_owner_cap_list.iter().find(|c| c.path() == &cap_path);
+
+            if cap_in_owner_list.is_none() {
+                let (e, _) = self
+                    .willow_peer
+                    .willow_data_manager
+                    .insert_entry(
+                        cap_list_ns,
+                        cap_path,
+                        MdnProviderCapabilityPackForOwner::from(local_cap.clone()).encode()?,
+                    )
+                    .await?;
+
+                data_owner_cap_list.push(e);
+            }
+        }
+
+        self.handle_owner_revocation_list(data_owner_cap_list)
+            .await?;
+
+        Ok(())
+    }
+    async fn handle_revocation_logic(&self) -> MeeDataSyncResult {
+        let res = self.read_revocation_list().await?;
+
+        self.revoke_capabilities(res).await?;
 
         Ok(())
     }
@@ -233,15 +333,7 @@ impl MdnProviderDelegationManagerImpl {
 
             async move {
                 loop {
-                    let block = async {
-                        let res = this.read_revocation_list().await?;
-
-                        this.revoke_capabilities(res).await?;
-
-                        Ok(()) as MeeDataSyncResult
-                    };
-
-                    if let Err(e) = block.await {
+                    if let Err(e) = this.handle_revocation_logic().await {
                         log::error!("Error reading revocation list: {e}");
                     }
 
@@ -255,13 +347,7 @@ impl MdnProviderDelegationManagerImpl {
 
             async move {
                 loop {
-                    let block = async {
-                        this.clean_up_revocation_list().await?;
-
-                        Ok(()) as MeeDataSyncResult
-                    };
-
-                    if let Err(e) = block.await {
+                    if let Err(e) = this.clean_up_revocation_list().await {
                         log::error!("Error signaling revocation list cap deletion: {e}");
                     }
 
@@ -281,7 +367,7 @@ impl MdnProviderDelegationManagerImpl {
                             .get_data_owner_cap_list_ns()
                             .await?
                         {
-                            this.update_data_owner_cap_list(cap_list_ns.0).await?;
+                            this.check_data_owner_cap_list(cap_list_ns.0).await?;
                         }
 
                         Ok(()) as MeeDataSyncResult
@@ -297,8 +383,5 @@ impl MdnProviderDelegationManagerImpl {
         });
 
         vec![t1, t2, t3]
-    }
-    async fn update_data_owner_cap_list(&self, cap_list_ns: NamespaceId) -> MeeDataSyncResult {
-        Ok(())
     }
 }

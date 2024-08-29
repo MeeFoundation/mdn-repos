@@ -1,4 +1,3 @@
-use crate::common::utils::progress_session_intents;
 use futures::{future::join_all, StreamExt};
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::proto::keys::UserId;
@@ -8,6 +7,7 @@ use mee_data_sync::{
         provider::delegation::manager::ImportCapabilitiesFromProvider,
         traits::node::MdnAgentProviderNode,
     },
+    willow::utils::progress_session_intents,
 };
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::mpsc::Sender, time::sleep};
@@ -55,7 +55,7 @@ pub async fn share_data_and_sync(
         .await?;
 
     let caps = ImportCapabilitiesFromProvider {
-        node_ticket: delegate_from_ticket.to_string(),
+        provider_node_ticket: delegate_from_ticket.to_string(),
         caps: cap_for_other,
     };
 
@@ -73,7 +73,7 @@ pub async fn share_data_and_sync(
         .await?;
 
     let caps = ImportCapabilitiesFromProvider {
-        node_ticket: delegate_from_ticket.to_string(),
+        provider_node_ticket: delegate_from_ticket.to_string(),
         caps: cap_for_other,
     };
 

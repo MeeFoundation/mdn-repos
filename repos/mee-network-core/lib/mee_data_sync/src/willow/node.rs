@@ -25,9 +25,13 @@ impl WillowNode {
             .bind(0)
             .await?;
 
-        let node_ticket = NodeTicket::new(endpoint.node_addr().await?)?;
+        let addr = endpoint.node_addr().await?;
+        let node_ticket = NodeTicket::new(addr.clone())?;
 
-        log::info!("iroh node has started. Node ticket: {node_ticket}");
+        log::info!(
+            "iroh node ({}) has started. Node ticket: {node_ticket}",
+            addr.node_id
+        );
 
         let payloads = iroh_blobs::store::mem::Store::default();
         let create_store = move || iroh_willow::store::memory::Store::new(payloads);
@@ -36,18 +40,23 @@ impl WillowNode {
         let accept_task = tokio::task::spawn({
             let engine = engine.clone();
             let endpoint = endpoint.clone();
-
             async move {
-                while let Some(mut conn) = endpoint.accept().await {
-                    let alpn = conn.alpn().await?;
-
+                while let Some(incoming) = endpoint.accept().await {
+                    let Ok(mut connecting) = incoming.accept() else {
+                        continue;
+                    };
+                    let Ok(alpn) = connecting.alpn().await else {
+                        continue;
+                    };
                     if alpn != ALPN {
                         continue;
                     }
-
-                    engine.handle_connection(conn.await?).await?;
+                    let Ok(conn) = connecting.await else {
+                        continue;
+                    };
+                    engine.handle_connection(conn).await?;
                 }
-                MeeDataSyncResult::Ok(())
+                Result::Ok(())
             }
         });
 

@@ -1,6 +1,10 @@
 use crate::error::MeeDataSyncResult;
 use bytes::Bytes;
-use iroh_willow::proto::data_model::{Component, Path};
+use futures::StreamExt;
+use iroh_willow::{
+    proto::data_model::{Component, Path},
+    session::intents::IntentHandle,
+};
 
 pub fn path_from_bytes_slice(bytes_slice: &[&[u8]]) -> MeeDataSyncResult<Path> {
     Ok(Path::new_from_slice(
@@ -41,4 +45,40 @@ pub fn path_suffix(path: &Path, i: usize) -> MeeDataSyncResult<Path> {
     let path = path_from_bytes_slice(path.as_slice())?;
 
     Ok(path)
+}
+
+/// Useful for debugging and testing
+pub async fn progress_session_intents(mut sync_event_stream: IntentHandle) -> IntentHandle {
+    while let Some(ev) = sync_event_stream.next().await {
+        match ev {
+            iroh_willow::session::intents::EventKind::CapabilityIntersection {
+                area,
+                namespace,
+            } => {
+                log::info!(
+                    "CapabilityIntersection: {namespace} {}",
+                    display_path(area.path())
+                );
+            }
+            iroh_willow::session::intents::EventKind::InterestIntersection { area, namespace } => {
+                log::info!(
+                    "InterestIntersection: {namespace} {}",
+                    display_path(area.area.path())
+                );
+            }
+            iroh_willow::session::intents::EventKind::Reconciled { area, namespace } => {
+                log::info!("Reconciled: {namespace} {}", display_path(area.area.path()));
+            }
+            iroh_willow::session::intents::EventKind::ReconciledAll => {
+                log::info!("Reconciled all");
+            }
+            iroh_willow::session::intents::EventKind::Abort { error } => {
+                log::error!("Abort session intent: {error:#}");
+            }
+        };
+    }
+
+    log::info!("No more session intent events.");
+
+    sync_event_stream
 }

@@ -1,14 +1,14 @@
 use super::MdnProviderDelegationManagerImpl;
 use crate::{
     error::MeeDataSyncResult,
+    json_codec,
     mdn::traits::{
-        delegation::revocation_list_record_path,
+        delegation::revocation_request_record_path,
         store::{data_entry_path_from_key_components, key_components},
     },
-    willow::{peer::delegation_manager::cap_granted_components, utils::is_empty_entry_payload},
+    willow::peer::delegation_manager::cap_granted_components,
 };
 use async_trait::async_trait;
-use futures::StreamExt;
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
@@ -32,14 +32,35 @@ pub struct MdnProviderCapabilityPack {
     pub revocation_list_sender_namespace: MdnProviderCapabilityPackObject,
 }
 
-impl MdnProviderCapabilityPack {
-    pub fn encode(&self) -> MeeDataSyncResult<Vec<u8>> {
-        Ok(serde_json::to_vec(self)?)
-    }
-    pub fn decode(bytes: &[u8]) -> MeeDataSyncResult<Self> {
-        Ok(serde_json::from_slice(bytes)?)
+impl From<MdnProviderCapabilityPack> for MdnProviderCapabilityPackForOwner {
+    fn from(
+        MdnProviderCapabilityPack {
+            capability_id,
+            cap_receiver,
+            shared_data_path,
+            data_source_namespace,
+            ..
+        }: MdnProviderCapabilityPack,
+    ) -> Self {
+        Self {
+            capability_id,
+            cap_receiver,
+            shared_data_path,
+            data_source_namespace,
+        }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MdnProviderCapabilityPackForOwner {
+    pub capability_id: String,
+    pub cap_receiver: UserId,
+    pub shared_data_path: String,
+    pub data_source_namespace: MdnProviderCapabilityPackObject,
+}
+
+json_codec!(MdnProviderCapabilityPack);
+json_codec!(MdnProviderCapabilityPackForOwner);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MdnProviderCapabilityPackObject {
@@ -62,14 +83,7 @@ pub struct MdnDataRevocationListRecord {
     pub revocation_receiver: UserId,
 }
 
-impl MdnDataRevocationListRecord {
-    pub fn encode(&self) -> MeeDataSyncResult<Vec<u8>> {
-        Ok(serde_json::to_vec(self)?)
-    }
-    pub fn decode(bytes: &[u8]) -> MeeDataSyncResult<Self> {
-        Ok(serde_json::from_slice(bytes)?)
-    }
-}
+json_codec!(MdnDataRevocationListRecord);
 
 // TODO make abstract over willow specific details
 #[async_trait]
@@ -103,8 +117,9 @@ pub trait MdnProviderDelegationManager {
     /// Owner means MDN user (e.g. local/virtual wallet holder)
     async fn delegate_privileged_access_to_owner(
         &self,
+        provider_node_ticket: String,
         delegate_to: UserId,
-    ) -> MeeDataSyncResult<Vec<CapabilityPack>>;
+    ) -> MeeDataSyncResult<DelegatePrivilegedAccessToOwner>;
 
     async fn delegated_caps(&self) -> MeeDataSyncResult<Vec<MdnProviderCapabilityPack>>;
     async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>>;
@@ -112,12 +127,17 @@ pub trait MdnProviderDelegationManager {
 }
 
 pub struct ImportCapabilitiesFromProvider {
-    pub node_ticket: String,
+    pub provider_node_ticket: String,
     pub caps: MdnProviderCapabilityPack,
 }
 
 pub struct ImportCapabilitiesForDataOwner {
-    pub node_ticket: String,
+    pub data_owner_node_ticket: String,
+    pub caps: Vec<CapabilityPack>,
+}
+
+pub struct DelegatePrivilegedAccessToOwner {
+    pub provider_node_ticket: String,
     pub caps: Vec<CapabilityPack>,
 }
 
@@ -128,30 +148,34 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
     }
     async fn delegate_privileged_access_to_owner(
         &self,
+        provider_node_ticket: String,
         delegate_to: UserId,
-    ) -> MeeDataSyncResult<Vec<CapabilityPack>> {
+    ) -> MeeDataSyncResult<DelegatePrivilegedAccessToOwner> {
         let data_ns = self.mdn_ns_store_manager.get_agent_node_data_ns().await?.0;
 
-        let data_caps = self
+        let caps = self
             .willow_peer
             .willow_delegation_manager
             .delegate_capabilities(
-                CapSelector::widest(data_ns),
+                CapSelector::any(data_ns),
                 AccessMode::Write,
                 DelegateTo::new(delegate_to, RestrictArea::None),
             )
             .await?;
 
-        Ok(data_caps)
+        Ok(DelegatePrivilegedAccessToOwner {
+            provider_node_ticket,
+            caps,
+        })
     }
     async fn import_cap_list_from_data_owner(
         &self,
         ImportCapabilitiesForDataOwner {
-            node_ticket,
+            data_owner_node_ticket,
             mut caps,
         }: ImportCapabilitiesForDataOwner,
     ) -> MeeDataSyncResult<()> {
-        let ticket: NodeTicket = node_ticket.parse()?;
+        let ticket: NodeTicket = data_owner_node_ticket.parse()?;
 
         self.willow_peer
             .willow_delegation_manager
@@ -170,13 +194,18 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
     }
     async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool> {
         Ok(self
-            .is_revocation_list_empty(&self.revocation_list_entries().await?)
+            .willow_peer
+            .willow_data_manager
+            .is_entry_list_payload_empty(&self.revocation_list_entries().await?)
             .await?)
     }
 
     async fn import_capabilities_from_provider(
         &self,
-        ImportCapabilitiesFromProvider { node_ticket, caps }: ImportCapabilitiesFromProvider,
+        ImportCapabilitiesFromProvider {
+            provider_node_ticket,
+            caps,
+        }: ImportCapabilitiesFromProvider,
     ) -> MeeDataSyncResult<IntentHandle> {
         if let Some(cap) = caps.revocation_list_receiver_namespace.cap_pack.first() {
             let (revocation_ns, _) = cap_granted_components(&cap);
@@ -189,7 +218,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
                 .await?;
         }
 
-        let ticket: NodeTicket = node_ticket.parse()?;
+        let ticket: NodeTicket = provider_node_ticket.parse()?;
 
         let mut caps_for_import = vec![];
         caps_for_import.extend(caps.revocation_list_sender_namespace.cap_pack);
@@ -260,43 +289,20 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             entries.extend(ent);
         }
 
-        let res = futures::stream::iter(entries.into_iter())
-            .then(move |(entry, signal_revocation_ns)| {
-                let willow_peer = self.willow_peer.clone();
-
-                async move {
-                    let payload = willow_peer
-                        .willow_data_manager
-                        .read_entry_payload(entry.clone())
-                        .await?;
-
-                    let record = if let Some(payload) = payload {
-                        if is_empty_entry_payload(&payload) {
-                            return Ok(None);
-                        }
-
-                        Some(MdnDataRevocationListResponse {
-                            record: MdnDataRevocationListRecord::decode(&payload)?,
-                            signal_revocation_ns,
-                        })
-                    } else {
-                        None
-                    };
-
-                    Ok(record) as MeeDataSyncResult<Option<MdnDataRevocationListResponse>>
-                }
-            })
-            .filter_map(|record| async {
-                match record {
-                    Ok(record) => record,
-                    Err(e) => {
-                        log::error!("Error processing entry: {e}");
-                        None
-                    }
-                }
-            })
-            .collect()
-            .await;
+        let res = self
+            .willow_peer
+            .willow_data_manager
+            .map_payload(
+                entries,
+                |e| e.0.clone(),
+                |(_, signal_revocation_ns), payload| {
+                    Ok(MdnDataRevocationListResponse {
+                        record: MdnDataRevocationListRecord::decode(&payload)?,
+                        signal_revocation_ns,
+                    })
+                },
+            )
+            .await?;
 
         Ok(res)
     }
@@ -307,7 +313,29 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
         revoke_from: UserId,
     ) -> MeeDataSyncResult {
         let revoke_list_ns = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
-        let path = revocation_list_record_path(revoke_from, &cap_id)?;
+        let path = revocation_request_record_path(revoke_from, &cap_id)?;
+
+        let current_entry = self
+            .willow_peer
+            .willow_data_manager
+            .get_entries(
+                revoke_list_ns,
+                Range3d::new(
+                    Default::default(),
+                    Range::new_open(path.clone()),
+                    Default::default(),
+                ),
+            )
+            .await?;
+
+        if !self
+            .willow_peer
+            .willow_data_manager
+            .is_entry_list_payload_empty(&current_entry)
+            .await?
+        {
+            return Ok(());
+        }
 
         let payload = MdnDataRevocationListRecord {
             revocation_receiver: revoke_from,
@@ -355,7 +383,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             .willow_peer
             .willow_delegation_manager
             .delegate_capabilities(
-                CapSelector::widest(data_ns),
+                CapSelector::any(data_ns),
                 AccessMode::Read,
                 DelegateTo::new(delegate_to, data_subset_restriction),
             )
@@ -377,7 +405,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             .willow_peer
             .willow_delegation_manager
             .delegate_capabilities(
-                CapSelector::widest(revoke_list_ns),
+                CapSelector::any(revoke_list_ns),
                 AccessMode::Read,
                 DelegateTo::new(delegate_to, revoke_list_restriction),
             )
@@ -399,7 +427,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             .willow_peer
             .willow_delegation_manager
             .delegate_capabilities(
-                CapSelector::widest(revoke_list_ns),
+                CapSelector::any(revoke_list_ns),
                 AccessMode::Write,
                 DelegateTo::new(delegate_to, revoke_list_response_restriction),
             )
@@ -414,7 +442,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             shared_data_path: shared_data_path_str.to_string(),
             capability_id: uuid::Uuid::new_v4().to_string(),
             cap_receiver: delegate_to,
-            data_source_namespace,
+            data_source_namespace: data_source_namespace.clone(),
             revocation_list_receiver_namespace,
             revocation_list_sender_namespace,
         };

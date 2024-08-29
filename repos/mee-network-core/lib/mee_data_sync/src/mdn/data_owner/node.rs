@@ -9,10 +9,20 @@ use crate::{
 };
 use async_trait::async_trait;
 use std::sync::Arc;
+use tokio::task::JoinHandle;
 
 pub struct MdnAgentDataOwnerNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
     pub mdn_delegation_manager: MdnDataOwnerDelegationManager,
+    background_jobs: Arc<Vec<JoinHandle<()>>>,
+}
+
+impl Drop for MdnAgentDataOwnerNodeWillowImpl {
+    fn drop(&mut self) {
+        for job in self.background_jobs.iter() {
+            job.abort();
+        }
+    }
 }
 
 impl MdnAgentDataOwnerNodeWillowImpl {
@@ -23,11 +33,14 @@ impl MdnAgentDataOwnerNodeWillowImpl {
         )
         .await?;
 
+        let mdn_delegation_manager =
+            MdnDataOwnerDelegationManager::new(willow_peer.clone(), mdn_ns_store_manager)?;
+
+        let background_jobs = mdn_delegation_manager.clone().run_background_jobs();
+
         Ok(Self {
-            mdn_delegation_manager: MdnDataOwnerDelegationManager::new(
-                willow_peer.clone(),
-                mdn_ns_store_manager,
-            ),
+            background_jobs: Arc::new(background_jobs),
+            mdn_delegation_manager,
             willow_peer,
         })
     }
