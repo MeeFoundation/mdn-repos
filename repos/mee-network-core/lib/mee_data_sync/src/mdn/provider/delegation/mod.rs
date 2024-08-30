@@ -28,7 +28,7 @@ use manager::{
     MdnDataRevocationListRecord, MdnDataRevocationListResponse, MdnProviderCapabilityPackForOwner,
     MdnProviderDelegationManager,
 };
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};
 
 pub mod manager;
@@ -104,7 +104,7 @@ impl MdnProviderDelegationManagerImpl {
                 .delete_capabilities(cap_selector)
                 .await?;
 
-            let mut entries_to_delete = vec![];
+            let mut entries_to_delete = HashSet::new();
 
             for cap in deleted.iter() {
                 let cap_ns = cap.granted_namespace();
@@ -121,7 +121,7 @@ impl MdnProviderDelegationManagerImpl {
 
             self.willow_peer
                 .willow_data_manager
-                .remove_entries_completely(entries_to_delete)
+                .remove_entries_completely(entries_to_delete.into_iter().collect())
                 .await?;
 
             self.send_signal_to_remove_revocation_cap(cap).await?;

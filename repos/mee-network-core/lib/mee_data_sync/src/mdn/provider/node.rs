@@ -161,7 +161,7 @@ impl MdnAgentProviderNodeWillowImpl {
                         .any(|c| c.revocation_ns == ns)
                     && data_owner_revoke_list_caps
                         .map(|dns| ns != dns.0)
-                        .unwrap_or(false)
+                        .unwrap_or(true)
                 {
                     Some(ns)
                 } else {

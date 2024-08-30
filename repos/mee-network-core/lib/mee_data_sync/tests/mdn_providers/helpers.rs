@@ -7,7 +7,7 @@ use mee_data_sync::{
         provider::delegation::manager::ImportCapabilitiesFromProvider,
         traits::node::MdnAgentProviderNode,
     },
-    willow::utils::progress_session_intents,
+    willow::debug::progress_session_intents,
 };
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::mpsc::Sender, time::sleep};

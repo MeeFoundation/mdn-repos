@@ -7,6 +7,8 @@ use futures::{future::join_all, StreamExt};
 use std::time::Duration;
 use tokio::{sync::mpsc, time::sleep};
 
+const SHARED_WITH_PEERS_COUNT: usize = 10;
+
 #[tokio::test]
 async fn providers_read_access_sharing() -> anyhow::Result<()> {
     // iroh_test::logging::setup_multithreaded();
@@ -123,16 +125,14 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
 
     let oyt_node_ticket = oyt_mdn_node.network_node_ticket().await?;
 
-    let shared_with_peers_count = 10;
-
     let (ready_for_next_test_scenario_tx, mut ready_for_next_test_scenario_rx) =
-        mpsc::channel(shared_with_peers_count);
+        mpsc::channel(SHARED_WITH_PEERS_COUNT);
 
     let mut peers_tasks = vec![];
     // we hold references to make sure other nodes are still alive until end of the test
     let mut other_nodes = vec![];
 
-    for c in 0..shared_with_peers_count {
+    for c in 0..SHARED_WITH_PEERS_COUNT {
         let node_name = format!("peer-{c}");
         let other_mdn_node = create_provider_node(&node_name).await?;
         other_nodes.push(other_mdn_node.clone());
@@ -159,7 +159,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
         while let Some(ev) = ready_for_next_test_scenario_rx.recv().await {
             next_test_scenario_counter += 1;
 
-            if next_test_scenario_counter == shared_with_peers_count {
+            if next_test_scenario_counter == SHARED_WITH_PEERS_COUNT {
                 match ev {
                     TestCase::DeleteEntry => {
                         let del = oyt_mdn_node.del_value(&alice_city_path).await?;
@@ -176,8 +176,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
                             .await?;
 
                         for user_id in other_peers_user_ids.iter() {
-                            if let Some(cap) = cap_list.iter().find(|c| &c.cap_receiver == user_id)
-                            {
+                            for cap in cap_list.iter().filter(|c| &c.cap_receiver == user_id) {
                                 oyt_mdn_node
                                     .mdn_delegation_manager()
                                     .revoke_shared_access_from_provider(
@@ -228,7 +227,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
 
     let res = join_all(tasks);
 
-    let res = tokio::time::timeout(Duration::from_secs(60), res)
+    let res = tokio::time::timeout(Duration::from_secs(30), res)
         .await
         .map_err(|e| {
             anyhow!(format!(

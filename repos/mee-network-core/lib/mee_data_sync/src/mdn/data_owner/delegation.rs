@@ -22,7 +22,7 @@ use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
     proto::{
         data_model::{Entry, Path},
-        grouping::Range3d,
+        grouping::{Area, Range3d},
         keys::UserId,
         meadowcap::AccessMode,
     },
@@ -122,11 +122,9 @@ impl MdnDataOwnerDelegationManager {
             .await?
             .0;
 
-        // TODO wait for iroh-willow fix
-        // let data_subset_restriction = RestrictArea::Restrict(Area::new_subspace(provider_id));
-        let data_subset_restriction = RestrictArea::None;
+        let data_subset_restriction = RestrictArea::Restrict(Area::new_subspace(provider_id));
 
-        let data_caps = self
+        let mut write_caps = self
             .willow_peer
             .willow_delegation_manager
             .delegate_capabilities(
@@ -136,7 +134,19 @@ impl MdnDataOwnerDelegationManager {
             )
             .await?;
 
-        Ok(data_caps)
+        let mut read_caps = self
+            .willow_peer
+            .willow_delegation_manager
+            .delegate_capabilities(
+                CapSelector::any(cap_list_ns),
+                AccessMode::Read,
+                DelegateTo::new(provider_id, RestrictArea::None),
+            )
+            .await?;
+
+        write_caps.append(&mut read_caps);
+
+        Ok(write_caps)
     }
     pub async fn data_owner_cap_list(
         &self,

@@ -8,7 +8,7 @@ use mee_data_sync::{
         },
         traits::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
     },
-    willow::utils::progress_session_intents,
+    willow::debug::progress_session_intents,
 };
 use std::time::Duration;
 use tokio::{select, time::sleep};

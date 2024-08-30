@@ -6,8 +6,9 @@ use crate::{
         delegation::revocation_request_record_path,
         store::{data_entry_path_from_key_components, key_components},
     },
-    willow::peer::delegation_manager::cap_granted_components,
+    willow::{peer::delegation_manager::cap_granted_components, utils::path_range_exact},
 };
+use anyhow::Context;
 use async_trait::async_trait;
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
@@ -265,14 +266,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             let ent = self
                 .willow_peer
                 .willow_data_manager
-                .get_entries(
-                    cap.revocation_ns,
-                    Range3d::new(
-                        Default::default(),
-                        Range::new_open(Path::new_empty()),
-                        Default::default(),
-                    ),
-                )
+                .get_entries(cap.revocation_ns, Range3d::new_full())
                 .await?
                 .into_iter()
                 .filter_map(|entry| {
@@ -322,7 +316,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
                 revoke_list_ns,
                 Range3d::new(
                     Default::default(),
-                    Range::new_open(path.clone()),
+                    path_range_exact(path.clone())?.context("Wrong path range")?,
                     Default::default(),
                 ),
             )
