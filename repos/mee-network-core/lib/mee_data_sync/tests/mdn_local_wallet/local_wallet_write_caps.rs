@@ -15,11 +15,11 @@ use tokio::{select, time::sleep};
 
 #[tokio::test]
 async fn local_wallet_write_caps() -> anyhow::Result<()> {
-    env_logger::Builder::new()
+    let _ = env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .filter_module("iroh_net", log::LevelFilter::Warn)
         .filter_module("tracing::span", log::LevelFilter::Warn)
-        .init();
+        .try_init();
 
     let oyt_mdn_node = create_provider_node("oyt node").await?;
     let oyt_peer_id = oyt_mdn_node.user_id().await?;

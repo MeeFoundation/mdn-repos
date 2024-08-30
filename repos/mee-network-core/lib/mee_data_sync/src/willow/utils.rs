@@ -1,18 +1,9 @@
 use crate::error::MeeDataSyncResult;
 use bytes::Bytes;
 use iroh_willow::proto::{
-    data_model::{Component, Path},
+    data_model::{Component, Path, PathExt},
     grouping::Range,
 };
-
-pub fn path_from_bytes_slice(bytes_slice: &[&[u8]]) -> MeeDataSyncResult<Path> {
-    Ok(Path::new_from_slice(
-        &bytes_slice
-            .iter()
-            .filter_map(|c| Component::new(c))
-            .collect::<Vec<_>>(),
-    )?)
-}
 
 pub fn display_path(path: &Path) -> String {
     let p = path
@@ -41,7 +32,7 @@ pub fn is_empty_entry_payload(payload: &Bytes) -> bool {
 pub fn path_suffix(path: &Path, i: usize) -> MeeDataSyncResult<Path> {
     let path = path.suffix_components(i).collect::<Vec<_>>();
     let path = path.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
-    let path = path_from_bytes_slice(path.as_slice())?;
+    let path = Path::from_bytes(path.as_slice())?;
 
     Ok(path)
 }
@@ -54,12 +45,12 @@ pub fn path_range_exact(path: Path) -> MeeDataSyncResult<Option<Range<Path>>> {
 
 #[test]
 fn path_exact_range_test() {
-    let path = path_from_bytes_slice(&[b"path", b"to"]).unwrap();
+    let path = Path::from_bytes(&[b"path", b"to"]).unwrap();
     let wrong_paths = [
-        path_from_bytes_slice(&[b"path"]).unwrap(),
-        path_from_bytes_slice(&[b"path", b"t"]).unwrap(),
-        path_from_bytes_slice(&[b"path", b"tu"]).unwrap(),
-        path_from_bytes_slice(&[b"path", b"too"]).unwrap(),
+        Path::from_bytes(&[b"path"]).unwrap(),
+        Path::from_bytes(&[b"path", b"t"]).unwrap(),
+        Path::from_bytes(&[b"path", b"tu"]).unwrap(),
+        Path::from_bytes(&[b"path", b"too"]).unwrap(),
     ];
 
     let range = path_range_exact(path.clone()).unwrap().unwrap();

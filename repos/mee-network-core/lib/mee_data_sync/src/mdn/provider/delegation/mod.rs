@@ -12,10 +12,13 @@ use crate::{
         },
         utils::find_revocation_cap_pairs,
     },
-    willow::{peer::WillowPeer, utils::path_from_bytes_slice},
+    willow::peer::WillowPeer,
 };
 use futures::future::join_all;
-use iroh_willow::{interest::UserSelector, proto::data_model::NamespaceId};
+use iroh_willow::{
+    interest::UserSelector,
+    proto::data_model::{NamespaceId, PathExt},
+};
 use iroh_willow::{
     interest::{AreaSelector, CapSelector},
     proto::{
@@ -241,9 +244,8 @@ impl MdnProviderDelegationManagerImpl {
         &self,
         cap_list_entries: Vec<Entry>,
     ) -> MeeDataSyncResult {
-        let cap_prefix = path_from_bytes_slice(&[CAPABILITY_LIST_PATH_PREFIX.as_bytes()])?;
-        let revoke_req_prefix =
-            path_from_bytes_slice(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?;
+        let cap_prefix = Path::from_bytes(&[CAPABILITY_LIST_PATH_PREFIX.as_bytes()])?;
+        let revoke_req_prefix = Path::from_bytes(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?;
 
         let cap_req_list: Vec<_> = cap_list_entries
             .into_iter()

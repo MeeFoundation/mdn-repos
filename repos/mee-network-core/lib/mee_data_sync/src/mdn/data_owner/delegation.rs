@@ -13,7 +13,7 @@ use crate::{
     },
     willow::{
         peer::{delegation_manager::cap_granted_components, WillowPeer},
-        utils::{path_from_bytes_slice, path_suffix},
+        utils::path_suffix,
     },
 };
 use futures::TryStreamExt;
@@ -21,7 +21,7 @@ use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
     proto::{
-        data_model::{Entry, Path},
+        data_model::{Entry, Path, PathExt},
         grouping::{Area, Range3d},
         keys::UserId,
         meadowcap::AccessMode,
@@ -48,9 +48,9 @@ impl MdnDataOwnerDelegationManager {
         mdn_ns_store_manager: MdnDataOwnerNamespaceStoreManager,
     ) -> MeeDataSyncResult<Self> {
         Ok(Self {
-            cap_list_prefix: path_from_bytes_slice(&[CAPABILITY_LIST_PATH_PREFIX.as_bytes()])?,
-            revoke_req_prefix: path_from_bytes_slice(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?,
-            revoke_res_prefix: path_from_bytes_slice(&[REVOCATION_DONE_PATH_PREFIX.as_bytes()])?,
+            cap_list_prefix: Path::from_bytes(&[CAPABILITY_LIST_PATH_PREFIX.as_bytes()])?,
+            revoke_req_prefix: Path::from_bytes(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?,
+            revoke_res_prefix: Path::from_bytes(&[REVOCATION_DONE_PATH_PREFIX.as_bytes()])?,
             willow_peer,
             mdn_ns_store_manager,
         })

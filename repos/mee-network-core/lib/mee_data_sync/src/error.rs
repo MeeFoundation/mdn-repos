@@ -1,5 +1,5 @@
 use iroh_net::endpoint::ConnectionError;
-use iroh_willow::proto::data_model::InvalidPathError;
+use iroh_willow::proto::data_model::{InvalidPathError, InvalidPathError2};
 use std::{array::TryFromSliceError, string::FromUtf8Error, sync::PoisonError};
 use tokio::task::JoinError;
 
@@ -23,8 +23,11 @@ pub enum MeeDataSyncErr {
     #[error("JSON codec error: {0}")]
     JsonCodec(#[from] serde_json::Error),
 
-    #[error("willow invalid path error: {0}")]
-    WillowInvalidPath(#[from] InvalidPathError),
+    #[error("willow invalid path original error: {0}")]
+    WillowInvalidPathOriginal(#[from] InvalidPathError),
+
+    #[error("willow invalid path wrapper error: {0}")]
+    WillowInvalidPath(#[from] InvalidPathError2),
 
     #[error("std::sync::Mutex error: {0}")]
     StdMutex(String),

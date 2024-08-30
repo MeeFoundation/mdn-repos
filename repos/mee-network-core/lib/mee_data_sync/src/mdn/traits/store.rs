@@ -1,10 +1,10 @@
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
-    willow::{peer::WillowPeer, utils::path_from_bytes_slice},
+    willow::peer::WillowPeer,
 };
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-use iroh_willow::proto::data_model::{Entry, NamespaceId, Path};
+use iroh_willow::proto::data_model::{Entry, NamespaceId, Path, PathExt};
 
 /// `{user_id}/{root_attribute}/{root_attribute_id}/{sub_attribute}`
 pub struct FullPathAttribute {
@@ -90,7 +90,7 @@ pub fn data_entry_path_from_key_components(
         .map(String::as_bytes)
         .collect::<Vec<_>>();
 
-    let path = path_from_bytes_slice(&path_components)?;
+    let path = Path::from_bytes(&path_components)?;
 
     Ok(path)
 }
@@ -128,7 +128,7 @@ pub trait MdnAgentDataNodeKvStore {
         &self,
         user_id: &str,
     ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
-        let user_prefix = path_from_bytes_slice(&[user_id.as_bytes()])?;
+        let user_prefix = Path::from_bytes(&[user_id.as_bytes()])?;
 
         let res = self
             .all_values_filter(Box::new(move |e| user_prefix.is_prefix_of(e.path())))

@@ -3,11 +3,14 @@ use crate::{
     error::MeeDataSyncResult,
     willow::{
         peer::data_manager::WillowDataManager,
-        utils::{display_path, is_empty_entry_payload, path_from_bytes_slice, path_suffix},
+        utils::{display_path, is_empty_entry_payload, path_suffix},
     },
 };
 use futures::{StreamExt, TryStreamExt};
-use iroh_willow::proto::{data_model::Entry, keys::UserId};
+use iroh_willow::proto::{
+    data_model::{Entry, Path, PathExt},
+    keys::UserId,
+};
 use std::str::FromStr;
 
 // TODO check revocation list record origin validity
@@ -16,7 +19,7 @@ pub fn find_revocation_cap_pairs(
 ) -> MeeDataSyncResult<Vec<(UserId, Entry, Entry)>> {
     let mut res = vec![];
 
-    let pref = path_from_bytes_slice(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?;
+    let pref = Path::from_bytes(&[REVOCATION_REQUEST_PATH_PREFIX.as_bytes()])?;
 
     let (request_list, readiness_list): (Vec<_>, Vec<_>) = revocation_list
         .into_iter()
