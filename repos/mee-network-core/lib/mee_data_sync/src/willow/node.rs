@@ -4,6 +4,7 @@ use iroh_willow::{
     engine::{AcceptOpts, Engine},
     ALPN,
 };
+use mee_macro_utils::let_clone;
 use std::sync::{Arc, Mutex};
 use tokio::task::JoinHandle;
 
@@ -38,8 +39,9 @@ impl WillowNode {
         let engine = Engine::spawn(endpoint.clone(), create_store, accept_opts);
 
         let accept_task = tokio::task::spawn({
-            let engine = engine.clone();
-            let endpoint = endpoint.clone();
+            let_clone!(engine);
+            let_clone!(endpoint);
+
             async move {
                 while let Some(incoming) = endpoint.accept().await {
                     let Ok(mut connecting) = incoming.accept() else {

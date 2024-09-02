@@ -4103,6 +4103,7 @@ dependencies = [
  "iroh-test",
  "iroh-willow",
  "log",
+ "mee_macro_utils",
  "rand_chacha",
  "serde",
  "serde_json",

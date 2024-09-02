@@ -28,7 +28,6 @@ pub fn is_empty_entry_payload(payload: &Bytes) -> bool {
     payload.is_empty() || **payload == empty_entry_payload()
 }
 
-/// TODO find a better way to suffix path component
 pub fn path_suffix(path: &Path, i: usize) -> MeeDataSyncResult<Path> {
     let path = path.suffix_components(i).collect::<Vec<_>>();
     let path = path.iter().map(|c| c.as_ref()).collect::<Vec<_>>();
@@ -41,6 +40,14 @@ pub fn path_range_exact(path: Path) -> MeeDataSyncResult<Option<Range<Path>>> {
     let end_path = path.append(Component::new_empty())?;
 
     Ok(Range::new_closed(path, end_path))
+}
+
+#[test]
+fn path_suffix_test() {
+    let path_to = Path::from_bytes(&[b"path", b"to"]).unwrap();
+    let to = Path::from_bytes(&[b"to"]).unwrap();
+
+    assert_eq!(path_suffix(&path_to, 1).unwrap(), to);
 }
 
 #[test]

@@ -4,7 +4,7 @@ use crate::{
     willow::{node::WillowNode, utils::empty_entry_payload},
 };
 use bytes::Bytes;
-use futures::{future::join_all, Stream, StreamExt, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use iroh_willow::{
     form::{EntryForm, SubspaceForm},
     proto::{
@@ -27,7 +27,6 @@ impl WillowDataManager {
             willow_user_manager,
         }
     }
-    // TODO change entry return value
     pub async fn insert_entry(
         &self,
         namespace_id: NamespaceId,
@@ -74,26 +73,21 @@ impl WillowDataManager {
     pub async fn remove_entries_softly(&self, entries: Vec<Entry>) -> MeeDataSyncResult<Vec<bool>> {
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
-        // TODO willow-iroh still has bug with empty payload
-        let res = entries.into_iter().map(|entry| async move {
-            let entry = EntryForm::new_bytes(
-                *entry.namespace_id(),
-                entry.path().clone(),
-                empty_entry_payload().to_vec(),
-            );
+        let res = futures::stream::iter(entries)
+            .map(MeeDataSyncResult::Ok)
+            .and_then(|entry| async move {
+                let entry = EntryForm::new_bytes(
+                    *entry.namespace_id(),
+                    entry.path().clone(),
+                    empty_entry_payload().to_vec(),
+                );
 
-            let res = self.willow_node.engine.insert_entry(entry, user).await;
+                let res = self.willow_node.engine.insert_entry(entry, user).await?;
 
-            match res {
-                Ok(res) => res.1,
-                Err(e) => {
-                    log::error!("Error removing entry: {e}");
-                    false
-                }
-            }
-        });
-
-        let res = join_all(res).await.into_iter().collect::<Vec<_>>();
+                Ok(res.1)
+            })
+            .try_collect()
+            .await?;
 
         Ok(res)
     }
@@ -104,28 +98,23 @@ impl WillowDataManager {
     ) -> MeeDataSyncResult<Vec<bool>> {
         let user = self.willow_user_manager.get_active_user_profile().await?;
 
-        // TODO willow-iroh still has bug with empty payload
-        let res = entries.into_iter().map(|entry| async move {
-            let mut entry = EntryForm::new_bytes(
-                *entry.namespace_id(),
-                entry.path().clone(),
-                empty_entry_payload().to_vec(),
-            );
+        let res = futures::stream::iter(entries)
+            .map(MeeDataSyncResult::Ok)
+            .and_then(|entry| async move {
+                let mut entry = EntryForm::new_bytes(
+                    *entry.namespace_id(),
+                    entry.path().clone(),
+                    empty_entry_payload().to_vec(),
+                );
 
-            entry.subspace_id = SubspaceForm::Exact(user_id);
+                entry.subspace_id = SubspaceForm::Exact(user_id);
 
-            let res = self.willow_node.engine.insert_entry(entry, user).await;
+                let res = self.willow_node.engine.insert_entry(entry, user).await?;
 
-            match res {
-                Ok(res) => res.1,
-                Err(e) => {
-                    log::error!("Error removing entry: {e}");
-                    false
-                }
-            }
-        });
-
-        let res = join_all(res).await.into_iter().collect::<Vec<_>>();
+                MeeDataSyncResult::Ok(res.1)
+            })
+            .try_collect()
+            .await?;
 
         Ok(res)
     }

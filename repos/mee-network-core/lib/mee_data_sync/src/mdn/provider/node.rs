@@ -14,12 +14,14 @@ use crate::{
         },
         user::MdnAgentDataNodeUserOps,
     },
+    utils::try_stream_dedup,
     willow::{peer::WillowPeer, utils::is_empty_entry_payload},
 };
 use async_trait::async_trait;
 use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
 use iroh_willow::proto::{data_model::Entry, grouping::Range3d};
-use std::{collections::HashSet, sync::Arc};
+use mee_macro_utils::let_clone;
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
 // #[derive(Clone)]
@@ -93,7 +95,7 @@ impl MdnAgentProviderNodeWillowImpl {
     pub async fn all_data_entries_filter<F>(
         &self,
         filter_entry_fn: F,
-    ) -> MeeDataSyncResult<impl Stream<Item = Entry>>
+    ) -> MeeDataSyncResult<impl Stream<Item = Entry> + '_>
     where
         F: Fn(&Entry) -> bool + Send + Sync + 'static,
     {
@@ -123,7 +125,7 @@ impl MdnAgentProviderNodeWillowImpl {
     pub async fn data_entries_for_range(
         &self,
         range: Range3d,
-    ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>>> {
+    ) -> MeeDataSyncResult<impl Stream<Item = MeeDataSyncResult<Entry>> + '_> {
         let own_data_namespace_id = self.mdn_ns_store_manager.get_agent_node_data_ns().await?.0;
         let own_revoke_list_caps = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
 
@@ -149,7 +151,7 @@ impl MdnAgentProviderNodeWillowImpl {
             .list_read_caps()
             .await?
             .into_iter()
-            .filter_map(|c| {
+            .filter_map(move |c| {
                 // log::warn!("cap: {c:#?}");
 
                 let ns = c.namespace();
@@ -169,22 +171,24 @@ impl MdnAgentProviderNodeWillowImpl {
                 }
             });
 
-        let mut caps_entries = HashSet::new();
+        let cap_entries_stream = futures::stream::iter(caps_ns)
+            .map(MeeDataSyncResult::Ok)
+            .and_then(move |ns| {
+                let_clone!(range);
 
-        for ns in caps_ns {
-            let delegated_entries: Vec<_> = self
-                .willow_peer
-                .willow_data_manager
-                .get_entries_stream(ns.clone(), range.clone())
-                .await?
-                .try_collect()
-                .await?;
+                async move {
+                    let delegated_entries = self
+                        .willow_peer
+                        .willow_data_manager
+                        .get_entries_stream(ns, range)
+                        .await?;
 
-            // TODO deduplicate without materialization
-            caps_entries.extend(delegated_entries);
-        }
+                    MeeDataSyncResult::Ok(delegated_entries)
+                }
+            })
+            .try_flatten();
 
-        let cap_entries_stream = futures::stream::iter(caps_entries.into_iter().map(Ok));
+        let cap_entries_stream = try_stream_dedup(cap_entries_stream);
 
         let entries = tokio_stream::StreamExt::merge(owned_entries, cap_entries_stream);
 

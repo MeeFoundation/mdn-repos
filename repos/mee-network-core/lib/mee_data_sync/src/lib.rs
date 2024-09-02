@@ -1,4 +1,4 @@
 pub mod error;
 pub mod mdn;
-// TODO hide it
+mod utils;
 pub mod willow;

@@ -14,7 +14,7 @@ use crate::{
     },
     willow::peer::WillowPeer,
 };
-use futures::future::join_all;
+use futures::{StreamExt, TryStreamExt};
 use iroh_willow::{
     interest::UserSelector,
     proto::data_model::{NamespaceId, PathExt},
@@ -31,6 +31,7 @@ use manager::{
     MdnDataRevocationListRecord, MdnDataRevocationListResponse, MdnProviderCapabilityPackForOwner,
     MdnProviderDelegationManager,
 };
+use mee_macro_utils::let_clone;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};
 
@@ -86,59 +87,62 @@ impl MdnProviderDelegationManagerImpl {
         &self,
         caps: Vec<MdnDataRevocationListResponse>,
     ) -> MeeDataSyncResult {
-        let tasks = caps.into_iter().map(|cap| async move {
-            let comps = key_components(&cap.record.shared_data_path)?;
-            let path = data_entry_path_from_key_components(comps)?;
+        let _: Vec<_> = futures::stream::iter(caps)
+            .map(MeeDataSyncResult::Ok)
+            .and_then(|cap| async move {
+                let comps = key_components(&cap.record.shared_data_path)?;
+                let path = data_entry_path_from_key_components(comps)?;
 
-            let cap_selector = CapSelector::new(
-                cap.record.data_owner_ns,
-                UserSelector::Exact(self.current_user_id),
-                AreaSelector::ContainsArea(Area::new(
-                    AreaSubspace::Id(cap.record.data_owner),
-                    path,
-                    Default::default(),
-                )),
-            );
+                let cap_selector = CapSelector::new(
+                    cap.record.data_owner_ns,
+                    UserSelector::Exact(self.current_user_id),
+                    AreaSelector::ContainsArea(Area::new(
+                        AreaSubspace::Id(cap.record.data_owner),
+                        path,
+                        Default::default(),
+                    )),
+                );
 
-            // TODO maybe we have to remove deleted cap area of interests from active session intent (reload session)
-            let deleted = self
-                .willow_peer
-                .willow_delegation_manager
-                .delete_capabilities(cap_selector)
-                .await?;
-
-            let mut entries_to_delete = HashSet::new();
-
-            for cap in deleted.iter() {
-                let cap_ns = cap.granted_namespace();
-                let cap_area = cap.granted_area();
-
-                let entries = self
+                // TODO maybe we have to remove deleted cap area of interests from active session intent (reload session)
+                let deleted = self
                     .willow_peer
-                    .willow_data_manager
-                    .get_entries(*cap_ns, cap_area.to_range())
+                    .willow_delegation_manager
+                    .delete_capabilities(cap_selector)
                     .await?;
 
-                entries_to_delete.extend(entries);
-            }
+                let mut entries_to_delete = HashSet::new();
 
-            self.willow_peer
-                .willow_data_manager
-                .remove_entries_completely(entries_to_delete.into_iter().collect())
-                .await?;
+                for cap in deleted.iter() {
+                    let cap_ns = cap.granted_namespace();
+                    let cap_area = cap.granted_area();
 
-            self.send_signal_to_remove_revocation_cap(cap).await?;
+                    let entries = self
+                        .willow_peer
+                        .willow_data_manager
+                        .get_entries(*cap_ns, cap_area.to_range())
+                        .await;
 
-            Ok(()) as MeeDataSyncResult
-        });
+                    match entries {
+                        Ok(entries) => {
+                            entries_to_delete.extend(entries);
+                        }
+                        Err(e) => {
+                            log::error!("Error fetching entries for revocation purposes: {e}")
+                        }
+                    };
+                }
 
-        let res = join_all(tasks).await;
+                self.willow_peer
+                    .willow_data_manager
+                    .remove_entries_completely(entries_to_delete.into_iter().collect())
+                    .await?;
 
-        for r in res {
-            if let Err(e) = r {
-                log::error!("Error removing capability: {e}");
-            }
-        }
+                self.send_signal_to_remove_revocation_cap(cap).await?;
+
+                Ok(())
+            })
+            .try_collect()
+            .await?;
 
         Ok(())
     }
@@ -225,17 +229,25 @@ impl MdnProviderDelegationManagerImpl {
         for (user, req, res) in cap_pairs {
             let req_path = req.path().clone();
 
-            self.willow_peer
-                .willow_data_manager
-                .remove_entries_softly(vec![req])
-                .await?;
+            let task = async move {
+                self.willow_peer
+                    .willow_data_manager
+                    .remove_entries_softly(vec![req])
+                    .await?;
 
-            self.willow_peer
-                .willow_data_manager
-                .remove_entries_softly_for_subspace(vec![res], user)
-                .await?;
+                self.willow_peer
+                    .willow_data_manager
+                    .remove_entries_softly_for_subspace(vec![res], user)
+                    .await?;
 
-            self.send_signal_to_owner_cap_list(req_path).await?;
+                self.send_signal_to_owner_cap_list(req_path).await?;
+
+                MeeDataSyncResult::Ok(())
+            };
+
+            if let Err(e) = task.await {
+                log::error!("Error cleaning removed entries: {e}");
+            }
         }
 
         Ok(())
@@ -274,12 +286,16 @@ impl MdnProviderDelegationManagerImpl {
                 .find(|c| c.capability_id == cap.revocation_id);
 
             if local_cap.is_some() {
-                self.revoke_shared_access_from_provider(
-                    &cap.revocation_id,
-                    &cap.shared_data_path,
-                    cap.revocation_receiver,
-                )
-                .await?;
+                if let Err(e) = self
+                    .revoke_shared_access_from_provider(
+                        &cap.revocation_id,
+                        &cap.shared_data_path,
+                        cap.revocation_receiver,
+                    )
+                    .await
+                {
+                    log::error!("Error revoking shared access from provider: {e}");
+                }
             }
         }
 
@@ -295,21 +311,30 @@ impl MdnProviderDelegationManagerImpl {
             .await?;
 
         for local_cap in local_cap_list.iter() {
-            let cap_path = cap_list_record_path(local_cap.cap_receiver, &local_cap.capability_id)?;
-            let cap_in_owner_list = data_owner_cap_list.iter().find(|c| c.path() == &cap_path);
+            let task = async {
+                let cap_path =
+                    cap_list_record_path(local_cap.cap_receiver, &local_cap.capability_id)?;
+                let cap_in_owner_list = data_owner_cap_list.iter().find(|c| c.path() == &cap_path);
 
-            if cap_in_owner_list.is_none() {
-                let (e, _) = self
-                    .willow_peer
-                    .willow_data_manager
-                    .insert_entry(
-                        cap_list_ns,
-                        cap_path,
-                        MdnProviderCapabilityPackForOwner::from(local_cap.clone()).encode()?,
-                    )
-                    .await?;
+                if cap_in_owner_list.is_none() {
+                    let (e, _) = self
+                        .willow_peer
+                        .willow_data_manager
+                        .insert_entry(
+                            cap_list_ns,
+                            cap_path,
+                            MdnProviderCapabilityPackForOwner::from(local_cap.clone()).encode()?,
+                        )
+                        .await?;
 
-                data_owner_cap_list.push(e);
+                    data_owner_cap_list.push(e);
+                }
+
+                MeeDataSyncResult::Ok(())
+            };
+
+            if let Err(e) = task.await {
+                log::error!("Error checking data owner cap list: {e}");
             }
         }
 
@@ -331,7 +356,7 @@ impl MdnProviderDelegationManagerImpl {
         let this = Arc::new(self);
 
         let t1 = tokio::spawn({
-            let this = this.clone();
+            let_clone!(this);
 
             async move {
                 loop {
@@ -345,7 +370,7 @@ impl MdnProviderDelegationManagerImpl {
         });
 
         let t2 = tokio::spawn({
-            let this = this.clone();
+            let_clone!(this);
 
             async move {
                 loop {
@@ -359,7 +384,7 @@ impl MdnProviderDelegationManagerImpl {
         });
 
         let t3 = tokio::spawn({
-            let this = this.clone();
+            let_clone!(this);
 
             async move {
                 loop {

@@ -9,6 +9,7 @@ use mee_data_sync::{
     },
     willow::debug::progress_session_intents,
 };
+use mee_macro_utils::let_clone;
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::mpsc::Sender, time::sleep};
 
@@ -85,7 +86,7 @@ pub async fn share_data_and_sync(
     let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream));
 
     let delegations = tokio::spawn({
-        let node_name = node_name.clone();
+        let_clone!(node_name);
 
         async move {
             loop {

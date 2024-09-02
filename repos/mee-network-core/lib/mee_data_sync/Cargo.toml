@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils"}
+
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }

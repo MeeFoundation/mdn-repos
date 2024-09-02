@@ -28,6 +28,7 @@ use iroh_willow::{
     },
     session::{SessionInit, SessionMode},
 };
+use mee_macro_utils::let_clone;
 use std::{sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};
 
@@ -191,20 +192,33 @@ impl MdnDataOwnerDelegationManager {
         let peers = self.willow_peer.willow_network_manager.remote_peers()?;
 
         for peer in peers {
-            let interests = Interests::builder().add_full_cap(cap_list_ns).build();
+            let this = self.clone();
 
-            // TODO maybe replace with live session
-            let init = SessionInit::new(interests, SessionMode::ReconcileOnce);
+            // TODO attach task for proper cancellation
+            tokio::spawn(async move {
+                let task = async {
+                    let interests = Interests::builder().add_full_cap(cap_list_ns).build();
 
-            let mut sync_intent = self
-                .willow_peer
-                .willow_session_manager
-                .sync_with_peer(peer.node_id, init)
-                .await?;
+                    // TODO replace with live session
+                    let init = SessionInit::new(interests, SessionMode::ReconcileOnce);
 
-            // let mut sync_intent = progress_session_intents(sync_intent).await;
+                    let mut sync_intent = this
+                        .willow_peer
+                        .willow_session_manager
+                        .sync_with_peer(peer.node_id, init)
+                        .await?;
 
-            sync_intent.complete().await.map_err(anyhow::Error::msg)?;
+                    // let mut sync_intent = progress_session_intents(sync_intent).await;
+
+                    sync_intent.complete().await.map_err(anyhow::Error::msg)?;
+
+                    MeeDataSyncResult::Ok(())
+                };
+
+                if let Err(e) = task.await {
+                    log::error!("Error handling cap list syncing with providers: {e}");
+                }
+            });
         }
 
         Ok(())
@@ -277,24 +291,32 @@ impl MdnDataOwnerDelegationManager {
         }
 
         for (cap, req, res) in cap_req_res_list_entries {
-            self.willow_peer
-                .willow_data_manager
-                .remove_entries_softly(vec![req])
-                .await?;
+            let task = async {
+                self.willow_peer
+                    .willow_data_manager
+                    .remove_entries_softly(vec![req])
+                    .await?;
 
-            let user = cap.subspace_id().clone();
+                let user = cap.subspace_id().clone();
 
-            self.willow_peer
-                .willow_data_manager
-                .remove_entries_softly_for_subspace(vec![cap], user)
-                .await?;
+                self.willow_peer
+                    .willow_data_manager
+                    .remove_entries_softly_for_subspace(vec![cap], user)
+                    .await?;
 
-            let user = res.subspace_id().clone();
+                let user = res.subspace_id().clone();
 
-            self.willow_peer
-                .willow_data_manager
-                .remove_entries_softly_for_subspace(vec![res], user)
-                .await?;
+                self.willow_peer
+                    .willow_data_manager
+                    .remove_entries_softly_for_subspace(vec![res], user)
+                    .await?;
+
+                MeeDataSyncResult::Ok(())
+            };
+
+            if let Err(e) = task.await {
+                log::error!("Error during data owner cap list cleaning up: {e}");
+            }
         }
 
         Ok(())
@@ -306,7 +328,7 @@ impl MdnDataOwnerDelegationManager {
         let this = Arc::new(self);
 
         let t1 = tokio::spawn({
-            let this = this.clone();
+            let_clone!(this);
 
             async move {
                 loop {
@@ -320,7 +342,7 @@ impl MdnDataOwnerDelegationManager {
         });
 
         let t2 = tokio::spawn({
-            let this = this.clone();
+            let_clone!(this);
 
             async move {
                 loop {
