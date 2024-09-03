@@ -3,10 +3,10 @@ use futures::StreamExt;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        provider::delegation::manager::{
+        common::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
+        provider_agent::delegation::manager::{
             ImportCapabilitiesForDataOwner, ImportCapabilitiesFromProvider,
         },
-        traits::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
     },
     willow::debug::progress_session_intents,
 };
@@ -45,10 +45,12 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
     let alice_zip_path = format!("{alice_address_path}/0/{address_sub_attribute_zip}");
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&alice_city_path, alice_city.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&alice_zip_path, alice_zip.as_bytes().to_vec())
         .await?;
 
@@ -121,6 +123,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
     let wallet_handler = tokio::spawn(async move {
         loop {
             let res: Vec<_> = untied_mdn_node
+                .mdn_data_store()
                 .get_all_values_stream()
                 .await?
                 .collect()
@@ -154,6 +157,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
 
         loop {
             let res: Vec<_> = untied_mdn_node
+                .mdn_data_store()
                 .get_all_values_stream()
                 .await?
                 .collect()

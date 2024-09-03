@@ -1,7 +1,7 @@
 use super::user_manager::WillowUserManager;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
-    willow::{node::WillowNode, utils::empty_entry_payload},
+    willow::{node::WillowNode, utils::deleted_entry_payload},
 };
 use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -79,7 +79,7 @@ impl WillowDataManager {
                 let entry = EntryForm::new_bytes(
                     *entry.namespace_id(),
                     entry.path().clone(),
-                    empty_entry_payload().to_vec(),
+                    deleted_entry_payload().to_vec(),
                 );
 
                 let res = self.willow_node.engine.insert_entry(entry, user).await?;
@@ -104,7 +104,7 @@ impl WillowDataManager {
                 let mut entry = EntryForm::new_bytes(
                     *entry.namespace_id(),
                     entry.path().clone(),
-                    empty_entry_payload().to_vec(),
+                    deleted_entry_payload().to_vec(),
                 );
 
                 entry.subspace_id = SubspaceForm::Exact(user_id);

@@ -1,14 +1,15 @@
 use super::namespace::MdnDataOwnerNamespaceStoreManager;
 use crate::{
+    async_move,
     error::{MeeDataSyncErr, MeeDataSyncResult},
     mdn::{
-        provider::delegation::manager::{
-            DelegatePrivilegedAccessToOwner, MdnDataRevocationListRecord,
-            MdnProviderCapabilityPackForOwner,
-        },
-        traits::delegation::{
+        common::delegation::{
             revocation_request_record_path, CAPABILITY_LIST_PATH_PREFIX,
             REVOCATION_DONE_PATH_PREFIX, REVOCATION_REQUEST_PATH_PREFIX,
+        },
+        provider_agent::delegation::manager::{
+            DelegatePrivilegedAccessToOwner, MdnDataRevocationListRecord,
+            MdnProviderCapabilityPackForOwner,
         },
     },
     willow::{
@@ -163,10 +164,7 @@ impl MdnDataOwnerDelegationManager {
             .willow_data_manager
             .get_entries_stream(cap_list_ns, Range3d::new_full())
             .await?
-            .try_filter(|e| {
-                let pred = e.path().is_prefixed_by(&self.cap_list_prefix);
-                async move { pred }
-            })
+            .try_filter(|e| async_move! { e.path().is_prefixed_by(&self.cap_list_prefix) })
             .try_collect()
             .await?;
 

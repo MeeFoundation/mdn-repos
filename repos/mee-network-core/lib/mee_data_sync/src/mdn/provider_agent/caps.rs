@@ -18,7 +18,7 @@ pub struct MdnProviderCapabilityInMemoryStore {
 }
 
 impl MdnProviderCapabilityInMemoryStore {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             inner: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -51,7 +51,10 @@ pub struct MdnProviderCapabilityManager {
 }
 
 impl MdnProviderCapabilityManager {
-    pub fn new(store: Arc<dyn MdnProviderCapabilityStore + Send + Sync>) -> Self {
+    fn new(store: Arc<dyn MdnProviderCapabilityStore + Send + Sync>) -> Self {
         Self { store }
+    }
+    pub fn new_in_memory() -> Self {
+        Self::new(Arc::new(MdnProviderCapabilityInMemoryStore::new()))
     }
 }

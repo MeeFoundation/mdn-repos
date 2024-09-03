@@ -20,12 +20,16 @@ pub fn display_path(path: &Path) -> String {
     }
 }
 
-pub fn empty_entry_payload() -> [u8; 1] {
+pub fn deleted_entry_payload() -> [u8; 1] {
     [0]
 }
 
-pub fn is_empty_entry_payload(payload: &Bytes) -> bool {
-    payload.is_empty() || **payload == empty_entry_payload()
+pub fn empty_entry_payload() -> [u8; 2] {
+    [0, 0]
+}
+
+pub fn is_deleted_entry_payload(payload: &Bytes) -> bool {
+    **payload == deleted_entry_payload()
 }
 
 pub fn path_suffix(path: &Path, i: usize) -> MeeDataSyncResult<Path> {

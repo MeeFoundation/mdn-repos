@@ -2,8 +2,8 @@ use super::utils::create_rng;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        data_owner::node::MdnAgentDataOwnerNodeWillowImpl,
-        provider::node::MdnAgentProviderNodeWillowImpl, traits::node::MdnAgentProviderNode,
+        common::node::MdnAgentProviderNode, local_agent::node::MdnAgentDataOwnerNodeWillowImpl,
+        provider_agent::node::MdnAgentProviderNodeWillowImpl,
     },
     willow::peer::WillowPeer,
 };

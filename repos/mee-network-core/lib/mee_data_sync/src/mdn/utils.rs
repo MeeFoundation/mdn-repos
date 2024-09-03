@@ -1,9 +1,9 @@
-use super::traits::delegation::REVOCATION_REQUEST_PATH_PREFIX;
+use super::common::delegation::REVOCATION_REQUEST_PATH_PREFIX;
 use crate::{
     error::MeeDataSyncResult,
     willow::{
         peer::data_manager::WillowDataManager,
-        utils::{display_path, is_empty_entry_payload, path_suffix},
+        utils::{display_path, is_deleted_entry_payload, path_suffix},
     },
 };
 use futures::{StreamExt, TryStreamExt};
@@ -76,7 +76,7 @@ impl WillowDataManager {
             .map(MeeDataSyncResult::Ok)
             .try_filter_map(|e| async {
                 if let Some(p) = self.read_entry_payload(entry_fn(&e)).await? {
-                    if !is_empty_entry_payload(&p) {
+                    if !is_deleted_entry_payload(&p) {
                         return MeeDataSyncResult::Ok(Some(map_fn(e, &p)?));
                     }
                 }
@@ -101,7 +101,7 @@ impl WillowDataManager {
             }
         }
 
-        let pred = payloads.iter().all(|(_, p)| is_empty_entry_payload(p));
+        let pred = payloads.iter().all(|(_, p)| is_deleted_entry_payload(p));
 
         Ok(pred)
     }

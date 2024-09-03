@@ -1,10 +1,9 @@
 use super::{
-    delegation::MdnDataOwnerDelegationManager,
-    namespace::{MdnDataOwnerNamespaceStoreInMemory, MdnDataOwnerNamespaceStoreManager},
+    delegation::MdnDataOwnerDelegationManager, namespace::MdnDataOwnerNamespaceStoreManager,
 };
 use crate::{
     error::MeeDataSyncResult,
-    mdn::traits::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
+    mdn::common::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
     willow::peer::WillowPeer,
 };
 use async_trait::async_trait;
@@ -27,8 +26,7 @@ impl Drop for MdnAgentDataOwnerNodeWillowImpl {
 
 impl MdnAgentDataOwnerNodeWillowImpl {
     pub async fn new(willow_peer: WillowPeer) -> MeeDataSyncResult<Self> {
-        let mdn_ns_store_manager = MdnDataOwnerNamespaceStoreManager::new(
-            Arc::new(MdnDataOwnerNamespaceStoreInMemory::new()),
+        let mdn_ns_store_manager = MdnDataOwnerNamespaceStoreManager::new_in_memory(
             willow_peer.willow_namespace_manager.clone(),
         )
         .await?;

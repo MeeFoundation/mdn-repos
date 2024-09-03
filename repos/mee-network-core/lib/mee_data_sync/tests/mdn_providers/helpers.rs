@@ -4,8 +4,8 @@ use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        provider::delegation::manager::ImportCapabilitiesFromProvider,
-        traits::node::MdnAgentProviderNode,
+        common::node::MdnAgentProviderNode,
+        provider_agent::delegation::manager::ImportCapabilitiesFromProvider,
     },
     willow::debug::progress_session_intents,
 };
@@ -91,6 +91,7 @@ pub async fn share_data_and_sync(
         async move {
             loop {
                 let res = other_mdn_node
+                    .mdn_data_store()
                     .get_all_values_stream()
                     .await?
                     .collect::<Vec<_>>()
@@ -125,6 +126,7 @@ pub async fn share_data_and_sync(
 
             loop {
                 let res = other_mdn_node
+                    .mdn_data_store()
                     .get_all_values_stream()
                     .await?
                     .collect::<Vec<_>>()
@@ -150,6 +152,7 @@ pub async fn share_data_and_sync(
 
             loop {
                 let res = other_mdn_node
+                    .mdn_data_store()
                     .get_all_values_stream()
                     .await?
                     .collect::<Vec<_>>()

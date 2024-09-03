@@ -165,7 +165,16 @@ pub struct MdnProviderNamespaceStoreManager {
 }
 
 impl MdnProviderNamespaceStoreManager {
-    pub async fn new(
+    pub async fn new_in_memory(
+        willow_namespace_manager: WillowNamespaceManager,
+    ) -> MeeDataSyncResult<Self> {
+        Self::new(
+            Arc::new(MdnProviderNamespaceStoreInMemory::new()),
+            willow_namespace_manager,
+        )
+        .await
+    }
+    async fn new(
         store: Arc<dyn MdnProviderNamespaceStore + Send + Sync>,
         willow_namespace_manager: WillowNamespaceManager,
     ) -> MeeDataSyncResult<Self> {

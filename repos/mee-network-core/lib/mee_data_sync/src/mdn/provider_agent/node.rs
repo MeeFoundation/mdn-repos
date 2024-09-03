@@ -1,21 +1,22 @@
 use super::{
-    caps::{MdnProviderCapabilityInMemoryStore, MdnProviderCapabilityManager},
+    caps::MdnProviderCapabilityManager,
     delegation::{manager::MdnProviderDelegationManager, MdnProviderDelegationManagerImpl},
-    namespace::{MdnProviderNamespaceStoreInMemory, MdnProviderNamespaceStoreManager},
+    namespace::MdnProviderNamespaceStoreManager,
 };
 use crate::{
+    async_move,
     error::MeeDataSyncResult,
-    mdn::traits::{
+    mdn::common::{
         network::MdnAgentDataNodeNetworkOps,
         node::MdnAgentProviderNode,
         store::{
-            data_entry_path_from_key_components, key_components, ReadDataRecord,
-            KEY_COMPONENTS_SPLITTER,
+            data_entry_path_from_key_components, key_components, KeyComponents,
+            MdnAgentDataNodeKvStore, ReadDataRecord, KEY_COMPONENTS_SPLITTER,
         },
         user::MdnAgentDataNodeUserOps,
     },
     utils::try_stream_dedup,
-    willow::{peer::WillowPeer, utils::is_empty_entry_payload},
+    willow::{peer::WillowPeer, utils::is_deleted_entry_payload},
 };
 use async_trait::async_trait;
 use futures::{stream::BoxStream, Stream, StreamExt, TryStreamExt};
@@ -24,7 +25,7 @@ use mee_macro_utils::let_clone;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct MdnAgentProviderNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
     pub(crate) mdn_ns_store_manager: MdnProviderNamespaceStoreManager,
@@ -44,18 +45,21 @@ impl MdnAgentProviderNode for MdnAgentProviderNodeWillowImpl {
     fn mdn_delegation_manager(&self) -> Arc<dyn MdnProviderDelegationManager + Send + Sync> {
         self.mdn_delegation_manager.clone()
     }
+    fn mdn_data_store(
+        &self,
+    ) -> Arc<dyn MdnAgentDataNodeKvStore<KeyComps = KeyComponents> + Send + Sync> {
+        Arc::new(self.clone())
+    }
 }
 
 impl MdnAgentProviderNodeWillowImpl {
     pub async fn new(willow_peer: WillowPeer) -> MeeDataSyncResult<Self> {
-        let mdn_ns_store_manager = MdnProviderNamespaceStoreManager::new(
-            Arc::new(MdnProviderNamespaceStoreInMemory::new()),
+        let mdn_ns_store_manager = MdnProviderNamespaceStoreManager::new_in_memory(
             willow_peer.willow_namespace_manager.clone(),
         )
         .await?;
 
-        let mdn_provider_capability_manager =
-            MdnProviderCapabilityManager::new(Arc::new(MdnProviderCapabilityInMemoryStore::new()));
+        let mdn_provider_capability_manager = MdnProviderCapabilityManager::new_in_memory();
 
         let mdn_delegation_manager = MdnProviderDelegationManagerImpl::new(
             willow_peer.clone(),
@@ -105,9 +109,9 @@ impl MdnAgentProviderNodeWillowImpl {
             .data_entries_for_range(range)
             .await?
             .try_filter(move |e| {
-                let pred = filter_entry_fn(e);
-
-                async move { pred }
+                async_move! {
+                    filter_entry_fn(e)
+                }
             })
             .filter_map(|record| async {
                 match record {
@@ -211,9 +215,7 @@ impl MdnAgentProviderNodeWillowImpl {
                 //     e.subspace_id()
                 // );
 
-                let pred = filter_entry_fn(e);
-
-                async move { pred }
+                async_move! {filter_entry_fn(e)}
             })
             .and_then(|entry| {
                 let willow_peer = self.willow_peer.clone();
@@ -226,7 +228,7 @@ impl MdnAgentProviderNodeWillowImpl {
                         .await?;
 
                     let record = if let Some(payload) = payload {
-                        if is_empty_entry_payload(&payload) {
+                        if is_deleted_entry_payload(&payload) {
                             return Ok(None);
                         }
 

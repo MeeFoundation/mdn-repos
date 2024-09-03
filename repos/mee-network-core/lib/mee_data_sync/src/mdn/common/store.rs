@@ -97,16 +97,28 @@ pub fn data_entry_path_from_key_components(
 
 #[async_trait]
 pub trait MdnAgentDataNodeKvStore {
+    type KeyComps;
+
+    fn data_entry_path_from_key_components(
+        &self,
+        key_components: Self::KeyComps,
+    ) -> MeeDataSyncResult<Path>;
+
+    fn key_components(&self, key: &str) -> MeeDataSyncResult<Self::KeyComps>;
+
     fn willow_peer(&self) -> WillowPeer;
+
     async fn data_ns(&self) -> MeeDataSyncResult<NamespaceId>;
+
     async fn all_values_filter(
         &self,
         filter_fn: Box<dyn for<'a> Fn(&'a Entry) -> bool + Send + Sync + 'static>,
     ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
+
     async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>>;
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult {
-        let path = data_entry_path_from_key_components(key_components(key)?)?;
+        let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
 
         self.willow_peer()
             .willow_data_manager

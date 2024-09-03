@@ -2,7 +2,7 @@ use super::{caps::MdnProviderCapabilityManager, namespace::MdnProviderNamespaceS
 use crate::{
     error::MeeDataSyncResult,
     mdn::{
-        traits::{
+        common::{
             delegation::{
                 cap_list_record_path, revocation_done_record_path,
                 revocation_request_record_path_prefix, CAPABILITY_LIST_PATH_PREFIX,

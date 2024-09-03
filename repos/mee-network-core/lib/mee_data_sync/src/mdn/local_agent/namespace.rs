@@ -70,7 +70,7 @@ pub struct MdnDataOwnerNamespaceStoreInMemory {
 }
 
 impl MdnDataOwnerNamespaceStoreInMemory {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             store: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -83,7 +83,16 @@ pub struct MdnDataOwnerNamespaceStoreManager {
 }
 
 impl MdnDataOwnerNamespaceStoreManager {
-    pub async fn new(
+    pub async fn new_in_memory(
+        willow_namespace_manager: WillowNamespaceManager,
+    ) -> MeeDataSyncResult<Self> {
+        Self::new(
+            Arc::new(MdnDataOwnerNamespaceStoreInMemory::new()),
+            willow_namespace_manager,
+        )
+        .await
+    }
+    async fn new(
         store: Arc<dyn MdnDataOwnerNamespaceStore + Send + Sync>,
         willow_namespace_manager: WillowNamespaceManager,
     ) -> MeeDataSyncResult<Self> {

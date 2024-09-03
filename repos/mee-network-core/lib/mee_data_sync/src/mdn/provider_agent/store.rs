@@ -1,14 +1,29 @@
 use super::node::MdnAgentProviderNodeWillowImpl;
 use crate::{
     error::MeeDataSyncResult,
-    mdn::traits::store::{MdnAgentDataNodeKvStore, ReadDataRecord},
+    mdn::common::store::{
+        data_entry_path_from_key_components, key_components, KeyComponents,
+        MdnAgentDataNodeKvStore, ReadDataRecord,
+    },
 };
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-use iroh_willow::proto::data_model::{Entry, NamespaceId};
+use iroh_willow::proto::data_model::{Entry, NamespaceId, Path};
 
 #[async_trait]
 impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
+    type KeyComps = KeyComponents;
+
+    fn data_entry_path_from_key_components(
+        &self,
+        key_components: Self::KeyComps,
+    ) -> MeeDataSyncResult<Path> {
+        data_entry_path_from_key_components(key_components)
+    }
+    fn key_components(&self, key: &str) -> MeeDataSyncResult<Self::KeyComps> {
+        key_components(key)
+    }
+
     fn willow_peer(&self) -> crate::willow::peer::WillowPeer {
         self.willow_peer.clone()
     }

@@ -44,30 +44,37 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
     let temp_bob_phone = b"911";
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&temp_bob_phone_path, temp_bob_phone.to_vec())
         .await?;
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&alice_city_path, alice_city.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&bob_city_path, bob_city.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&alice_zip_path, alice_zip.as_bytes().to_vec())
         .await?;
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&alice_cvv_path, b"123".to_vec())
         .await?;
 
     oyt_mdn_node
+        .mdn_data_store()
         .set_value(&bob_email_path, bob_email.as_bytes().to_vec())
         .await?;
 
     let all_cities_res = oyt_mdn_node
+        .mdn_data_store()
         .get_values_stream_by_attr(&address_attribute)
         .await?
         .collect::<Vec<_>>()
@@ -76,6 +83,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
     assert_eq!(all_cities_res.len(), 3);
 
     let bob_res = oyt_mdn_node
+        .mdn_data_store()
         .get_values_stream_by_user(&bob_user_id)
         .await?
         .collect::<Vec<_>>()
@@ -87,6 +95,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
     assert_eq!(bob_res.key, bob_email_path);
 
     let res = oyt_mdn_node
+        .mdn_data_store()
         .get_all_values_stream()
         .await?
         .collect::<Vec<_>>()
@@ -99,6 +108,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
     assert_eq!(res.key, alice_city_path);
 
     let bob_phone = oyt_mdn_node
+        .mdn_data_store()
         .get_all_values_stream()
         .await?
         .collect::<Vec<_>>()
@@ -108,11 +118,15 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
 
     assert!(bob_phone.is_some());
 
-    let res = oyt_mdn_node.del_value(&temp_bob_phone_path).await?;
+    let res = oyt_mdn_node
+        .mdn_data_store()
+        .del_value(&temp_bob_phone_path)
+        .await?;
 
     assert!(res);
 
     let bob_phone = oyt_mdn_node
+        .mdn_data_store()
         .get_all_values_stream()
         .await?
         .collect::<Vec<_>>()
@@ -162,7 +176,11 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
             if next_test_scenario_counter == SHARED_WITH_PEERS_COUNT {
                 match ev {
                     TestCase::DeleteEntry => {
-                        let del = oyt_mdn_node.del_value(&alice_city_path).await?;
+                        let del = oyt_mdn_node
+                            .mdn_data_store()
+                            .del_value(&alice_city_path)
+                            .await?;
+
                         assert!(del);
                     }
                     TestCase::RevokeCapability {
