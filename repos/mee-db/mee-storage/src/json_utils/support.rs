@@ -29,6 +29,7 @@ pub(super) fn inner_set(map: &mut BTreeMap<String, Value>, key: String, value: V
 
 pub(super) fn merge_json(first: &mut Value, second: Value) {
     match (first, second) {
+        (_, Value::Null) => {}
         (Value::Object(first), Value::Object(second)) => {
             for (key, value) in second {
                 merge_json(first.entry(key).or_insert(Value::Null), value);

@@ -17,6 +17,7 @@ pub trait BinaryKVStore {
 }
 
 pub const PATH_SEPARATOR: char = '/';
+pub const PATH_PREFIX: char = '@';
 
 pub(super) fn new_btree_map_based() -> Arc<dyn BinaryKVStore + Send + Sync + 'static> {
     let store = b_tree_map_store::BTreeMapStore::new();

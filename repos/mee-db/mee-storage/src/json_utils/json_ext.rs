@@ -190,7 +190,27 @@ mod test {
     }
 
     #[test]
-    fn get_pattern_property() {
+    fn get_missing_property() {
+        let obj = json!({
+            "field1": "value1",
+            "field2": {
+                "field3": "value3",
+                "field4": ["value4", "value5"]
+            }
+        });
+        assert_eq!(obj.x_get_property("field5"), None);
+        assert_eq!(
+            obj.x_get_property(&format!("field2{PATH_SEPARATOR}field6")),
+            None
+        );
+        assert_eq!(
+            obj.x_get_property(&format!("field2{PATH_SEPARATOR}field4{PATH_SEPARATOR}2")),
+            None
+        );
+    }
+
+    #[test]
+    fn get_complex_pattern_property() {
         let obj = json!({
                 "name": "Dan",
                 "last_name": "Brown",

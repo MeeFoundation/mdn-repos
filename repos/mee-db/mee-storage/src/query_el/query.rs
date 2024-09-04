@@ -2,123 +2,192 @@
 use crate::error::Result;
 use crate::json_kv_store::FieldFilter;
 use crate::json_kv_store::JsonStream;
+use crate::json_utils::JsonExt;
 
 use super::condition::CheckOperator;
+use super::derive_clause::DeriveClause;
 use super::expression::Expr;
+use super::select_clause;
 use super::select_clause::{SelectClause, SelectClauseItem};
+use super::where_clause;
 use super::where_clause::WhereClause;
 use futures::stream::StreamExt;
+use serde::de;
+use serde::de::{Deserializer, MapAccess, Visitor};
+use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use serde_json::Value;
+use std::collections::HashMap;
 use tracing::field;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SelectQuery {
-    #[serde(
-        default,
-        skip_serializing_if = "SelectClause::is_all",
-        rename = "select"
-    )]
-    pub(crate) select_clause: SelectClause,
-    // #[serde(flatten)]
-    pub(crate) where_clause: WhereClause,
+    pub derive_clause: DeriveClause,
+    pub where_clause: WhereClause,
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    pub select_clause: SelectClause,
+    pub flatten: bool,
+}
 
-    // pub(crate) filters: Map<Expr,CheckOperator>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) limit: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) offset: Option<usize>,
+impl Serialize for SelectQuery {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+        if !self.derive_clause.is_empty() {
+            map.serialize_entry("$derive", &self.derive_clause)?;
+        }
+        if let Some(limit) = self.limit {
+            map.serialize_entry("$limit", &limit)?;
+        }
+        if let Some(offset) = self.offset {
+            map.serialize_entry("$offset", &offset)?;
+        }
+        if !self.select_clause.is_all() {
+            map.serialize_entry("$select", &self.select_clause)?;
+        }
+        if !self.flatten {
+            map.serialize_entry("$flatten", &self.flatten)?;
+        }
+        if self.where_clause != WhereClause::True {
+            let where_clause =
+                serde_json::to_value(&self.where_clause).map_err(serde::ser::Error::custom)?;
+            if let Value::Object(where_clause) = where_clause {
+                for (k, v) in where_clause {
+                    map.serialize_entry(&k, &v)?;
+                }
+            } else {
+                map.serialize_entry("$where", &where_clause)?;
+            }
+        }
+        map.end()
+    }
+}
+
+impl<'a> Deserialize<'a> for SelectQuery {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        let mut map = Map::deserialize(deserializer)?;
+
+        let derive_clause = map
+            .remove("$derive")
+            .map(|v| serde_json::from_value(v).map_err(serde::de::Error::custom))
+            .transpose()?;
+        let limit = map
+            .remove("$limit")
+            .map(|v| {
+                serde_json::from_value(v)
+                    .map_err(serde::de::Error::custom)
+                    .and_then(|v: Value| {
+                        if v.is_u64() {
+                            Ok(v.as_u64().unwrap() as usize)
+                        } else {
+                            Err(serde::de::Error::custom(
+                                "limit should be a positive integer",
+                            ))
+                        }
+                    })
+            })
+            .transpose()?;
+
+        let offset = map
+            .remove("$offset")
+            .map(|v| {
+                serde_json::from_value(v)
+                    .map_err(serde::de::Error::custom)
+                    .and_then(|v: Value| {
+                        if v.is_u64() {
+                            Ok(v.as_u64().unwrap() as usize)
+                        } else {
+                            Err(serde::de::Error::custom(
+                                "offset should be a positive integer",
+                            ))
+                        }
+                    })
+            })
+            .transpose()?;
+
+        let select_clause = map
+            .remove("$select")
+            .map(|v| serde_json::from_value(v).map_err(serde::de::Error::custom))
+            .transpose()?;
+
+        let flatten = map
+            .remove("$flatten")
+            .map(|v| {
+                serde_json::from_value(v)
+                    .map_err(serde::de::Error::custom)
+                    .and_then(|v: Value| match v {
+                        Value::Bool(b) => Ok(b),
+                        _ => Err(serde::de::Error::custom(
+                            "flatten should be true or false. default is true",
+                        )),
+                    })
+            })
+            .transpose()?
+            .unwrap_or(true);
+
+        let where_clause: Option<WhereClause> = if map.contains_key("$where") {
+            map.remove("$where")
+                .map(|v| serde_json::from_value(v).map_err(serde::de::Error::custom))
+                .transpose()?
+        } else if !map.is_empty() {
+            Some(serde_json::from_value(Value::Object(map)).map_err(serde::de::Error::custom)?)
+        } else {
+            None
+        };
+
+        Ok(SelectQuery {
+            derive_clause: derive_clause.unwrap_or_default(),
+            where_clause: where_clause.unwrap_or(WhereClause::True),
+            limit,
+            offset,
+            select_clause: select_clause.unwrap_or(SelectClause::All),
+            flatten,
+        })
+    }
 }
 
 impl SelectQuery {
-    pub fn new() -> Self {
-        SelectQuery {
-            select_clause: SelectClause::All,
-            where_clause: WhereClause::True,
-            limit: None,
-            offset: None,
-        }
-    }
+    pub fn pack_and_get_field_filter(&mut self) -> Result<FieldFilter> {
+        let select_clause = self.select_clause.clone().pack();
+        self.select_clause = select_clause;
 
-    pub fn get_field_filter(&self) -> Result<FieldFilter> {
         if self.select_clause == SelectClause::All {
             Ok(FieldFilter::All)
         } else {
             let mut field_names = self.select_clause.get_using_fields();
             field_names.extend(self.where_clause.get_using_fields());
+            field_names.extend(self.derive_clause.get_using_fields());
+
             let field_names = field_names.into_iter().collect();
 
             FieldFilter::try_from_patterns(field_names)
         }
     }
-}
 
-pub struct SelectQueryBuilder {
-    select_clause: SelectClause,
-    where_clause: WhereClause,
-    limit: Option<usize>,
-    offset: Option<usize>,
-}
+    pub fn process(&self, mut value: Value) -> Option<Value> {
+        let derived = self.derive_clause.get_value(&value);
+        value.x_merge(derived);
 
-impl SelectQueryBuilder {
-    pub fn select_all_fields() -> Self {
-        SelectQueryBuilder {
-            select_clause: SelectClause::All,
-            where_clause: WhereClause::True,
-            limit: None,
-            offset: None,
+        if self.where_clause.filter(&value) {
+            Some(self.select_clause.get_value(value))
+        } else {
+            None
         }
-    }
-
-    pub fn select(select_clause: SelectClause) -> Self {
-        SelectQueryBuilder {
-            select_clause,
-            where_clause: WhereClause::True,
-            limit: None,
-            offset: None,
-        }
-    }
-
-    pub fn where_clause(self, where_clause: WhereClause) -> Self {
-        SelectQueryBuilder {
-            where_clause,
-            ..self
-        }
-    }
-
-    pub fn limit(self, limit: usize) -> Self {
-        SelectQueryBuilder {
-            limit: Some(limit),
-            ..self
-        }
-    }
-
-    pub fn offset(self, offset: Option<usize>) -> Self {
-        SelectQueryBuilder { offset, ..self }
-    }
-
-    pub fn build(self) -> Result<SelectQuery> {
-        let SelectQueryBuilder {
-            select_clause,
-            where_clause,
-            limit,
-            offset,
-        } = self;
-
-        Ok(SelectQuery {
-            select_clause,
-            where_clause,
-            limit,
-            offset,
-        })
     }
 }
 
 #[cfg(test)]
 mod test {
 
-    use crate::query_el::SelectClauseBuilder;
+    use crate::query_el::{de_select_query, print_json};
+    use std::collections::HashMap;
 
     use super::super::{
         expression::Expr::*, expression::Operation::*, select_clause::SelectClause,
@@ -127,63 +196,49 @@ mod test {
 
     use super::*;
     use assert_json_diff::assert_json_eq;
+    use serde::de;
     use serde_json::json;
     use tracing_subscriber::fmt::FormatFields;
 
     #[test]
     fn serialize_default_select_query() {
-        let query = SelectQuery {
-            select_clause: SelectClause::All,
+        let query = de_select_query(r#"{}"#);
+        let expected = SelectQuery {
+            derive_clause: DeriveClause::default(),
             where_clause: WhereClause::True,
             limit: None,
             offset: None,
+            select_clause: SelectClause::All,
+            flatten: true,
         };
-        let json = serde_json::to_string(&query).unwrap();
-        assert_json_eq!(json, r#"{"where_clause":"true"}"#);
-        let parsed_query: SelectQuery = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed_query, query);
+        assert_eq!(query, expected);
     }
 
     #[test]
-    #[ignore = "reason"]
-    fn serialize_complicated_select_query() {
-        let query = SelectQueryBuilder::select(SelectClause::Fields(vec![
-            SelectClauseItem::Simple(Field("name".to_string())),
-            SelectClauseItem::Extended {
-                expr: Field("field1".to_string()),
-                show_nulls: true,
-                alias: "f1".to_string(),
-            },
-            SelectClauseItem::Extended {
-                expr: Field("field2".to_string()),
-                show_nulls: false,
-                alias: "f2".to_string(),
-            },
-        ]))
-        .where_clause(
-            WhereClause::Check(
-                Field("field1".to_string()),
-                CheckOperator::Equal(Expr::Val(json!("value1"))),
-            )
-            .and(WhereClause::Check(
-                Operation {
-                    ex: Box::new(Field("field2".to_string())),
-                    op: Upper,
-                },
-                CheckOperator::Equal(Expr::Val(json!("VALUE2"))),
-            )),
-        )
-        .limit(10)
-        .offset(Some(5))
-        .build()
-        .unwrap();
-        let json = serde_json::to_string(&query).unwrap();
-        println!("{}", serde_json::to_string_pretty(&query).unwrap());
-        assert_json_eq!(
-            json,
-            r#"{"select":["name",{"expr":"field1","show_nulls":true,"alias":"f1"},{"expr":"field2","alias":"f2"}],"check":["field1","value1"],"limit":10,"offset":5}"#
+    fn select_derived() {
+        let query =
+            de_select_query(r#"{"$derive":{"new_value":1, "upper_name": {"@name": "$upper"}}}"#);
+        let value = json!({"name": "value"});
+        let result = query.process(value.clone());
+        assert_eq!(
+            result,
+            Some(json!({"name": "value","new_value": 1, "upper_name": "VALUE"}))
         );
-        let parsed_query: SelectQuery = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed_query, query);
+    }
+
+    #[test]
+    fn select_derived_with_where() {
+        let query = de_select_query(
+            r#"{"$derive":{"new_value":1, "upper_name": {"@name": "$upper"}}, "@upper_name":"VALUE1" }"#,
+        );
+        let values = vec![json! ({"name": "value1"}), json!({"name": "value2"})];
+        let result = values
+            .into_iter()
+            .filter_map(move |v| query.process(v))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            result,
+            vec![json!({"name": "value1", "new_value": 1, "upper_name": "VALUE1"})]
+        );
     }
 }
