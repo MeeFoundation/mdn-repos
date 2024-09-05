@@ -19,6 +19,9 @@ pub struct CapabilityRevocationListNs(pub NamespaceId);
 #[derive(Debug, Clone, Copy)]
 pub struct DataOwnerCapabilityListNs(pub NamespaceId);
 
+#[derive(Debug, Clone, Copy)]
+pub struct VirtualAgentSearchSchemasNs(pub NamespaceId);
+
 #[derive(Debug, Clone)]
 pub struct OtherPeerCapabilityRevocationNs {
     pub peer_id: UserId,
@@ -38,6 +41,9 @@ pub enum MdnProviderNamespaceType {
 
     /// Revocations lists from other peers delegated access to this peer
     OtherPeerCapabilityRevocationNs(OtherPeerCapabilityRevocationNs),
+
+    /// Virtual agent namespace with data schemas from providers
+    VirtualAgentSearchSchemasNs(VirtualAgentSearchSchemasNs),
 }
 
 impl MdnProviderNamespaceType {
@@ -47,6 +53,7 @@ impl MdnProviderNamespaceType {
             MdnProviderNamespaceType::CapabilityRevocationListNs(ns) => ns.0,
             MdnProviderNamespaceType::OtherPeerCapabilityRevocationNs(ns) => ns.revocation_ns,
             MdnProviderNamespaceType::DataOwnerCapabilityListNs(ns) => ns.0,
+            MdnProviderNamespaceType::VirtualAgentSearchSchemasNs(ns) => ns.0,
         }
     }
 }
@@ -61,6 +68,8 @@ pub trait MdnProviderNamespaceStore {
     async fn get_data_owner_cap_list_ns(
         &self,
     ) -> MeeDataSyncResult<Option<DataOwnerCapabilityListNs>>;
+    async fn get_search_schemas_ns(&self)
+        -> MeeDataSyncResult<Option<VirtualAgentSearchSchemasNs>>;
     async fn get_others_cap_revoke_list_nss(
         &self,
     ) -> MeeDataSyncResult<Vec<OtherPeerCapabilityRevocationNs>>;
@@ -80,6 +89,22 @@ impl MdnProviderNamespaceStore for MdnProviderNamespaceStoreInMemory {
             .insert(ns_type.namespace_id(), ns_type);
 
         Ok(())
+    }
+    async fn get_search_schemas_ns(
+        &self,
+    ) -> MeeDataSyncResult<Option<VirtualAgentSearchSchemasNs>> {
+        let ns = self
+            .store
+            .lock()
+            .await
+            .iter()
+            .find_map(|(_, ns)| match ns {
+                MdnProviderNamespaceType::VirtualAgentSearchSchemasNs(v) => Some(v),
+                _ => None,
+            })
+            .cloned();
+
+        Ok(ns)
     }
     async fn get_others_cap_revoke_list_nss(
         &self,
@@ -222,6 +247,18 @@ impl MdnProviderNamespaceStoreManager {
 
         Ok(())
     }
+    pub async fn set_search_schemas_ns(
+        &self,
+        search_schemas_ns_id: NamespaceId,
+    ) -> MeeDataSyncResult {
+        self.store
+            .set_ns(MdnProviderNamespaceType::VirtualAgentSearchSchemasNs(
+                VirtualAgentSearchSchemasNs(search_schemas_ns_id),
+            ))
+            .await?;
+
+        Ok(())
+    }
     pub async fn get_agent_node_data_ns(&self) -> MeeDataSyncResult<AgentNodeDataNs> {
         let res = self
             .store
@@ -237,6 +274,15 @@ impl MdnProviderNamespaceStoreManager {
             .get_cap_revoke_list_ns()
             .await?
             .ok_or_else(MeeDataSyncErr::missing_cap_revoke_list_namespace)?;
+
+        Ok(res)
+    }
+    pub async fn get_search_schemas_ns(&self) -> MeeDataSyncResult<VirtualAgentSearchSchemasNs> {
+        let res = self
+            .store
+            .get_search_schemas_ns()
+            .await?
+            .ok_or_else(MeeDataSyncErr::missing_search_schemas_namespace)?;
 
         Ok(res)
     }
@@ -279,5 +325,8 @@ impl MeeDataSyncErr {
         MeeDataSyncErr::WillowNamespaceHandler(
             "Missing capability revocation namespace".to_string(),
         )
+    }
+    fn missing_search_schemas_namespace() -> Self {
+        MeeDataSyncErr::WillowNamespaceHandler("Missing search schemas namespace".to_string())
     }
 }

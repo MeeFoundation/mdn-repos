@@ -3,7 +3,10 @@ use futures::StreamExt;
 use iroh_willow::{proto::data_model::Entry, session::intents::IntentHandle};
 
 /// Useful for debugging and testing
-pub async fn progress_session_intents(mut sync_event_stream: IntentHandle) -> IntentHandle {
+pub async fn progress_session_intents(
+    mut sync_event_stream: IntentHandle,
+    additional_info: &str,
+) -> IntentHandle {
     while let Some(ev) = sync_event_stream.next().await {
         match ev {
             iroh_willow::session::intents::EventKind::CapabilityIntersection {
@@ -11,24 +14,27 @@ pub async fn progress_session_intents(mut sync_event_stream: IntentHandle) -> In
                 namespace,
             } => {
                 log::info!(
-                    "CapabilityIntersection: {namespace} {}",
+                    "{additional_info}CapabilityIntersection: {namespace} {}",
                     display_path(area.path())
                 );
             }
             iroh_willow::session::intents::EventKind::InterestIntersection { area, namespace } => {
                 log::info!(
-                    "InterestIntersection: {namespace} {}",
+                    "{additional_info}InterestIntersection: {namespace} {}",
                     display_path(area.area.path())
                 );
             }
             iroh_willow::session::intents::EventKind::Reconciled { area, namespace } => {
-                log::info!("Reconciled: {namespace} {}", display_path(area.area.path()));
+                log::info!(
+                    "{additional_info}Reconciled: {namespace} {}",
+                    display_path(area.area.path())
+                );
             }
             iroh_willow::session::intents::EventKind::ReconciledAll => {
-                log::info!("Reconciled all");
+                log::info!("{additional_info}Reconciled all");
             }
             iroh_willow::session::intents::EventKind::Abort { error } => {
-                log::error!("Abort session intent: {error:#}");
+                log::error!("{additional_info}Abort session intent: {error:#}");
             }
         };
     }

@@ -2,8 +2,10 @@ use super::utils::create_rng;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        common::node::MdnAgentProviderNode, local_agent::node::MdnAgentDataOwnerNodeWillowImpl,
+        common::node::{MdnAgentProviderNode, MdnVirtualAgentNode},
+        local_agent::node::MdnAgentDataOwnerNodeWillowImpl,
         provider_agent::node::MdnAgentProviderNodeWillowImpl,
+        virtual_agent::node::VirtualAgentWillowNodeImpl,
     },
     willow::peer::WillowPeer,
 };
@@ -19,6 +21,18 @@ pub async fn create_provider_node(
     let provider_mdn_node = MdnAgentProviderNodeWillowImpl::new(willow_peer).await?;
 
     Ok(Arc::new(provider_mdn_node))
+}
+
+pub async fn create_virtual_agent_node(
+    entropy: &str,
+) -> MeeDataSyncResult<Arc<dyn MdnVirtualAgentNode + Send + Sync>> {
+    let mut rng = create_rng(entropy);
+    let iroh_node_secret_key = iroh_net::key::SecretKey::generate_with_rng(&mut rng);
+    let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
+
+    let virtual_agent_mdn_node = VirtualAgentWillowNodeImpl::new(willow_peer).await?;
+
+    Ok(Arc::new(virtual_agent_mdn_node))
 }
 
 pub async fn create_data_owner_node(

@@ -21,7 +21,7 @@ impl VirtualAgentDelegationManager {
             virtual_agent_ns_store_manager,
         }
     }
-    pub async fn share_schemas_ns_with_provider(
+    pub async fn share_search_schemas_ns_with_provider(
         &self,
         provider_id: UserId,
     ) -> MeeDataSyncResult<Vec<CapabilityPack>> {

@@ -4,12 +4,16 @@ use crate::{
     json_codec,
     mdn::common::{
         delegation::revocation_request_record_path,
-        store::{data_entry_path_from_key_components, key_components},
+        store::{data_entry_path_from_key_components, key_components, ReadDataRecord},
     },
-    willow::{peer::delegation_manager::cap_granted_components, utils::path_range_exact},
+    willow::{
+        peer::delegation_manager::cap_granted_components,
+        utils::{display_path, path_range_exact},
+    },
 };
 use anyhow::Context;
 use async_trait::async_trait;
+use futures::TryStreamExt;
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
@@ -92,8 +96,13 @@ pub trait MdnProviderDelegationManager {
     /// Imports permission to write the provider list of their capabilities into data owner namespace
     async fn import_cap_list_from_data_owner(
         &self,
-        import_capabilities_for_data_owner: ImportCapabilitiesForDataOwner,
+        import_capabilities_from_data_owner: ImportCapabilitiesFromDataOwner,
     ) -> MeeDataSyncResult<()>;
+
+    async fn import_search_schemas_ns_from_virtual_agent(
+        &self,
+        import_capabilities_from_virtual_agent: ImportCapabilitiesFromVirtualAgent,
+    ) -> MeeDataSyncResult<IntentHandle>;
 
     async fn import_capabilities_from_provider(
         &self,
@@ -125,6 +134,7 @@ pub trait MdnProviderDelegationManager {
     async fn delegated_caps(&self) -> MeeDataSyncResult<Vec<MdnProviderCapabilityPack>>;
     async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>>;
     async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool>;
+    async fn virtual_agent_search_schemas(&self) -> MeeDataSyncResult<Vec<ReadDataRecord>>;
 }
 
 pub struct ImportCapabilitiesFromProvider {
@@ -132,8 +142,13 @@ pub struct ImportCapabilitiesFromProvider {
     pub caps: MdnProviderCapabilityPack,
 }
 
-pub struct ImportCapabilitiesForDataOwner {
+pub struct ImportCapabilitiesFromDataOwner {
     pub data_owner_node_ticket: String,
+    pub caps: Vec<CapabilityPack>,
+}
+
+pub struct ImportCapabilitiesFromVirtualAgent {
+    pub virtual_agent_node_ticket: String,
     pub caps: Vec<CapabilityPack>,
 }
 
@@ -144,6 +159,34 @@ pub struct DelegatePrivilegedAccessToOwner {
 
 #[async_trait]
 impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
+    async fn virtual_agent_search_schemas(&self) -> MeeDataSyncResult<Vec<ReadDataRecord>> {
+        let search_schemas_ns = self.mdn_ns_store_manager.get_search_schemas_ns().await?.0;
+
+        let list: Vec<_> = self
+            .willow_peer
+            .willow_data_manager
+            .get_entries_stream(search_schemas_ns, Range3d::new_full())
+            .await?
+            .try_collect()
+            .await?;
+
+        let list = self
+            .willow_peer
+            .willow_data_manager
+            .map_payload(
+                list,
+                |e| e.clone(),
+                |e, payload| {
+                    Ok(ReadDataRecord {
+                        key: display_path(e.path()),
+                        value: payload.to_vec(),
+                    })
+                },
+            )
+            .await?;
+
+        Ok(list)
+    }
     async fn delegated_caps(&self) -> MeeDataSyncResult<Vec<MdnProviderCapabilityPack>> {
         Ok(self.mdn_provider_capability_manager.store.list_caps()?)
     }
@@ -171,10 +214,10 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
     }
     async fn import_cap_list_from_data_owner(
         &self,
-        ImportCapabilitiesForDataOwner {
+        ImportCapabilitiesFromDataOwner {
             data_owner_node_ticket,
             mut caps,
-        }: ImportCapabilitiesForDataOwner,
+        }: ImportCapabilitiesFromDataOwner,
     ) -> MeeDataSyncResult<()> {
         let ticket: NodeTicket = data_owner_node_ticket.parse()?;
 
@@ -192,6 +235,42 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
         }
 
         Ok(())
+    }
+    async fn import_search_schemas_ns_from_virtual_agent(
+        &self,
+        ImportCapabilitiesFromVirtualAgent {
+            virtual_agent_node_ticket,
+            mut caps,
+        }: ImportCapabilitiesFromVirtualAgent,
+    ) -> MeeDataSyncResult<IntentHandle> {
+        let ticket: NodeTicket = virtual_agent_node_ticket.parse()?;
+
+        self.willow_peer
+            .willow_delegation_manager
+            .import_capabilities_from_remote_peer(caps.clone(), &ticket)
+            .await?;
+
+        let mut interests = Interests::builder();
+
+        if let Some(caps) = caps.pop() {
+            let (search_schemas_ns, _) = cap_granted_components(&caps);
+
+            self.mdn_ns_store_manager
+                .set_search_schemas_ns(search_schemas_ns)
+                .await?;
+
+            interests = interests.add_full_cap(search_schemas_ns);
+        }
+
+        let init = SessionInit::new(interests, SessionMode::Continuous);
+
+        let sync_intent = self
+            .willow_peer
+            .willow_session_manager
+            .sync_with_peer(ticket.node_addr().node_id, init)
+            .await?;
+
+        Ok(sync_intent)
     }
     async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool> {
         Ok(self

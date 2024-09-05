@@ -1,10 +1,14 @@
 use crate::{
+    async_move,
     error::{MeeDataSyncErr, MeeDataSyncResult},
-    willow::peer::WillowPeer,
+    willow::{peer::WillowPeer, utils::is_deleted_entry_payload},
 };
 use async_trait::async_trait;
-use futures::stream::BoxStream;
-use iroh_willow::proto::data_model::{Entry, NamespaceId, Path, PathExt};
+use futures::{stream::BoxStream, StreamExt, TryStreamExt};
+use iroh_willow::proto::{
+    data_model::{Entry, NamespaceId, Path, PathExt},
+    grouping::Range3d,
+};
 
 /// `{user_id}/{root_attribute}/{root_attribute_id}/{sub_attribute}`
 pub struct FullPathAttribute {
@@ -25,7 +29,7 @@ pub enum KeyComponents {
     ShortPathAttribute(ShortPathAttribute),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct ReadDataRecord {
     pub key: String,
     pub value: Vec<u8>,
@@ -110,20 +114,101 @@ pub trait MdnAgentDataNodeKvStore {
 
     async fn data_ns(&self) -> MeeDataSyncResult<NamespaceId>;
 
+    async fn data_entries(
+        &self,
+        range: Range3d,
+    ) -> MeeDataSyncResult<BoxStream<'_, MeeDataSyncResult<Entry>>>;
+
     async fn all_values_filter(
         &self,
-        filter_fn: Box<dyn for<'a> Fn(&'a Entry) -> bool + Send + Sync + 'static>,
-    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>>;
+        filter_entry_fn: Box<dyn for<'a> Fn(&'a Entry) -> bool + Send + Sync + 'static>,
+    ) -> MeeDataSyncResult<BoxStream<'_, ReadDataRecord>> {
+        let range = Range3d::new_full();
+
+        let entries = self.data_entries(range).await?;
+
+        let records = entries
+            .try_filter(move |e| {
+                // log::warn!(
+                //     "p: {} ns: {} ss: {}",
+                //     display_path(e.path()),
+                //     e.namespace_id(),
+                //     e.subspace_id()
+                // );
+
+                async_move! {filter_entry_fn(e)}
+            })
+            .and_then(|entry| {
+                let willow_peer = self.willow_peer().clone();
+
+                async move {
+                    let path = entry.path().clone();
+                    let payload = willow_peer
+                        .willow_data_manager
+                        .read_entry_payload(entry.clone())
+                        .await?;
+
+                    let record = if let Some(payload) = payload {
+                        if is_deleted_entry_payload(&payload) {
+                            return Ok(None);
+                        }
+
+                        let key = path
+                            .components()
+                            .into_iter()
+                            .filter_map(|p| match String::from_utf8(p.to_vec()) {
+                                Ok(v) => Some(v),
+                                Err(e) => {
+                                    log::error!("Error stringifying willow path: {e}");
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(KEY_COMPONENTS_SPLITTER);
+
+                        Some(ReadDataRecord {
+                            key,
+                            value: payload.to_vec(),
+                        })
+                    } else {
+                        None
+                    };
+
+                    Ok(record) as MeeDataSyncResult<Option<ReadDataRecord>>
+                }
+            })
+            .filter_map(|record| async {
+                match record {
+                    Ok(record) => record,
+                    Err(e) => {
+                        log::error!("Error processing entry: {e}");
+                        None
+                    }
+                }
+            });
+
+        Ok(records.boxed())
+    }
 
     async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>>;
+
+    async fn post_set_value(&self, _key: &str, _value: Vec<u8>) -> MeeDataSyncResult {
+        Ok(())
+    }
+
+    async fn post_del_value(&self, _key: &str) -> MeeDataSyncResult {
+        Ok(())
+    }
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult {
         let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
 
         self.willow_peer()
             .willow_data_manager
-            .insert_entry(self.data_ns().await?, path, value)
+            .insert_entry(self.data_ns().await?, path, value.clone())
             .await?;
+
+        self.post_set_value(key, value).await?;
 
         Ok(())
     }
@@ -131,6 +216,8 @@ pub trait MdnAgentDataNodeKvStore {
     /// Delete value by key (full path is required!)
     async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool> {
         let res = self.remove_entries(key).await?.pop().unwrap_or(false);
+
+        self.post_del_value(key).await?;
 
         Ok(res)
     }

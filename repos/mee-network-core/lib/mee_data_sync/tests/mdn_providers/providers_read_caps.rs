@@ -1,10 +1,11 @@
 use crate::{
-    common::mdn_node::create_provider_node,
+    common::mdn_node::{create_provider_node, create_virtual_agent_node},
     mdn_providers::helpers::{share_data_and_sync, ShareDataAndSyncParams, TestCase},
 };
 use anyhow::anyhow;
 use futures::{future::join_all, StreamExt};
-use std::time::Duration;
+use mee_data_sync::mdn::provider_agent::delegation::manager::ImportCapabilitiesFromVirtualAgent;
+use std::{collections::HashSet, time::Duration};
 use tokio::{sync::mpsc, time::sleep};
 
 const SHARED_WITH_PEERS_COUNT: usize = 10;
@@ -19,6 +20,8 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
         .try_init();
 
     let oyt_mdn_node = create_provider_node("oyt node").await?;
+    let virtual_agent_node = create_virtual_agent_node("itmee.org node").await?;
+    let via_node_ticket = virtual_agent_node.network_node_ticket().await?;
 
     let alice_user_id = "alice";
     let bob_user_id = "bob";
@@ -42,6 +45,19 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
     let bob_email_path = format!("{bob_user_id}/email");
     let temp_bob_phone_path = format!("{bob_user_id}/phone");
     let temp_bob_phone = b"911";
+
+    let caps = virtual_agent_node
+        .mdn_delegation_manager()
+        .share_search_schemas_ns_with_provider(oyt_mdn_node.user_id().await?)
+        .await?;
+
+    let _intent = oyt_mdn_node
+        .mdn_delegation_manager()
+        .import_search_schemas_ns_from_virtual_agent(ImportCapabilitiesFromVirtualAgent {
+            virtual_agent_node_ticket: via_node_ticket.to_string(),
+            caps,
+        })
+        .await?;
 
     oyt_mdn_node
         .mdn_data_store()
@@ -154,6 +170,8 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
         let peer_task = tokio::spawn(share_data_and_sync(ShareDataAndSyncParams {
             node_name,
             other_mdn_node,
+            virtual_agent_ticket: via_node_ticket.clone(),
+            virtual_agent_node: virtual_agent_node.clone(),
             delegate_from_node: oyt_mdn_node.clone(),
             delegate_from_ticket: oyt_node_ticket.clone(),
             alice_address_path: alice_address_path.clone(),
@@ -206,12 +224,22 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
                             }
                         }
                     }
-                    TestCase::End => {
+                    TestCase::End {
+                        virtual_agent_schemas,
+                    } => {
                         loop {
+                            let schemas: HashSet<_> = virtual_agent_node
+                                .search_schemas_store()
+                                .get_all_values_stream()
+                                .await?
+                                .collect()
+                                .await;
+
                             if oyt_mdn_node
                                 .mdn_delegation_manager()
                                 .is_revocation_list_empty()
                                 .await?
+                                && virtual_agent_schemas == schemas
                             {
                                 break;
                             }
@@ -225,13 +253,12 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
                 next_test_scenario_counter = 0;
             } else {
                 match ev {
-                    TestCase::DeleteEntry => {}
                     TestCase::RevokeCapability {
                         other_willow_node_user_id,
                     } => {
                         other_peers_user_ids.push(other_willow_node_user_id);
                     }
-                    TestCase::End => {}
+                    _ => {}
                 }
             }
         }

@@ -1,21 +1,24 @@
-use crate::error::{MeeDataSyncErr, MeeDataSyncResult};
+use crate::{
+    error::{MeeDataSyncErr, MeeDataSyncResult},
+    willow::peer::namespace_manager::WillowNamespaceManager,
+};
 use async_trait::async_trait;
-use iroh_willow::proto::keys::NamespaceId;
+use iroh_willow::proto::keys::{NamespaceId, NamespaceKind};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone, Copy)]
-pub struct VirtualAgentSchemasNs(pub NamespaceId);
+pub struct VirtualAgentSearchSchemasNs(pub NamespaceId);
 
 #[derive(Debug, Clone)]
 pub enum VirtualAgentNamespaceType {
-    VirtualAgentSchemasNs(VirtualAgentSchemasNs),
+    VirtualAgentSearchSchemasNs(VirtualAgentSearchSchemasNs),
 }
 
 impl VirtualAgentNamespaceType {
     pub fn namespace_id(&self) -> NamespaceId {
         match self {
-            VirtualAgentNamespaceType::VirtualAgentSchemasNs(ns) => ns.0,
+            VirtualAgentNamespaceType::VirtualAgentSearchSchemasNs(ns) => ns.0,
         }
     }
 }
@@ -24,7 +27,8 @@ impl VirtualAgentNamespaceType {
 pub trait VirtualAgentNamespaceStore {
     async fn has_ns(&self, ns_id: NamespaceId) -> MeeDataSyncResult<bool>;
     async fn set_ns(&self, ns_type: VirtualAgentNamespaceType) -> MeeDataSyncResult;
-    async fn get_schemas_ns(&self) -> MeeDataSyncResult<Option<VirtualAgentSchemasNs>>;
+    async fn get_search_schemas_ns(&self)
+        -> MeeDataSyncResult<Option<VirtualAgentSearchSchemasNs>>;
 }
 
 #[async_trait]
@@ -42,14 +46,16 @@ impl VirtualAgentNamespaceStore for VirtualAgentNamespaceStoreInMemory {
 
         Ok(())
     }
-    async fn get_schemas_ns(&self) -> MeeDataSyncResult<Option<VirtualAgentSchemasNs>> {
+    async fn get_search_schemas_ns(
+        &self,
+    ) -> MeeDataSyncResult<Option<VirtualAgentSearchSchemasNs>> {
         let ns = self
             .store
             .lock()
             .await
             .iter()
             .find_map(|(_, ns)| match ns {
-                VirtualAgentNamespaceType::VirtualAgentSchemasNs(v) => Some(v),
+                VirtualAgentNamespaceType::VirtualAgentSearchSchemasNs(v) => Some(v),
             })
             .cloned();
 
@@ -76,16 +82,41 @@ pub struct VirtualAgentNamespaceStoreManager {
 }
 
 impl VirtualAgentNamespaceStoreManager {
-    fn new(store: Arc<dyn VirtualAgentNamespaceStore + Send + Sync>) -> Self {
-        Self { store }
+    async fn new(
+        store: Arc<dyn VirtualAgentNamespaceStore + Send + Sync>,
+        willow_namespace_manager: WillowNamespaceManager,
+    ) -> MeeDataSyncResult<Self> {
+        if store.get_search_schemas_ns().await?.is_none() {
+            let search_schemas_ns_id = willow_namespace_manager
+                .create_namespace(NamespaceKind::Owned)
+                .await?;
+
+            store
+                .set_ns(VirtualAgentNamespaceType::VirtualAgentSearchSchemasNs(
+                    VirtualAgentSearchSchemasNs(search_schemas_ns_id),
+                ))
+                .await?;
+
+            log::info!(
+                "Willow search schemas virtual agent namespace has created: {search_schemas_ns_id}"
+            );
+        }
+
+        Ok(Self { store })
     }
-    pub fn new_in_memory() -> Self {
-        Self::new(Arc::new(VirtualAgentNamespaceStoreInMemory::new()))
+    pub async fn new_in_memory(
+        willow_namespace_manager: WillowNamespaceManager,
+    ) -> MeeDataSyncResult<Self> {
+        Ok(Self::new(
+            Arc::new(VirtualAgentNamespaceStoreInMemory::new()),
+            willow_namespace_manager,
+        )
+        .await?)
     }
-    pub async fn get_schemas_ns(&self) -> MeeDataSyncResult<VirtualAgentSchemasNs> {
+    pub async fn get_schemas_ns(&self) -> MeeDataSyncResult<VirtualAgentSearchSchemasNs> {
         let res = self
             .store
-            .get_schemas_ns()
+            .get_search_schemas_ns()
             .await?
             .ok_or_else(MeeDataSyncErr::missing_pda_schemas_namespace)?;
 

@@ -13,15 +13,7 @@ use tokio::task::JoinHandle;
 pub struct MdnAgentDataOwnerNodeWillowImpl {
     pub(crate) willow_peer: WillowPeer,
     pub mdn_delegation_manager: MdnDataOwnerDelegationManager,
-    background_jobs: Arc<Vec<JoinHandle<()>>>,
-}
-
-impl Drop for MdnAgentDataOwnerNodeWillowImpl {
-    fn drop(&mut self) {
-        for job in self.background_jobs.iter() {
-            job.abort();
-        }
-    }
+    _background_jobs: Arc<Vec<JoinHandle<()>>>,
 }
 
 impl MdnAgentDataOwnerNodeWillowImpl {
@@ -37,7 +29,7 @@ impl MdnAgentDataOwnerNodeWillowImpl {
         let background_jobs = mdn_delegation_manager.clone().run_background_jobs();
 
         Ok(Self {
-            background_jobs: Arc::new(background_jobs),
+            _background_jobs: Arc::new(background_jobs),
             mdn_delegation_manager,
             willow_peer,
         })

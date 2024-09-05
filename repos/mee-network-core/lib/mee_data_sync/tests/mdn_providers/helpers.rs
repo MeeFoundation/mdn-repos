@@ -4,25 +4,36 @@ use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
-        common::node::MdnAgentProviderNode,
-        provider_agent::delegation::manager::ImportCapabilitiesFromProvider,
+        common::{
+            node::{MdnAgentProviderNode, MdnVirtualAgentNode},
+            store::ReadDataRecord,
+        },
+        provider_agent::delegation::manager::{
+            ImportCapabilitiesFromProvider, ImportCapabilitiesFromVirtualAgent,
+        },
     },
     willow::debug::progress_session_intents,
 };
 use mee_macro_utils::let_clone;
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{select, sync::mpsc::Sender, time::sleep};
 
 pub enum TestCase {
     DeleteEntry,
-    RevokeCapability { other_willow_node_user_id: UserId },
-    End,
+    RevokeCapability {
+        other_willow_node_user_id: UserId,
+    },
+    End {
+        virtual_agent_schemas: HashSet<ReadDataRecord>,
+    },
 }
 
 pub struct ShareDataAndSyncParams {
     pub node_name: String,
     pub delegate_from_node: Arc<dyn MdnAgentProviderNode + Send + Sync>,
     pub other_mdn_node: Arc<dyn MdnAgentProviderNode + Send + Sync>,
+    pub virtual_agent_node: Arc<dyn MdnVirtualAgentNode + Send + Sync>,
+    pub virtual_agent_ticket: NodeTicket,
     pub delegate_from_ticket: NodeTicket,
     pub alice_address_path: String,
     pub alice_city_path: String,
@@ -37,7 +48,9 @@ pub async fn share_data_and_sync(
     ShareDataAndSyncParams {
         node_name,
         other_mdn_node,
+        virtual_agent_ticket,
         delegate_from_node,
+        virtual_agent_node,
         delegate_from_ticket,
         alice_address_path,
         alice_city,
@@ -48,6 +61,19 @@ pub async fn share_data_and_sync(
 ) -> MeeDataSyncResult {
     // The ID actually comes with a first Other node request to OYT after MDS discovery process
     let other_willow_node_user_id = other_mdn_node.user_id().await?;
+
+    let caps = virtual_agent_node
+        .mdn_delegation_manager()
+        .share_search_schemas_ns_with_provider(other_willow_node_user_id)
+        .await?;
+
+    let _intent = other_mdn_node
+        .mdn_delegation_manager()
+        .import_search_schemas_ns_from_virtual_agent(ImportCapabilitiesFromVirtualAgent {
+            virtual_agent_node_ticket: virtual_agent_ticket.to_string(),
+            caps,
+        })
+        .await?;
 
     // single value sub-attribute sharing
     let cap_for_other = delegate_from_node
@@ -65,7 +91,7 @@ pub async fn share_data_and_sync(
         .import_capabilities_from_provider(caps)
         .await?;
 
-    let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream));
+    let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream, ""));
 
     // multiple values root attribute sharing
     let cap_for_other = delegate_from_node
@@ -83,7 +109,7 @@ pub async fn share_data_and_sync(
         .import_capabilities_from_provider(caps)
         .await?;
 
-    let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream));
+    let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream, ""));
 
     let delegations = tokio::spawn({
         let_clone!(node_name);
@@ -170,7 +196,18 @@ pub async fn share_data_and_sync(
                 sleep(Duration::from_millis(SLEEP_BETWEEN_FETCH_MS)).await;
             }
 
-            ready_for_next_test_scenario_tx.send(TestCase::End).await?;
+            let virtual_agent_schemas = other_mdn_node
+                .mdn_delegation_manager()
+                .virtual_agent_search_schemas()
+                .await?
+                .into_iter()
+                .collect();
+
+            ready_for_next_test_scenario_tx
+                .send(TestCase::End {
+                    virtual_agent_schemas,
+                })
+                .await?;
 
             Ok(()) as anyhow::Result<()>
         }

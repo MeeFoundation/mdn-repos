@@ -1,11 +1,14 @@
-use crate::common::mdn_node::{create_data_owner_node, create_provider_node};
+use crate::common::mdn_node::{
+    create_data_owner_node, create_provider_node, create_virtual_agent_node,
+};
 use futures::StreamExt;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
         common::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
         provider_agent::delegation::manager::{
-            ImportCapabilitiesForDataOwner, ImportCapabilitiesFromProvider,
+            ImportCapabilitiesFromDataOwner, ImportCapabilitiesFromProvider,
+            ImportCapabilitiesFromVirtualAgent,
         },
     },
     willow::debug::progress_session_intents,
@@ -21,6 +24,8 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
         .filter_module("tracing::span", log::LevelFilter::Warn)
         .try_init();
 
+    let virtual_agent_node = create_virtual_agent_node("itmee.org node").await?;
+    let via_node_ticket = virtual_agent_node.network_node_ticket().await?;
     let oyt_mdn_node = create_provider_node("oyt node").await?;
     let oyt_peer_id = oyt_mdn_node.user_id().await?;
     let oyt_node_ticket = oyt_mdn_node.network_node_ticket().await?;
@@ -44,6 +49,32 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
     let alice_city_path = format!("{alice_address_path}/0/{address_sub_attribute_city}");
     let alice_zip_path = format!("{alice_address_path}/0/{address_sub_attribute_zip}");
 
+    let caps = virtual_agent_node
+        .mdn_delegation_manager()
+        .share_search_schemas_ns_with_provider(oyt_mdn_node.user_id().await?)
+        .await?;
+
+    let _intent = oyt_mdn_node
+        .mdn_delegation_manager()
+        .import_search_schemas_ns_from_virtual_agent(ImportCapabilitiesFromVirtualAgent {
+            virtual_agent_node_ticket: via_node_ticket.to_string(),
+            caps,
+        })
+        .await?;
+
+    let caps = virtual_agent_node
+        .mdn_delegation_manager()
+        .share_search_schemas_ns_with_provider(untied_mdn_node.user_id().await?)
+        .await?;
+
+    let _intent = untied_mdn_node
+        .mdn_delegation_manager()
+        .import_search_schemas_ns_from_virtual_agent(ImportCapabilitiesFromVirtualAgent {
+            virtual_agent_node_ticket: via_node_ticket.to_string(),
+            caps,
+        })
+        .await?;
+
     oyt_mdn_node
         .mdn_data_store()
         .set_value(&alice_city_path, alice_city.as_bytes().to_vec())
@@ -62,7 +93,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
     // import capability with a right to populate data owner cap list for oyt provider
     oyt_mdn_node
         .mdn_delegation_manager()
-        .import_cap_list_from_data_owner(ImportCapabilitiesForDataOwner {
+        .import_cap_list_from_data_owner(ImportCapabilitiesFromDataOwner {
             data_owner_node_ticket: alice_node_ticket.to_string(),
             caps,
         })
@@ -76,7 +107,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
     // import capability with a right to populate data owner cap list for untied provider
     untied_mdn_node
         .mdn_delegation_manager()
-        .import_cap_list_from_data_owner(ImportCapabilitiesForDataOwner {
+        .import_cap_list_from_data_owner(ImportCapabilitiesFromDataOwner {
             data_owner_node_ticket: alice_node_ticket.to_string(),
             caps,
         })
@@ -118,7 +149,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
         .import_privileged_access_from_provider(privileged_access_from_untied)
         .await?;
 
-    let untied_handler = tokio::spawn(progress_session_intents(sync_event_stream));
+    let untied_handler = tokio::spawn(progress_session_intents(sync_event_stream, ""));
 
     let wallet_handler = tokio::spawn(async move {
         loop {
