@@ -18,7 +18,7 @@ use super::{where_clause, WhereClause};
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, ToSchema)]
-pub enum   {
+pub enum ConstOrField {
     Const(Value),
     Field(String),
 }
