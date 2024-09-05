@@ -18,6 +18,7 @@ use tracing_subscriber::{
     filter::combinator::{And, Or},
     fmt::format,
 };
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
@@ -26,7 +27,7 @@ use super::expression::Expr;
 
 const EMPTY_STRING: &str = "";
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, ToSchema)]
 pub struct DeriveClause(HashMap<String, Expr>);
 
 impl DeriveClause {

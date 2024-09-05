@@ -1,5 +1,5 @@
 [package]
-name = "mee-ql"
+name = "mee_ql"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,3 +17,5 @@ clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 sled = { workspace = true }
+mee_storage = { path = "../mee_storage" }
+futures = { workspace = true }

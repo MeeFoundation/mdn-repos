@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 
-members = ["mee-ql", "mee-storage"]
+members = ["mee_ql", "mee_storage"]
 
 [workspace.dependencies]
 clap = "4.5"

@@ -19,9 +19,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::field;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, ToSchema)]
 pub struct SelectQuery {
     pub derive_clause: DeriveClause,
     pub where_clause: WhereClause,

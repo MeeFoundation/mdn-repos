@@ -24,8 +24,11 @@ pub trait JsonDB {
     // fn execute_update(&self, query: query::UpdateQuery) -> Result<u128>;
     // fn execute_delete(&self, query: query::DeleteQuery) -> Result<u128>;
 }
+
+pub type DB = Arc<dyn JsonDB + Send + Sync>;
+
 #[allow(dead_code)]
-pub(crate) fn new_btree_map_based() -> Arc<dyn JsonDB + Send + Sync> {
+pub fn new_btree_map_based() -> Arc<dyn JsonDB + Send + Sync> {
     let json_store = json_kv_store::new_btree_map_based();
     Arc::new(db::JsonDBImpl::new(json_store))
 }

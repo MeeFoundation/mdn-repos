@@ -15,10 +15,10 @@ use tracing_subscriber::filter::combinator::{And, Or};
 use utoipa::openapi::Array;
 
 use super::{where_clause, WhereClause};
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash)]
-#[serde(untagged)]
-pub enum ConstOrField {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, ToSchema)]
+pub enum   {
     Const(Value),
     Field(String),
 }
@@ -34,6 +34,20 @@ impl<'a> Deserialize<'a> for ConstOrField {
                 Ok(ConstOrField::Field(s[1..].to_string()))
             }
             _ => Ok(ConstOrField::Const(value)),
+        }
+    }
+}
+
+impl Serialize for ConstOrField {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ConstOrField::Field(field) => {
+                serializer.serialize_str(&format!("{}{}", PATH_PREFIX, field))
+            }
+            ConstOrField::Const(value) => value.serialize(serializer),
         }
     }
 }
@@ -61,7 +75,7 @@ impl ConstOrField {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, ToSchema)]
 pub enum Expr {
     Operation { expr: Box<Expr>, op: Box<Operation> },
     Val(ConstOrField),
@@ -100,7 +114,7 @@ impl Serialize for Expr {
                     match const_or_field {
                         ConstOrField::Field(field) => {
                             let mut map = serializer.serialize_map(Some(1))?;
-                            map.serialize_entry(field, op)?;
+                            map.serialize_entry(&format!("{}{}", PATH_PREFIX, field), op)?;
                             map.end()
                         }
                         ConstOrField::Const(Value::String(s)) => {
@@ -172,7 +186,7 @@ impl<'a> Deserialize<'a> for Expr {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub enum Operation {
     //string operations
     #[serde(rename = "$upper")]

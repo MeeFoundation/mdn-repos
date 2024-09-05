@@ -16,8 +16,9 @@ use serde::de::{self, Deserializer};
 use serde::ser::{Serialize as Ser, SerializeMap, Serializer};
 use std::collections::HashMap;
 use std::collections::HashSet;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, ToSchema)]
 pub enum WhereClause {
     #[serde(rename = "$true")]
     #[default]

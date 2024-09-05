@@ -18,6 +18,7 @@ use tracing_subscriber::{
     filter::combinator::{And, Or},
     fmt::format,
 };
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
@@ -26,7 +27,7 @@ use super::expression::Expr;
 
 const EMPTY_STRING: &str = "";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, ToSchema)]
 pub struct NamedField {
     pub alias: String,
     pub expr: Expr,
@@ -60,7 +61,7 @@ impl<'de> Deserialize<'de> for NamedField {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 pub enum SelectClauseItem {
@@ -99,7 +100,7 @@ impl SelectClauseItem {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SelectClause {
     #[default]

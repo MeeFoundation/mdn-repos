@@ -4,15 +4,14 @@ use clap::builder::TypedValueParser;
 // use tower_http::trace::TraceLayer;
 use super::config::AppConfig;
 use super::error::*;
-use super::storage::*;
 use crate::api;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 pub const API_V1_PATH: &str = "/api/v1";
 const SWAGGER_PATH: &str = "/swagger-ui";
-use crate::storage::DB;
+use mee_storage::json_db::{DB, self};
 use clap::Parser;
-use std::sync::Arc;
+use crate::api::examples;
 
 #[derive(Clone, FromRef)]
 pub struct AppCtl {
@@ -24,12 +23,17 @@ pub struct AppCtl {
 impl AppCtl {
     pub async fn try_new() -> ApiResult<Self> {
         let app_config = AppConfig::parse();
-        let db = Arc::new(StorageImpl::new(&app_config.db_path)?);
+        let db = json_db::new_btree_map_based();
 
         Ok(Self { app_config, db })
     }
 
     pub async fn run(self) -> ApiResult<()> {
+         let data = examples::mock_user_data();
+        for (value) in data {
+            self.db.insert(value).await.unwrap();
+        }
+
         let app = Router::new()
             .nest(API_V1_PATH, Router::new().merge(api::router()))
             .merge(SwaggerUi::new(SWAGGER_PATH).url(

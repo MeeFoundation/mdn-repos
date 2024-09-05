@@ -9,6 +9,7 @@ mod where_clause;
 
 pub(crate) use _test_support::*;
 pub use condition::*;
+pub use derive_clause::*;
 pub use expression::*;
 pub use query::*;
 pub use select_clause::*;

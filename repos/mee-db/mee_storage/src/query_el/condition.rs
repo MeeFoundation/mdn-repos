@@ -11,8 +11,9 @@ use tracing_subscriber::filter::combinator::{And, Or};
 use super::expression::Expr;
 use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
 use std::collections::HashSet;
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 pub enum CheckOperator {
     #[serde(rename = "$ne")]
     NotEqual(Expr),
