@@ -3163,7 +3163,7 @@ dependencies = [
 
 [[package]]
 name = "iroh-base"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "aead",
  "anyhow",
@@ -3203,7 +3203,7 @@ dependencies = [
 
 [[package]]
 name = "iroh-blobs"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "async-channel 2.3.1",
@@ -3255,7 +3255,7 @@ dependencies = [
 
 [[package]]
 name = "iroh-metrics"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "erased_set",
@@ -3274,7 +3274,7 @@ dependencies = [
 
 [[package]]
 name = "iroh-net"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "backoff",
@@ -3316,7 +3316,6 @@ dependencies = [
  "pkarr",
  "postcard",
  "rand",
- "rand_core 0.6.4",
  "rcgen",
  "reqwest 0.12.5",
  "ring",
@@ -3398,7 +3397,7 @@ dependencies = [
 
 [[package]]
 name = "iroh-test"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "tokio",
@@ -3408,7 +3407,7 @@ dependencies = [
 
 [[package]]
 name = "iroh-willow"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7421,16 +7420,17 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.10"
+version = "0.7.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5419f34732d9eb6ee4c3578b7989078579b7f039cbbb9ca2c4da015749371e15"
+checksum = "61e7c3654c13bcd040d4a03abee2c75b1d14a37b423cf5a813ceae1cc903ec6a"
 dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.3",
  "pin-project-lite",
  "tokio",
- "tracing",
 ]
 
 [[package]]

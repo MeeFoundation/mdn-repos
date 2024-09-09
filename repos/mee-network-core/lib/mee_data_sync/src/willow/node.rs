@@ -23,7 +23,7 @@ impl WillowNode {
         let endpoint = Endpoint::builder()
             .secret_key(iroh_node_secret_key)
             .alpns(vec![ALPN.to_vec()])
-            .bind(0)
+            .bind()
             .await?;
 
         let addr = endpoint.node_addr().await?;
