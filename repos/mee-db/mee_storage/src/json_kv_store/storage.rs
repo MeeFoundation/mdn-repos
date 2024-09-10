@@ -285,7 +285,7 @@ mod test {
                 .unwrap();
         }
 
-        let key = format!("key");
+        let key = "key".to_string();
         let field_filter =
             FieldFilter::try_from_patterns(vec!["field1".to_string(), "field3".to_string()])
                 .unwrap();
@@ -339,7 +339,7 @@ mod test {
                 .unwrap();
         }
 
-        let key = format!("key");
+        let key = "key".to_string();
         let field_filter = FieldFilter::All;
 
         let value = storage.range(key, field_filter).await.unwrap();
