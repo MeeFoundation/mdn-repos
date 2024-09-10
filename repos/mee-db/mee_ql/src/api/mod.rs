@@ -1,6 +1,5 @@
 pub mod api_methods;
 pub mod api_schema;
-pub mod api_types;
 pub mod examples;
 
 use crate::app_ctl::AppCtl;

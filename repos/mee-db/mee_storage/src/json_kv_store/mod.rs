@@ -1,19 +1,21 @@
-mod field_filter;
+mod error;
 mod storage;
 
-use crate::{binary_kv_store, error::Result};
+use crate::binary_kv_store;
 
 use serde_json::Value;
 use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
 
-pub use field_filter::FieldFilter;
+pub use error::*;
 
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
+use crate::query_el::FieldFilter;
+use core::fmt::Debug;
 
 #[allow(unused)]
 #[async_trait::async_trait]
-pub trait JsonStore {
+pub trait JsonStore: Debug {
     async fn set(&self, key: String, value: Value) -> Result<()>;
     async fn get(&self, key: String, select_fields: FieldFilter) -> Result<Option<Value>>;
     async fn delete(&self, key: String) -> Result<()>;

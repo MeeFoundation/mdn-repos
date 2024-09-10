@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 pub mod error;
 pub mod json_db;
 pub mod query_el;

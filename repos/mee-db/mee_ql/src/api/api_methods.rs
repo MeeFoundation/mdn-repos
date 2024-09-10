@@ -1,12 +1,9 @@
-use super::api_types::*;
 use super::examples::*;
-use crate::app_ctl::AppCtl;
-use crate::config::AppConfig;
-use crate::error::ApiResult;
-use  mee_storage::json_db::DB;
-use  mee_storage::query_el::SelectQuery;
+use crate::error::Result;
+use futures::stream::StreamExt;
+use mee_storage::json_db::DB;
+use mee_storage::query_el::SelectQuery;
 use serde_json::Value;
-use futures::stream::{self, Skip, StreamExt};
 
 use axum::extract::State;
 use axum::Json;
@@ -34,15 +31,12 @@ use axum::Json;
 pub async fn select(
     State(storage): State<DB>,
     Json(query): Json<SelectQuery>,
-) -> ApiResult<Json<Vec<Value>>> {
-    println!("Select: {:?}", query);
-    println!();
+) -> Result<Json<Vec<Value>>> {
     let res = storage
-            .stream("", query)
-            .await
-            .unwrap()
-            .collect::<Vec<_>>()
-            .await;
-        Ok(Json(res))
-
+        .stream("", query)
+        .await
+        .unwrap()
+        .collect::<Vec<_>>()
+        .await;
+    Ok(Json(res))
 }

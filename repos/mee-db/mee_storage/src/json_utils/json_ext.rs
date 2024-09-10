@@ -1,11 +1,11 @@
-#![allow(unused)]
 use super::support::{apply_property, get_property, get_property_pattern, inner_set, merge_json};
 use super::ID_PROPERTY;
 #[allow(unused_imports)]
 use crate::binary_kv_store::PATH_SEPARATOR;
+use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
-pub trait JsonExt {
+pub trait JsonExt: Serialize {
     fn x_set_id(&mut self, id: &str) -> &mut Self;
 
     #[allow(unused)]
@@ -20,6 +20,10 @@ pub trait JsonExt {
     fn x_merge(&mut self, other: Value) -> &mut Self;
 
     fn x_to_flatten_map(self, prefix: String) -> BTreeMap<String, Value>;
+
+    fn pretty(&self) -> String {
+        serde_json::to_string_pretty(&self).unwrap()
+    }
 }
 
 impl JsonExt for Value {

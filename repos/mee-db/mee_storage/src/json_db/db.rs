@@ -1,17 +1,19 @@
 use super::JsonDB;
+use super::Result;
 use crate::binary_kv_store::PATH_SEPARATOR;
-use crate::error::Result;
-use crate::json_kv_store::{FieldFilter, JsonStore, JsonStream};
+use crate::json_kv_store::{JsonStore, JsonStream};
 use crate::json_utils::JsonExt;
 use crate::json_utils::ID_PREFIX;
 use crate::json_utils::ID_PROPERTY;
+use crate::query_el::FieldFilter;
 use crate::query_el::SelectQuery;
-use async_stream::stream;
-use chrono::offset;
-use futures::stream::{self, Skip, StreamExt};
+
+use futures::stream::{self, StreamExt};
 use serde_json::{Map, Value};
 use std::sync::Arc;
-use tracing::field;
+use tracing::{debug, instrument};
+
+#[derive(Debug)]
 pub struct JsonDBImpl {
     db: Arc<dyn JsonStore + Send + Sync>,
 }
@@ -38,6 +40,7 @@ fn generate_id() -> String {
 #[async_trait::async_trait]
 impl JsonDB for JsonDBImpl {
     async fn insert(&self, value: Value) -> Result<String> {
+        debug!("Ask to insert value: '{}'", value.pretty());
         let id = generate_id();
         self.db.set(object_key(&id).clone(), value).await?;
         Ok(id)
@@ -79,17 +82,24 @@ impl JsonDB for JsonDBImpl {
     }
 
     async fn delete(&self, id: String) -> Result<()> {
-        self.db.delete(object_key(&id)).await
+        let res = self.db.delete(object_key(&id)).await?;
+        Ok(res)
     }
 
+    #[instrument(skip_all)]
     async fn stream(&self, key: &str, mut query: SelectQuery) -> Result<JsonStream> {
+        debug!(
+            "Ask to stream query: '{}'",
+            &serde_json::to_string_pretty(&query)?
+        );
+
         let field_filter = query.pack_and_get_field_filter()?;
         let stream = self.db.range(key.to_string(), field_filter).await?;
         let limit = query.limit.unwrap_or(usize::MAX);
         let offset = query.offset.unwrap_or(0);
         let flatten = query.flatten;
 
-        let mut stream = stream
+        let stream = stream
             .filter_map(move |v| {
                 let query = query.clone();
                 async move { query.process(v) }
@@ -118,12 +128,8 @@ impl JsonDB for JsonDBImpl {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        json_kv_store,
-        query_el::{CheckOperator::*, Expr::*, Operation::*, WhereClause::*},
-    };
+    use crate::json_kv_store;
     use assert_json_diff::assert_json_eq;
-    use futures::FutureExt;
 
     use super::*;
     use serde_json::json;

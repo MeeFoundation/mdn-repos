@@ -1,31 +1,23 @@
-#![allow(unused)]
+use super::{is_false, ConstOrField};
 
-use super::{is_false, ConstOrField, Operation};
-use crate::binary_kv_store::{PATH_PREFIX, PATH_SEPARATOR};
-use clap::builder::Str;
 use regex::Regex;
-use serde::de::{Deserializer, MapAccess, Visitor};
-use serde::ser::{SerializeMap, SerializeSeq, Serializer};
+use serde::de::Deserializer;
+use serde::ser::{SerializeMap, Serializer};
 
 use serde::{Deserialize, Serialize};
-use serde_json::map;
+
 use serde_json::{json, Value};
-use std::cmp::Ordering;
+
+use std::collections::hash_map::Entry::Vacant;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use tracing::{error, warn};
-use tracing_subscriber::{
-    filter::combinator::{And, Or},
-    fmt::format,
-};
-use utoipa::ToSchema;
-use uuid::Uuid;
+use tracing::warn;
 
-use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
+use utoipa::ToSchema;
+
+use crate::json_utils::JsonExt;
 
 use super::expression::Expr;
-
-const EMPTY_STRING: &str = "";
 
 #[derive(Debug, Clone, PartialEq, ToSchema)]
 pub struct NamedField {
@@ -49,7 +41,7 @@ impl<'de> Deserialize<'de> for NamedField {
     where
         D: Deserializer<'de>,
     {
-        let mut map: HashMap<String, Value> = HashMap::deserialize(deserializer)?;
+        let map: HashMap<String, Value> = HashMap::deserialize(deserializer)?;
         if let Some((alias, expr)) = map.into_iter().next() {
             let expr = serde_json::from_value(expr).map_err(serde::de::Error::custom)?;
             Ok(NamedField { alias, expr })
@@ -121,7 +113,7 @@ fn generate_alias(expr: &Expr) -> String {
         Expr::Operation { expr, op } => {
             format!("{}_{}", op, generate_alias(expr))
         }
-        _ => "expr".to_string(),
+        Expr::Val(_) => "val".to_string(),
     }
 }
 
@@ -131,21 +123,21 @@ impl SelectClause {
             SelectClause::All => SelectClause::All,
             SelectClause::Fields(items) => {
                 let mut map = HashMap::new();
-                for item in items.into_iter() {
+                for item in items {
                     let alias = match item.clone() {
                         SelectClauseItem::SelectItem(expr) => generate_alias(&expr),
                         SelectClauseItem::NamedSelectItem { select, .. } => select.alias,
                     };
-                    if map.contains_key(&alias) {
+                    if let Vacant(e) = map.entry(alias.clone()) {
+                        e.insert(item);
+                    } else {
                         for i in 1.. {
-                            let new_alias = format!("{}_{}", &alias, i);
-                            if !map.contains_key(&new_alias) {
-                                map.insert(new_alias, item);
+                            let new_alias = format!("{}_{}", alias, i);
+                            if let Vacant(e) = map.entry(new_alias) {
+                                e.insert(item);
                                 break;
                             }
                         }
-                    } else {
-                        map.insert(alias, item);
                     }
                 }
 
@@ -210,13 +202,9 @@ impl SelectClause {
 #[cfg(test)]
 mod tests {
     use assert_json_diff::assert_json_eq;
-    use serde::de;
     use serde_json::json;
 
     use super::super::_test_support::*;
-    use crate::query_el::Operation;
-
-    use super::*;
 
     #[test]
     fn select_all() {

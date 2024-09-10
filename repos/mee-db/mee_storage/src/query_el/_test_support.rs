@@ -1,3 +1,4 @@
+#![allow(unused)]
 use serde::Serialize;
 use serde_json::Value;
 

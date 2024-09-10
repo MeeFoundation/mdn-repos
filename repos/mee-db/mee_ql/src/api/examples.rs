@@ -290,7 +290,7 @@ fn de_select_query(serialized: &str) -> SelectQuery {
 }
 
 pub fn select_all() -> SelectQuery {
-    de_select_query(r#"{}"#)
+    de_select_query("{}")
 }
 
 pub fn get_all_payment_cards_of_user() -> SelectQuery {

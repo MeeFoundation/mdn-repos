@@ -1,15 +1,10 @@
-#![allow(dead_code)]
-#![allow(unused)]
-
-use crate::binary_kv_store::PATH_SEPARATOR;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::cmp::Ordering;
-use tracing::{error, warn};
-use tracing_subscriber::filter::combinator::{And, Or};
+
+use tracing::warn;
 
 use super::expression::Expr;
-use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
+
 use std::collections::HashSet;
 use utoipa::ToSchema;
 
@@ -40,18 +35,14 @@ pub enum CheckOperator {
 impl CheckOperator {
     pub fn apply_to(&self, value: Option<&Value>, expr_to_compare: &Expr) -> bool {
         match self {
-            CheckOperator::Equal(expr) => {
-                match (expr_to_compare.get_value(value), expr.get_value(value)) {
-                    (Some(Value::Number(n1)), Some(Value::Number(n2))) => n1 == n2,
-                    (Some(Value::String(s1)), Some(Value::String(s2))) => s1 == s2,
-                    (Some(v1), Some(v2)) => v1 == v2,
-                    _ => false,
-                }
-            }
-            CheckOperator::NotEqual(expr) => {
-                expr.get_value(value) != expr_to_compare.get_value(value)
-            }
-            CheckOperator::GreaterThan(expr) => {
+            Self::Equal(expr) => match (expr_to_compare.get_value(value), expr.get_value(value)) {
+                (Some(Value::Number(n1)), Some(Value::Number(n2))) => n1 == n2,
+                (Some(Value::String(s1)), Some(Value::String(s2))) => s1 == s2,
+                (Some(v1), Some(v2)) => v1 == v2,
+                _ => false,
+            },
+            Self::NotEqual(expr) => expr.get_value(value) != expr_to_compare.get_value(value),
+            Self::GreaterThan(expr) => {
                 match (expr_to_compare.get_value(value), expr.get_value(value)) {
                     (Some(Value::Number(n1)), Some(Value::Number(n2))) => {
                         n1.as_f64().unwrap_or(f64::MIN) > n2.as_f64().unwrap_or(f64::MIN)
@@ -64,7 +55,7 @@ impl CheckOperator {
                     _ => false,
                 }
             }
-            CheckOperator::GreaterThanOrEqual(expr) => {
+            Self::GreaterThanOrEqual(expr) => {
                 match (expr_to_compare.get_value(value), expr.get_value(value)) {
                     (Some(Value::Number(n1)), Some(Value::Number(n2))) => {
                         n1.as_f64().unwrap_or(f64::MIN) >= n2.as_f64().unwrap_or(f64::MIN)
@@ -77,7 +68,7 @@ impl CheckOperator {
                     _ => false,
                 }
             }
-            CheckOperator::LessThan(expr) => {
+            Self::LessThan(expr) => {
                 match (expr_to_compare.get_value(value), expr.get_value(value)) {
                     (Some(Value::Number(n1)), Some(Value::Number(n2))) => {
                         n1.as_f64().unwrap_or(f64::MIN) < n2.as_f64().unwrap_or(f64::MIN)
@@ -90,7 +81,7 @@ impl CheckOperator {
                     _ => false,
                 }
             }
-            CheckOperator::LessThanOrEqual(expr) => {
+            Self::LessThanOrEqual(expr) => {
                 match (expr_to_compare.get_value(value), expr.get_value(value)) {
                     (Some(Value::Number(n1)), Some(Value::Number(n2))) => {
                         n1.as_f64().unwrap_or(f64::MIN) <= n2.as_f64().unwrap_or(f64::MIN)
@@ -103,7 +94,7 @@ impl CheckOperator {
                     _ => false,
                 }
             }
-            CheckOperator::Contains(expr) => {
+            Self::Contains(expr) => {
                 match (expr_to_compare.get_value(value), expr.get_value(value)) {
                     (Some(Value::Array(array)), Some(item)) => {
                         let res = array.iter().any(|i| *i == item);
@@ -118,7 +109,7 @@ impl CheckOperator {
                     }
                 }
             }
-            CheckOperator::NotContains(expr) => {
+            Self::NotContains(expr) => {
                 match (expr_to_compare.get_value(value), expr.get_value(value)) {
                     (Some(Value::Array(array)), Some(item)) => array.iter().all(|i| *i != item),
                     (Some(Value::String(str)), Some(Value::String(substring))) => {
@@ -130,23 +121,22 @@ impl CheckOperator {
                     }
                 }
             }
-            CheckOperator::Exists => expr_to_compare.get_value(value).is_some(),
-            CheckOperator::NotExists => expr_to_compare.get_value(value).is_none(),
+            Self::Exists => expr_to_compare.get_value(value).is_some(),
+            Self::NotExists => expr_to_compare.get_value(value).is_none(),
         }
     }
 
     pub fn get_using_fields(&self) -> HashSet<String> {
         match self {
-            CheckOperator::Equal(expr) => expr.get_using_fields(),
-            CheckOperator::NotEqual(expr) => expr.get_using_fields(),
-            CheckOperator::GreaterThan(expr) => expr.get_using_fields(),
-            CheckOperator::GreaterThanOrEqual(expr) => expr.get_using_fields(),
-            CheckOperator::LessThan(expr) => expr.get_using_fields(),
-            CheckOperator::LessThanOrEqual(expr) => expr.get_using_fields(),
-            CheckOperator::Contains(expr) => expr.get_using_fields(),
-            CheckOperator::NotContains(expr) => expr.get_using_fields(),
-            CheckOperator::Exists => HashSet::new(),
-            CheckOperator::NotExists => HashSet::new(),
+            Self::Equal(expr)
+            | Self::NotEqual(expr)
+            | Self::GreaterThan(expr)
+            | Self::GreaterThanOrEqual(expr)
+            | Self::LessThan(expr)
+            | Self::LessThanOrEqual(expr)
+            | Self::Contains(expr)
+            | Self::NotContains(expr) => expr.get_using_fields(),
+            Self::Exists | Self::NotExists => HashSet::new(),
         }
     }
 }
@@ -156,8 +146,6 @@ mod tests {
     use serde_json::json;
 
     use super::super::_test_support::*;
-
-    use super::*;
 
     #[test]
     fn check_operator_equal_str() {

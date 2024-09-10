@@ -1,17 +1,15 @@
+use super::config::AppConfig;
+use super::error::Result;
+use crate::api;
 use axum::extract::FromRef;
 use axum::Router;
-use clap::builder::TypedValueParser;
-// use tower_http::trace::TraceLayer;
-use super::config::AppConfig;
-use super::error::*;
-use crate::api;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 pub const API_V1_PATH: &str = "/api/v1";
 const SWAGGER_PATH: &str = "/swagger-ui";
-use mee_storage::json_db::{DB, self};
-use clap::Parser;
 use crate::api::examples;
+use clap::Parser;
+use mee_storage::json_db::{self, DB};
 
 #[derive(Clone, FromRef)]
 pub struct AppCtl {
@@ -21,16 +19,16 @@ pub struct AppCtl {
 }
 
 impl AppCtl {
-    pub async fn try_new() -> ApiResult<Self> {
+    pub async fn try_new() -> Result<Self> {
         let app_config = AppConfig::parse();
         let db = json_db::new_btree_map_based();
 
         Ok(Self { app_config, db })
     }
 
-    pub async fn run(self) -> ApiResult<()> {
-         let data = examples::mock_user_data();
-        for (value) in data {
+    pub async fn run(self) -> Result<()> {
+        let data = examples::mock_user_data();
+        for value in data {
             self.db.insert(value).await.unwrap();
         }
 
@@ -41,7 +39,6 @@ impl AppCtl {
                 api::api_schema::ApiDoc::openapi(),
             ))
             .with_state(self.clone());
-        // .layer(TraceLayer::new_for_http());
 
         let listener = tokio::net::TcpListener::bind(format!(
             "{}:{}",

@@ -1,17 +1,18 @@
 use super::JsonStore;
+use super::Result;
 use super::{FieldFilter, JsonStream};
 use crate::binary_kv_store::BinaryKVStore;
 #[allow(unused_imports)]
 use crate::binary_kv_store::PATH_SEPARATOR;
-use crate::error::Result;
 use crate::json_utils::{JsonExt, ID_PREFIX};
 use async_stream::stream;
 use futures::pin_mut;
 use futures::stream::StreamExt;
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, trace};
 
+#[derive(Debug)]
 pub struct KVBasedJsonStoreImpl {
     db: Arc<dyn BinaryKVStore + Send + Sync>,
 }
@@ -48,6 +49,7 @@ impl JsonStore for KVBasedJsonStoreImpl {
         let flatten = value.x_to_flatten_map(key);
         let mut batch = vec![];
         for (k, v) in flatten {
+            trace!("Set key: '{k}', value : '{v}'");
             let bytes = serde_json::to_vec(&v)?;
             batch.push((k, bytes));
         }
@@ -58,7 +60,7 @@ impl JsonStore for KVBasedJsonStoreImpl {
     }
 
     async fn get(&self, key: String, select_fields: FieldFilter) -> Result<Option<Value>> {
-        debug!("Getting value for key: {key}");
+        trace!("Ask value for key: '{key}'");
         let r = self.range(key, select_fields).await?;
         pin_mut!(r);
 
@@ -66,6 +68,7 @@ impl JsonStore for KVBasedJsonStoreImpl {
     }
 
     async fn delete(&self, key: String) -> Result<()> {
+        trace!("Ask to delete value for key: '{key}'");
         let db = self.db.clone();
         db.delete(&key).await?;
         Ok(())
@@ -74,6 +77,7 @@ impl JsonStore for KVBasedJsonStoreImpl {
     // str: enything
     async fn range(&self, key: String, select_fields: FieldFilter) -> Result<JsonStream> {
         let kv_byte_stream = self.db.range(key.clone()).await?;
+        debug!("Ask range for key: '{key}' with field filter: '{select_fields}'");
 
         let s = stream! {
             let mut current_value = Value::Null;
@@ -82,6 +86,7 @@ impl JsonStore for KVBasedJsonStoreImpl {
                 let (key, value) = kv;
                 let (id, key) = split_key(key);
                 if !select_fields.matches(&key) {
+                    trace!("Skipped key: {ID_PREFIX}{id}{PATH_SEPARATOR}{key}");
                     continue;
                 }
 
@@ -99,14 +104,15 @@ impl JsonStore for KVBasedJsonStoreImpl {
                         current_id = id;
                     }
 
+                    trace!("Selected key: '{ID_PREFIX}{current_id}{PATH_SEPARATOR}{key}', value: '{v}'");
                     current_value.x_set_property(&key, v);
                 }
             }
             if !current_value.is_null() {
-                    if !current_id.is_empty() && select_fields.add_id() {
-                        current_value.x_set_id(&current_id);
-                    }
-                    yield current_value.take();
+                if !current_id.is_empty() && select_fields.add_id() {
+                    current_value.x_set_id(&current_id);
+                }
+                yield current_value.take();
             }
         }
         .boxed();

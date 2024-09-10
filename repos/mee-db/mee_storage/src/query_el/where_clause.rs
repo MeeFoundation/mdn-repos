@@ -1,19 +1,9 @@
-#![allow(dead_code)]
-#![allow(unused)]
-
-use crate::binary_kv_store::{PATH_PREFIX, PATH_SEPARATOR};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::cmp::Ordering;
-use tracing::{error, warn};
-use tracing_subscriber::filter::combinator::{And, Or};
 
-use super::condition::CheckOperator;
 use super::expression::Expr;
-use super::{ConstOrField, Operation, KEY_WORD_PREFIX};
-use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
-use serde::de::{self, Deserializer};
-use serde::ser::{Serialize as Ser, SerializeMap, Serializer};
+use super::CheckOperator;
+use super::ConstOrField;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use utoipa::ToSchema;
@@ -40,38 +30,29 @@ pub enum WhereClause {
 impl WhereClause {
     pub fn filter(&self, value: &Value) -> bool {
         match self {
-            WhereClause::True => true,
-            WhereClause::False => false,
-            WhereClause::Or(clauses) => clauses.iter().any(|clause| clause.filter(value)),
-            WhereClause::Nor(clauses) => {
-                clauses.iter().filter(|clause| clause.filter(value)).count() == 1
-            }
-            WhereClause::And(clauses) => clauses.iter().all(|clause| clause.filter(value)),
-            WhereClause::Not(clause) => !clause.filter(value),
-            WhereClause::Checks(items) => items
+            Self::True => true,
+            Self::False => false,
+            Self::Or(clauses) => clauses.iter().any(|clause| clause.filter(value)),
+            Self::Nor(clauses) => clauses.iter().filter(|clause| clause.filter(value)).count() == 1,
+            Self::And(clauses) => clauses.iter().all(|clause| clause.filter(value)),
+            Self::Not(clause) => !clause.filter(value),
+            Self::Checks(items) => items
                 .iter()
                 .all(|(val, check)| check.apply_to(Some(value), &Expr::Val(val.clone()))),
         }
     }
     pub fn get_using_fields(&self) -> HashSet<String> {
         match self {
-            WhereClause::Checks(items) => items.iter().fold(HashSet::new(), |mut acc, (k, v)| {
+            Self::Checks(items) => items.iter().fold(HashSet::new(), |mut acc, (k, v)| {
+                acc.extend(k.get_using_fields());
                 acc.extend(v.get_using_fields());
                 acc
             }),
-            WhereClause::Or(clauses) => clauses
+            Self::Or(clauses) | Self::Nor(clauses) | Self::And(clauses) => clauses
                 .iter()
                 .flat_map(|clause| clause.get_using_fields())
                 .collect(),
-            WhereClause::Nor(clauses) => clauses
-                .iter()
-                .flat_map(|clause| clause.get_using_fields())
-                .collect(),
-            WhereClause::And(clauses) => clauses
-                .iter()
-                .flat_map(|clause| clause.get_using_fields())
-                .collect(),
-            WhereClause::Not(clause) => clause.get_using_fields(),
+            Self::Not(clause) => clause.get_using_fields(),
             _ => HashSet::new(),
         }
     }

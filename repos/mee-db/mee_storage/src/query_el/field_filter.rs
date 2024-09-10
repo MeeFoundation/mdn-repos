@@ -1,7 +1,7 @@
-#![allow(unused)]
-use crate::{binary_kv_store::PATH_SEPARATOR, error::Result, json_utils::ID_PROPERTY};
+use super::Result;
+use crate::json_utils::ID_PROPERTY;
 use regex::Regex;
-use serde::{de, Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Default)]
 pub enum FieldFilter {
@@ -11,6 +11,21 @@ pub enum FieldFilter {
         regexes: Vec<Regex>,
         with_id: bool,
     },
+}
+
+impl Display for FieldFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FieldFilter::All => write!(f, "All"),
+            FieldFilter::Patters { regexes, with_id } => {
+                write!(f, "Patterns: [")?;
+                for r in regexes {
+                    write!(f, "{}, ", r.as_str())?;
+                }
+                write!(f, "], with_id: {with_id}",)
+            }
+        }
+    }
 }
 
 pub const ANY_PATH_SEGMENT: &str = "*";
@@ -23,7 +38,7 @@ impl FieldFilter {
             if pattern == ID_PROPERTY {
                 with_id = true;
             } else {
-                let r = pattern.replace(ANY_PATH_SEGMENT, r#"\w*"#);
+                let r = pattern.replace(ANY_PATH_SEGMENT, "\\w*");
                 regexes.push(Regex::new(&r)?);
             }
         }

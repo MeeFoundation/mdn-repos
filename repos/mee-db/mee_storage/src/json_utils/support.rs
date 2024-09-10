@@ -1,7 +1,7 @@
 use crate::binary_kv_store::PATH_SEPARATOR;
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
-use tracing::debug;
+use tracing::error;
 
 pub(super) fn inner_set(map: &mut BTreeMap<String, Value>, key: String, value: Value) {
     match value {
@@ -39,7 +39,6 @@ pub(super) fn merge_json(first: &mut Value, second: Value) {
             first.extend(second);
         }
         (first, second) => {
-            debug!("Value {:?} replaced with {:?}", first, second);
             *first = second;
         }
     }
@@ -95,7 +94,7 @@ pub(super) fn apply_property(current: &mut Value, k: &str, v: Value) {
                         merge_json(current_obj, next_obj);
                     }
                     _ => {
-                        //TODO make error more clear
+                        error!("Cannot set property {} to {:?}", k, v);
                     }
                 }
             }
@@ -152,7 +151,7 @@ pub(super) fn get_property_pattern<'a>(current: &'a Value, k: &'a str) -> Option
             if part == "*" {
                 if current_obj.is_array() {
                     let mut result = Value::Array(vec![]);
-                    let mut arr = result.as_array_mut().unwrap();
+                    let arr = result.as_array_mut().unwrap();
                     for v in current_obj.as_array().unwrap() {
                         if let Some(v) = get_property_pattern(
                             v,
@@ -164,7 +163,7 @@ pub(super) fn get_property_pattern<'a>(current: &'a Value, k: &'a str) -> Option
                     return Some(result);
                 } else if current_obj.is_object() {
                     let mut result = Value::Object(Map::new());
-                    let mut obj = result.as_object_mut().unwrap();
+                    let obj = result.as_object_mut().unwrap();
                     for (k, v) in current_obj.as_object().unwrap() {
                         if let Some(v) = get_property_pattern(
                             v,

@@ -2,14 +2,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Binary key value store error: {0}")]
-    BinaryKVStore(#[from] crate::binary_kv_store::Error),
-
-    #[error("Json key value store error: {0}")]
-    JsonKVStore(#[from] crate::json_kv_store::Error),
+    #[error("Binary KV Store error: {0}")]
+    BinaryKVStoreError(#[from] crate::binary_kv_store::Error),
 
     #[error("JSON parsing error: {0}")]
-    JsonParsing(#[from] serde_json::Error),
+    JsonParsingError(#[from] serde_json::Error),
     #[error("Send error: {0}")]
     Sync(#[from] tokio::sync::mpsc::error::SendError<()>),
 

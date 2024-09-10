@@ -1,8 +1,8 @@
 use axum::{http::StatusCode, response::IntoResponse};
-pub type ApiResult<T = (), E = ApiError> = std::result::Result<T, E>;
+pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
-pub enum ApiError {
+pub enum Error {
     #[error("HTTP parsing error: {0}")]
     HttpParsing(#[from] axum::http::Error),
 
@@ -24,7 +24,7 @@ pub enum ApiError {
     // AnyhowError(#[from] anyhow::Error),
 }
 
-impl IntoResponse for ApiError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         tracing::error!("RESTful API internal error: {self:#?}");
         (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()

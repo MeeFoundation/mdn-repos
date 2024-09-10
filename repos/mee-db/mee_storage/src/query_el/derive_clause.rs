@@ -1,31 +1,14 @@
-#![allow(unused)]
-
-use super::{is_false, ConstOrField, Operation};
-use crate::binary_kv_store::{PATH_PREFIX, PATH_SEPARATOR};
-use clap::builder::Str;
-use regex::Regex;
-use serde::de::{Deserializer, MapAccess, Visitor};
-use serde::ser::{SerializeMap, SerializeSeq, Serializer};
-
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use serde_json::{map, Map};
-use std::cmp::Ordering;
+use serde_json::Value;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
-use tracing::{error, warn};
-use tracing_subscriber::{
-    filter::combinator::{And, Or},
-    fmt::format,
-};
-use utoipa::ToSchema;
-use uuid::Uuid;
 
-use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
+use utoipa::ToSchema;
+
+use crate::json_utils::JsonExt;
 
 use super::expression::Expr;
-
-const EMPTY_STRING: &str = "";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, ToSchema)]
 pub struct DeriveClause(HashMap<String, Expr>);
@@ -54,14 +37,8 @@ impl DeriveClause {
 
 #[cfg(test)]
 mod tests {
-    use assert_json_diff::assert_json_eq;
-    use serde::de;
-    use serde_json::json;
-
-    use super::super::_test_support::*;
-    use crate::query_el::Operation;
-
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn derive_clause_item_named_select_item() {

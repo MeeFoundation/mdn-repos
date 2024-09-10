@@ -1,16 +1,18 @@
-#![allow(unused_imports)]
 mod _test_support;
 mod condition;
 mod derive_clause;
+mod error;
 mod expression;
+mod field_filter;
 mod query;
 mod select_clause;
 mod where_clause;
 
-pub(crate) use _test_support::*;
 pub use condition::*;
 pub use derive_clause::*;
+pub use error::*;
 pub use expression::*;
+pub use field_filter::*;
 pub use query::*;
 pub use select_clause::*;
 pub use where_clause::*;

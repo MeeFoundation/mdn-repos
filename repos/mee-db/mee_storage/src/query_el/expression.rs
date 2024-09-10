@@ -1,20 +1,16 @@
-#![allow(dead_code)]
-#![allow(unused)]
+use crate::binary_kv_store::PATH_PREFIX;
+use crate::json_utils::JsonExt;
 
-use crate::binary_kv_store::{PATH_PREFIX, PATH_SEPARATOR};
-use crate::{json_kv_store::FieldFilter, json_utils::JsonExt};
-use serde::de::value;
-use serde::ser::{Serialize as Ser, SerializeMap, SerializeSeq, Serializer};
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
-use std::cmp::Ordering;
+use serde_json::Value;
+
+use serde::ser::SerializeMap;
 use std::collections::HashSet;
 use std::fmt::{self, Display, Formatter};
-use tracing::{error, warn};
-use tracing_subscriber::filter::combinator::{And, Or};
-use utoipa::openapi::Array;
+use tracing::warn;
 
-use super::{where_clause, WhereClause};
+use super::WhereClause;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, ToSchema)]
@@ -30,10 +26,8 @@ impl<'a> Deserialize<'a> for ConstOrField {
     {
         let value = Value::deserialize(deserializer)?;
         match value {
-            Value::String(s) if s.starts_with(PATH_PREFIX) => {
-                Ok(ConstOrField::Field(s[1..].to_string()))
-            }
-            _ => Ok(ConstOrField::Const(value)),
+            Value::String(s) if s.starts_with(PATH_PREFIX) => Ok(Self::Field(s[1..].to_string())),
+            _ => Ok(Self::Const(value)),
         }
     }
 }
@@ -44,10 +38,8 @@ impl Serialize for ConstOrField {
         S: Serializer,
     {
         match self {
-            ConstOrField::Field(field) => {
-                serializer.serialize_str(&format!("{}{}", PATH_PREFIX, field))
-            }
-            ConstOrField::Const(value) => value.serialize(serializer),
+            Self::Field(field) => serializer.serialize_str(&format!("{PATH_PREFIX}{field}")),
+            Self::Const(value) => value.serialize(serializer),
         }
     }
 }
@@ -55,22 +47,20 @@ impl Serialize for ConstOrField {
 impl ConstOrField {
     pub fn get_value(&self, value: &Value) -> Option<Value> {
         match self {
-            ConstOrField::Field(field) if field.contains("*") => {
-                value.x_get_property_pattern(&field)
-            }
-            ConstOrField::Field(field) => value.x_get_property(&field).cloned(),
-            ConstOrField::Const(val) => Some(val.clone()),
+            Self::Field(field) if field.contains('*') => value.x_get_property_pattern(field),
+            Self::Field(field) => value.x_get_property(field).cloned(),
+            Self::Const(val) => Some(val.clone()),
         }
     }
 
     pub fn get_using_fields(&self) -> HashSet<String> {
         match self {
-            ConstOrField::Field(field) => {
+            Self::Field(field) => {
                 let mut res = HashSet::new();
                 res.insert(field.clone());
                 res
             }
-            ConstOrField::Const(_) => HashSet::new(),
+            Self::Const(_) => HashSet::new(),
         }
     }
 }
@@ -84,15 +74,15 @@ pub enum Expr {
 impl Expr {
     pub fn get_value(&self, value: Option<&Value>) -> Option<Value> {
         match self {
-            Expr::Val(elem) => value.and_then(|v| elem.get_value(v)),
-            Expr::Operation { expr, op } => op.get_value(expr, value),
+            Self::Val(elem) => value.and_then(|v| elem.get_value(v)),
+            Self::Operation { expr, op } => op.get_value(expr, value),
         }
     }
 
     pub fn get_using_fields(&self) -> HashSet<String> {
         match self {
-            Expr::Val(elem) => elem.get_using_fields(),
-            Expr::Operation { expr, op } => {
+            Self::Val(elem) => elem.get_using_fields(),
+            Self::Operation { expr, op } => {
                 let mut res = HashSet::new();
                 res.extend(expr.get_using_fields());
                 res.extend(op.get_using_fields());
@@ -108,9 +98,9 @@ impl Serialize for Expr {
         S: Serializer,
     {
         match self {
-            Expr::Val(elem) => elem.serialize(serializer),
-            Expr::Operation { expr, op } => {
-                if let Expr::Val(const_or_field) = &**expr {
+            Self::Val(elem) => elem.serialize(serializer),
+            Self::Operation { expr, op } => {
+                if let Self::Val(const_or_field) = &**expr {
                     match const_or_field {
                         ConstOrField::Field(field) => {
                             let mut map = serializer.serialize_map(Some(1))?;
@@ -122,7 +112,7 @@ impl Serialize for Expr {
                             map.serialize_entry(s, op)?;
                             map.end()
                         }
-                        _ => {
+                        ConstOrField::Const(_) => {
                             let mut map = serializer.serialize_map(Some(2))?;
                             map.serialize_entry("expr", expr)?;
                             map.serialize_entry("op", op)?;
@@ -153,35 +143,31 @@ impl<'a> Deserialize<'a> for Expr {
                         let const_or_field = serde_json::from_value(Value::String(key))
                             .map_err(serde::de::Error::custom)?;
                         let op = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-                        Ok(Expr::Operation {
-                            expr: Box::new(Expr::Val(const_or_field)),
+                        Ok(Self::Operation {
+                            expr: Box::new(Self::Val(const_or_field)),
                             op: Box::new(op),
                         })
                     } else {
                         Err(serde::de::Error::custom("Invalid value"))
                     }
+                } else if let (Some(expr), Some(op)) =
+                    (map.get("expr").cloned(), map.get("op").cloned())
+                {
+                    let expr = serde_json::from_value(expr).map_err(serde::de::Error::custom)?;
+                    let op = serde_json::from_value(op).map_err(serde::de::Error::custom)?;
+                    Ok(Self::Operation {
+                        expr: Box::new(expr),
+                        op: Box::new(op),
+                    })
                 } else {
-                    if let (Some(expr), Some(op)) =
-                        (map.get("expr").cloned(), map.get("op").cloned())
-                    {
-                        let expr =
-                            serde_json::from_value(expr).map_err(serde::de::Error::custom)?;
-                        let op = serde_json::from_value(op).map_err(serde::de::Error::custom)?;
-                        Ok(Expr::Operation {
-                            expr: Box::new(expr),
-                            op: Box::new(op),
-                        })
-                    } else {
-                        Err(serde::de::Error::custom("Invalid value"))
-                    }
+                    Err(serde::de::Error::custom("Invalid value"))
                 }
             }
             value => {
                 let const_or_field =
                     serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-                Ok(Expr::Val(const_or_field))
+                Ok(Self::Val(const_or_field))
             }
-            _ => Err(serde::de::Error::custom("Invalid value")),
         }
     }
 }
@@ -216,17 +202,17 @@ pub enum Operation {
 impl Display for Operation {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Operation::Upper => write!(f, "upper"),
-            Operation::Lower => write!(f, "lower"),
-            // Operation::Replace(a, b) => write!(f, "replace"),
-            Operation::First => write!(f, "first"),
-            Operation::Last => write!(f, "last"),
-            Operation::Nth(_) => write!(f, "nth"),
-            Operation::Find(_) => write!(f, "find"),
-            // Operation::Slice(start, end) => write!(f, "slice"),
-            Operation::Count => write!(f, "count"),
-            Operation::Flatten => write!(f, "flatten"),
-            Operation::Filter(_) => write!(f, "filter"),
+            Self::Upper => write!(f, "upper"),
+            Self::Lower => write!(f, "lower"),
+            // Self::Replace(a, b) => write!(f, "replace"),
+            Self::First => write!(f, "first"),
+            Self::Last => write!(f, "last"),
+            Self::Nth(_) => write!(f, "nth"),
+            Self::Find(_) => write!(f, "find"),
+            // Self::Slice(start, end) => write!(f, "slice"),
+            Self::Count => write!(f, "count"),
+            Self::Flatten => write!(f, "flatten"),
+            Self::Filter(_) => write!(f, "filter"),
         }
     }
 }
@@ -234,20 +220,19 @@ impl Display for Operation {
 impl Operation {
     pub fn get_using_fields(&self) -> HashSet<String> {
         match self {
-            Operation::Upper => HashSet::new(),
-            Operation::Lower => HashSet::new(),
-            // Operation::Replace(a, b) => {
+            Self::Upper | Self::Lower | Self::Count | Self::Flatten | Self::First | Self::Last => {
+                HashSet::new()
+            }
+            Self::Nth(expr) => expr.get_using_fields(),
+            //TODO use more precise fields
+            Self::Find(where_clause) => where_clause.get_using_fields(),
+            // Self::Replace(a, b) => {
             //     let mut res = HashSet::new();
             //     res.extend(a.get_using_fields());
             //     res.extend(b.get_using_fields());
             //     res
             // }
-            Operation::First => HashSet::new(),
-            Operation::Last => HashSet::new(),
-            Operation::Nth(expr) => expr.get_using_fields(),
-            //TODO use more precise fields
-            Operation::Find(where_clause) => where_clause.get_using_fields(),
-            // Operation::Slice(start, end) => {
+            // Self::Slice(start, end) => {
             //     let mut res = HashSet::new();
             //     if let Some(start) = start {
             //         res.extend(start.get_using_fields());
@@ -257,16 +242,15 @@ impl Operation {
             //     }
             //     res
             // }
-            Operation::Count => HashSet::new(),
-            Operation::Flatten => HashSet::new(),
+
             //TODO use more precise fields
-            Operation::Filter(where_clause) => where_clause.get_using_fields(),
+            Self::Filter(where_clause) => where_clause.get_using_fields(),
         }
     }
 
     pub fn get_value(&self, expr: &Expr, value: Option<&Value>) -> Option<Value> {
         match self {
-            Operation::Upper => match expr.get_value(value) {
+            Self::Upper => match expr.get_value(value) {
                 Some(Value::String(s)) => Some(Value::String(s.to_uppercase())),
                 // Some(v @ Value::Array(_)) => self.get_value_recursive(Some(v.clone())),
                 Some(v) => {
@@ -275,7 +259,7 @@ impl Operation {
                 }
                 _ => None,
             },
-            Operation::Lower => match expr.get_value(value) {
+            Self::Lower => match expr.get_value(value) {
                 Some(Value::String(s)) => Some(Value::String(s.to_lowercase())),
                 Some(v) => {
                     warn!("Cannot lowercase non-string value {v}");
@@ -283,7 +267,7 @@ impl Operation {
                 }
                 _ => None,
             },
-            // Operation::Replace(first, second) => match (first.get_value(value), second.get_value(value), expr.get_value(value)) {   {
+            // Self::Replace(first, second) => match (first.get_value(value), second.get_value(value), expr.get_value(value)) {   {
             //     (Some(Value::String(first), Value::String(second))) => Some(Value::String((first.replace(first, second)))),
             //     Some(Value::String(s)) => Some(Value::String((s.replace(first, second)))),
 
@@ -293,7 +277,7 @@ impl Operation {
             //     }
             //     _ => None,
             // },
-            Operation::First => match expr.get_value(value) {
+            Self::First => match expr.get_value(value) {
                 Some(Value::Array(arr)) => arr.first().cloned(),
                 Some(v) => {
                     warn!("Cannot get first element of non-array value {v}");
@@ -301,7 +285,7 @@ impl Operation {
                 }
                 _ => None,
             },
-            Operation::Last => match expr.get_value(value) {
+            Self::Last => match expr.get_value(value) {
                 Some(Value::Array(arr)) => arr.last().cloned(),
                 Some(v) => {
                     warn!("Cannot get last element of non-array value {v}");
@@ -309,21 +293,23 @@ impl Operation {
                 }
                 _ => None,
             },
-            Operation::Nth(n) => match (n.get_value(value), expr.get_value(value)) {
-                (Some(Value::Number(n)), Some(Value::Array(arr))) => {
-                    n.as_i64().and_then(|i| arr.get(i as usize)).cloned()
-                }
+            Self::Nth(n) => match (n.get_value(value), expr.get_value(value)) {
+                (Some(Value::Number(n)), Some(Value::Array(arr))) => n
+                    .as_i64()
+                    .and_then(|i| usize::try_from(i).ok())
+                    .and_then(|i| arr.get(i))
+                    .cloned(),
                 (_, Some(v)) => {
                     warn!("Cannot get nth element of non-array value {v}");
                     None
                 }
                 _ => None,
             },
-            Operation::Find(where_clause) => match (expr.get_value(value)) {
+            Self::Find(where_clause) => match expr.get_value(value) {
                 Some(Value::Array(arr)) => arr.iter().find(|v| where_clause.filter(v)).cloned(),
                 _ => None,
             },
-            // Operation::Slice(start, end) => match value {
+            // Self::Slice(start, end) => match value {
             //     Some(Value::Array(arr)) => {
             //         let start = start.unwrap_or(0);
             //         let end = end.unwrap_or(arr.len());
@@ -335,7 +321,7 @@ impl Operation {
             //     }
             //     _ => None,
             // },
-            Operation::Count => match expr.get_value(value) {
+            Self::Count => match expr.get_value(value) {
                 Some(Value::Array(arr)) => Some(Value::Number(arr.len().into())),
                 Some(v) => {
                     warn!("Cannot count non-array value {v}");
@@ -343,11 +329,11 @@ impl Operation {
                 }
                 _ => None,
             },
-            Operation::Flatten => match expr.get_value(value) {
+            Self::Flatten => match expr.get_value(value) {
                 Some(Value::Array(arr)) => Some(
                     arr.iter()
                         .flat_map(|v| match v {
-                            Value::Array(arr) => arr.iter().cloned().collect::<Vec<Value>>(),
+                            Value::Array(arr) => arr.to_vec(),
                             v => vec![v.clone()],
                         })
                         .collect::<Vec<Value>>()
@@ -359,7 +345,7 @@ impl Operation {
                 }
                 _ => None,
             },
-            Operation::Filter(where_clause) => match expr.get_value(value) {
+            Self::Filter(where_clause) => match expr.get_value(value) {
                 Some(Value::Array(arr)) => Some(
                     arr.into_iter()
                         .filter(|v| where_clause.filter(v))
@@ -377,27 +363,6 @@ impl Operation {
             },
         }
     }
-
-    fn get_value_recursive(&self, value: Option<Value>) -> Option<Value> {
-        match value {
-            Some(Value::Array(arr)) => arr
-                .iter()
-                .map(|v| self.get_value_recursive(Some(v.clone())))
-                .collect(),
-            Some(Value::Object(obj)) => {
-                let mut result = Map::new();
-                for (k, v) in obj {
-                    result.insert(
-                        k.clone(),
-                        self.get_value_recursive(Some(v.clone())).unwrap(),
-                    );
-                }
-                Some(Value::Object(result))
-            }
-            Some(v) => self.get_value(&Expr::Val(ConstOrField::Const(v.clone())), Some(&v)),
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -405,7 +370,7 @@ mod tests {
     use serde_json::json;
 
     use super::super::_test_support::*;
-    use super::super::test_support::expr;
+
     use super::*;
 
     #[test]

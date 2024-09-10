@@ -1,24 +1,19 @@
-#![allow(unused)]
-use crate::error::Result;
-use crate::json_kv_store::FieldFilter;
-use crate::json_kv_store::JsonStream;
+use super::{FieldFilter, Result, SelectClause};
+
 use crate::json_utils::JsonExt;
 
-use super::condition::CheckOperator;
 use super::derive_clause::DeriveClause;
-use super::expression::Expr;
-use super::select_clause;
-use super::select_clause::{SelectClause, SelectClauseItem};
-use super::where_clause;
+
 use super::where_clause::WhereClause;
-use futures::stream::StreamExt;
-use serde::de;
-use serde::de::{Deserializer, MapAccess, Visitor};
-use serde::ser::{SerializeMap, SerializeSeq, Serializer};
+
+use serde::de::Deserializer;
+use serde::ser::{SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::Value;
-use std::collections::HashMap;
+
+use tracing::trace;
+
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, ToSchema)]
@@ -84,14 +79,11 @@ impl<'a> Deserialize<'a> for SelectQuery {
                 serde_json::from_value(v)
                     .map_err(serde::de::Error::custom)
                     .and_then(|v: Value| {
-                        if v.is_u64() {
-                            Ok(v.as_u64().unwrap() as usize)
-                        } else {
-                            Err(serde::de::Error::custom(
-                                "limit should be a positive integer",
-                            ))
-                        }
+                        v.as_u64().ok_or(serde::de::Error::custom(
+                            "limit should be a positive integer",
+                        ))
                     })
+                    .map(|v| usize::try_from(v).unwrap())
             })
             .transpose()?;
 
@@ -101,14 +93,11 @@ impl<'a> Deserialize<'a> for SelectQuery {
                 serde_json::from_value(v)
                     .map_err(serde::de::Error::custom)
                     .and_then(|v: Value| {
-                        if v.is_u64() {
-                            Ok(v.as_u64().unwrap() as usize)
-                        } else {
-                            Err(serde::de::Error::custom(
-                                "offset should be a positive integer",
-                            ))
-                        }
+                        v.as_u64().ok_or(serde::de::Error::custom(
+                            "limit should be a positive integer",
+                        ))
                     })
+                    .map(|v| usize::try_from(v).unwrap())
             })
             .transpose()?;
 
@@ -176,8 +165,10 @@ impl SelectQuery {
         value.x_merge(derived);
 
         if self.where_clause.filter(&value) {
+            trace!("Selected: {}", value.pretty());
             Some(self.select_clause.get_value(value))
         } else {
+            trace!("Filtered: {}", value.pretty());
             None
         }
     }
@@ -186,19 +177,10 @@ impl SelectQuery {
 #[cfg(test)]
 mod test {
 
-    use crate::query_el::{de_select_query, print_json};
-    use std::collections::HashMap;
-
-    use super::super::{
-        expression::Expr::*, expression::Operation::*, select_clause::SelectClause,
-        where_clause::WhereClause, CheckOperator::*,
-    };
-
+    use super::super::{select_clause::SelectClause, where_clause::WhereClause};
     use super::*;
-    use assert_json_diff::assert_json_eq;
-    use serde::de;
+    use crate::query_el::_test_support::de_select_query;
     use serde_json::json;
-    use tracing_subscriber::fmt::FormatFields;
 
     #[test]
     fn serialize_default_select_query() {

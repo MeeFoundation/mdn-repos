@@ -1,5 +1,4 @@
-use super::{BinaryKVStore, KVStream, KV, PATH_SEPARATOR};
-use crate::error::Result;
+use super::{BinaryKVStore, KVStream, Result, KV, PATH_SEPARATOR};
 
 use async_stream::stream;
 
@@ -9,6 +8,7 @@ use std::ops::Bound::{Excluded, Included};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[derive(Debug)]
 pub struct BTreeMapStore {
     db: Arc<RwLock<BTreeMap<String, Vec<u8>>>>,
 }
@@ -25,18 +25,17 @@ impl BTreeMapStore {
 impl BinaryKVStore for BTreeMapStore {
     async fn insert(&self, path: String, value: Vec<u8>) -> Result<()> {
         let mut db = self.db.write().await;
-        // .map_err(|e| LockError(e.to_string()))?;
         db.insert(path, value);
         Ok(())
     }
 
     async fn get(&self, path: &str) -> Result<Option<Vec<u8>>> {
-        let db = self.db.read().await; //.map_err(|e| LockError(e.to_string()))?;
+        let db = self.db.read().await;
         Ok(db.get(path).cloned())
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
-        let mut db = self.db.write().await; //.map_err(|e| LockError(e.to_string()))?;
+        let mut db = self.db.write().await;
         let excluded = Excluded(format!("{}{}", &path, char::MAX));
         let keys_to_delete = db
             .range((Included(path.to_string()), excluded))

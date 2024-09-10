@@ -1,12 +1,14 @@
 pub mod b_tree_map_store;
+mod error;
 
-use crate::error::Result;
 use std::sync::Arc;
 pub type KV = (String, Vec<u8>);
 pub type KVStream = futures::stream::BoxStream<'static, KV>;
+use core::fmt::Debug;
+pub use error::*;
 
 #[async_trait::async_trait]
-pub trait BinaryKVStore {
+pub trait BinaryKVStore: Debug {
     #[allow(unused)]
     async fn insert(&self, path: String, value: Vec<u8>) -> Result<()>;
     async fn insert_many(&self, batch: Vec<KV>) -> Result<()>;

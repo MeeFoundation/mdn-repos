@@ -1,10 +1,13 @@
+mod db;
+mod error;
+
+pub use error::*;
+
+use crate::json_kv_store;
 use crate::json_kv_store::JsonStream;
 use crate::query_el::SelectQuery;
-use crate::{error::Result, json_kv_store};
 use serde_json::Value;
 use std::sync::Arc;
-
-mod db;
 
 #[allow(dead_code)]
 #[async_trait::async_trait]

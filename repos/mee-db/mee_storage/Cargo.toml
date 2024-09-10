@@ -12,7 +12,7 @@ utoipa = { workspace = true, features = ["axum_extras", "url"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 thiserror = { workspace = true }
 strum = { workspace = true }
-tracing = { workspace = true }
+tracing = { workspace = true, features = ["attributes"] }
 clap = { workspace = true, features = ["derive", "env"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
