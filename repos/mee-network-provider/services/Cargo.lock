@@ -41,16 +41,17 @@ dependencies = [
  "chrono",
  "clap 4.5.9",
  "dotenvy",
+ "futures",
  "mee_crypto",
  "mee_data_sync",
  "mee_db_utils",
  "mee_http_utils",
  "mee_secrets_manager",
- "provider_authority_secrets",
  "reqwest 0.11.27",
  "sea-orm",
  "sea-orm-migration",
  "serde",
+ "serde_json",
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "thiserror",
@@ -1313,6 +1314,24 @@ dependencies = [
  "quote",
  "syn 2.0.74",
  "unicode-xid",
+]
+
+[[package]]
+name = "dev_secrets"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "biscuit-auth",
+ "clap 4.5.9",
+ "identity_jose",
+ "mee_crypto",
+ "mee_data_sync",
+ "mee_secrets_manager",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -3156,12 +3175,13 @@ dependencies = [
  "iroh-willow",
  "log",
  "mee_macro_utils",
- "rand_chacha",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tokio-stream",
+ "utoipa",
  "uuid",
 ]
 
@@ -3203,6 +3223,7 @@ dependencies = [
  "clap 4.5.9",
  "identity_jose",
  "mee_crypto",
+ "mee_data_sync",
  "serde_json",
  "thiserror",
  "tokio",
@@ -4141,23 +4162,6 @@ checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
 dependencies = [
  "bytes",
  "prost",
-]
-
-[[package]]
-name = "provider_authority_secrets"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "biscuit-auth",
- "clap 4.5.9",
- "identity_jose",
- "mee_crypto",
- "mee_secrets_manager",
- "serde_json",
- "thiserror",
- "tokio",
- "uuid",
 ]
 
 [[package]]

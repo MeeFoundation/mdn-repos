@@ -6,7 +6,7 @@ use axum::{
 };
 use axum_extra::headers::authorization::{Bearer, Credentials};
 use biscuit_auth::{Authorizer, AuthorizerLimits, Biscuit};
-use mee_authority_secrets::MeeAuthoritySignatureService;
+use mee_secrets_manager::signatures_service::SignaturesService;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -56,14 +56,14 @@ impl IntoResponse for MeeProviderAuthorizerError {
 pub trait MeeProviderAuthorizer {
     fn mee_authority_signature(
         &self,
-    ) -> Arc<dyn MeeAuthoritySignatureService + Send + Sync>;
+    ) -> Arc<dyn SignaturesService + Send + Sync>;
     async fn authorize_provider(
         &self,
         auth_token: &str,
     ) -> MeeProviderAuthorizerResult<LoggedInProvider> {
         let pkey = self
             .mee_authority_signature()
-            .get_signature_for_biscuit()
+            .get_biscuit_signature()
             .await?
             .ok_or(MeeProviderAuthorizerError::MissingMeeAuthoritySignature)?;
 

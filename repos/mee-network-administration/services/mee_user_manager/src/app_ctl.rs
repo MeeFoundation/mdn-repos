@@ -10,8 +10,11 @@ use mee_http_utils::{
     interservice::InterserviceApiSecretProvider,
     monitoring::health_check_router,
 };
-use mee_authority_secrets::MeeAuthoritySignatureServiceDefault;
-use mee_secrets_manager::client::SimpleFileSecretsManagerClient;
+
+use mee_secrets_manager::{
+    client::SimpleFileSecretsManagerClient,
+    signatures_service::SignaturesServiceDefault,
+};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
@@ -41,15 +44,15 @@ impl AppCtl {
         )
         .await?;
 
-        let mee_authority_signature =
-            Arc::new(MeeAuthoritySignatureServiceDefault::new(
-                app_config.mee_signature_secret_path.clone(),
-                // TODO replace with real world secure secret manager
-                Arc::new(SimpleFileSecretsManagerClient::new(format!(
-                    "{}/../target",
-                    env!("CARGO_MANIFEST_DIR")
-                ))),
-            ));
+        let mee_authority_signature = Arc::new(SignaturesServiceDefault::new(
+            app_config.mee_signature_secret_path.clone(),
+            None,
+            // TODO replace with real world secure secret manager
+            Arc::new(SimpleFileSecretsManagerClient::new(format!(
+                "{}/../target",
+                env!("CARGO_MANIFEST_DIR")
+            ))),
+        ));
 
         Ok(Self {
             user_controller: UserController::new(

@@ -24,17 +24,17 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
         .filter_module("tracing::span", log::LevelFilter::Warn)
         .try_init();
 
-    let virtual_agent_node = create_virtual_agent_node("itmee.org node").await?;
+    let virtual_agent_node = create_virtual_agent_node().await?;
     let via_node_ticket = virtual_agent_node.network_node_ticket().await?;
-    let oyt_mdn_node = create_provider_node("oyt node").await?;
+    let oyt_mdn_node = create_provider_node().await?;
     let oyt_peer_id = oyt_mdn_node.user_id().await?;
     let oyt_node_ticket = oyt_mdn_node.network_node_ticket().await?;
 
-    let untied_mdn_node = create_provider_node("untied node").await?;
+    let untied_mdn_node = create_provider_node().await?;
     let untied_peer_id = untied_mdn_node.user_id().await?;
     let untied_node_ticket = untied_mdn_node.network_node_ticket().await?;
 
-    let alice_wallet_node = create_data_owner_node("alice wallet node").await?;
+    let alice_wallet_node = create_data_owner_node().await?;
     let alice_peer_id = alice_wallet_node.user_id().await?;
     let alice_node_ticket = alice_wallet_node.network_node_ticket().await?;
 

@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils"}
+mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils" }
 
 async-trait = { workspace = true }
 thiserror = { workspace = true }
@@ -16,11 +16,12 @@ futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-uuid = { workspace = true, features = ["v4"]}
+uuid = { workspace = true, features = ["v4"] }
+utoipa = { workspace = true }
 
 bytes = { version = "1.4", features = ["serde"] }
 tokio-stream = "0.1"
-rand_chacha = "0.3"
+rand = "0.8"
 
 # clone this [experimental branch](https://github.com/Voronar/iroh/tree/willow-experiments) next to `mds-repos` root directory
 iroh-willow = { path = "../../../../../iroh/iroh-willow" }

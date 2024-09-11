@@ -19,8 +19,8 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
         .filter_module("tracing::span", log::LevelFilter::Warn)
         .try_init();
 
-    let oyt_mdn_node = create_provider_node("oyt node").await?;
-    let virtual_agent_node = create_virtual_agent_node("itmee.org node").await?;
+    let oyt_mdn_node = create_provider_node().await?;
+    let virtual_agent_node = create_virtual_agent_node().await?;
     let via_node_ticket = virtual_agent_node.network_node_ticket().await?;
 
     let alice_user_id = "alice";
@@ -164,7 +164,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
 
     for c in 0..SHARED_WITH_PEERS_COUNT {
         let node_name = format!("peer-{c}");
-        let other_mdn_node = create_provider_node(&node_name).await?;
+        let other_mdn_node = create_provider_node().await?;
         other_nodes.push(other_mdn_node.clone());
 
         let peer_task = tokio::spawn(share_data_and_sync(ShareDataAndSyncParams {

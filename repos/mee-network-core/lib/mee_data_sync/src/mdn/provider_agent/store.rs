@@ -53,7 +53,8 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
             .get_others_cap_revoke_list_nss()
             .await?;
 
-        let search_schemas_ns = self.mdn_ns_store_manager.get_search_schemas_ns().await?.0;
+        // TODO uncomment
+        // let search_schemas_ns = self.mdn_ns_store_manager.get_search_schemas_ns().await?.0;
 
         let owned_entries = self
             .willow_peer
@@ -73,7 +74,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
                 let ns = c.namespace();
 
                 if ns != own_revoke_list_caps
-                    && ns != search_schemas_ns
+                    // && ns != search_schemas_ns
                     && ns != own_data_namespace_id
                     && !others_revoke_list_caps
                         .iter()

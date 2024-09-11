@@ -20,8 +20,8 @@ mee_db_utils = { path = "../../../mee-utils/lib/mee_db_utils" }
 mee_http_utils = { path = "../../../mee-utils/lib/mee_http_utils" }
 service_utils = { path = "../service_utils" }
 mee_secrets_manager = { path = "../../../mee-network-core/lib/mee_secrets_manager" }
-mee_authority_secrets = { path = "../mee_authority_secrets" }
 mee_crypto = { path = "../../../mee-network-core/lib/mee_crypto" }
+mee_data_sync = { path = "../../../mee-network-core/lib/mee_data_sync" }
 
 clap = { workspace = true, features = ["derive", "env"] }
 sea-orm-migration = { workspace = true }

@@ -26,6 +26,7 @@ use iroh_willow::{
     session::{intents::IntentHandle, SessionInit, SessionMode},
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MdnProviderCapabilityPack {
@@ -137,8 +138,10 @@ pub trait MdnProviderDelegationManager {
     async fn virtual_agent_search_schemas(&self) -> MeeDataSyncResult<Vec<ReadDataRecord>>;
 }
 
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct ImportCapabilitiesFromProvider {
     pub provider_node_ticket: String,
+    #[schema(value_type = Object)]
     pub caps: MdnProviderCapabilityPack,
 }
 
@@ -147,8 +150,10 @@ pub struct ImportCapabilitiesFromDataOwner {
     pub caps: Vec<CapabilityPack>,
 }
 
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct ImportCapabilitiesFromVirtualAgent {
     pub virtual_agent_node_ticket: String,
+    #[schema(value_type = Vec<Object>)]
     pub caps: Vec<CapabilityPack>,
 }
 
@@ -429,6 +434,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
 
         Ok(())
     }
+    /// TODO check if shared_data_path_str actually exists
     async fn delegate_read_access_to_provider(
         &self,
         shared_data_path_str: &str,

@@ -1,4 +1,3 @@
-use super::utils::create_rng;
 use mee_data_sync::{
     error::MeeDataSyncResult,
     mdn::{
@@ -11,10 +10,9 @@ use mee_data_sync::{
 };
 use std::sync::Arc;
 
-pub async fn create_provider_node(
-    entropy: &str,
-) -> MeeDataSyncResult<Arc<dyn MdnAgentProviderNode + Send + Sync>> {
-    let mut rng = create_rng(entropy);
+pub async fn create_provider_node() -> MeeDataSyncResult<Arc<dyn MdnAgentProviderNode + Send + Sync>>
+{
+    let mut rng = rand::thread_rng();
     let iroh_node_secret_key = iroh_net::key::SecretKey::generate_with_rng(&mut rng);
     let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
 
@@ -24,9 +22,8 @@ pub async fn create_provider_node(
 }
 
 pub async fn create_virtual_agent_node(
-    entropy: &str,
 ) -> MeeDataSyncResult<Arc<dyn MdnVirtualAgentNode + Send + Sync>> {
-    let mut rng = create_rng(entropy);
+    let mut rng = rand::thread_rng();
     let iroh_node_secret_key = iroh_net::key::SecretKey::generate_with_rng(&mut rng);
     let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
 
@@ -35,10 +32,8 @@ pub async fn create_virtual_agent_node(
     Ok(Arc::new(virtual_agent_mdn_node))
 }
 
-pub async fn create_data_owner_node(
-    entropy: &str,
-) -> MeeDataSyncResult<MdnAgentDataOwnerNodeWillowImpl> {
-    let mut rng = create_rng(entropy);
+pub async fn create_data_owner_node() -> MeeDataSyncResult<MdnAgentDataOwnerNodeWillowImpl> {
+    let mut rng = rand::thread_rng();
     let iroh_node_secret_key = iroh_net::key::SecretKey::generate_with_rng(&mut rng);
     let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
 

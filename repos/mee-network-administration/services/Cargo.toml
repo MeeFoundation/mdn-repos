@@ -7,7 +7,7 @@ members = [
   "mee_provider_manager",
   "oidc_provider",
   "service_utils",
-  "mee_authority_secrets",
+  "mee_dev_secrets",
 ]
 
 [workspace.package]

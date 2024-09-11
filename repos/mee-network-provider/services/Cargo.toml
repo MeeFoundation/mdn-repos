@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["agent_service", "provider_authority_secrets"]
+members = ["agent_service", "dev_secrets"]
 
 [workspace.package]
 edition = "2021"
@@ -10,6 +10,7 @@ license = "Apache-2.0"
 # async
 async-trait = "0.1"
 tokio = "1.37"
+futures = "0.3"
 
 # cli
 clap = "4.5"

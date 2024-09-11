@@ -42,12 +42,12 @@ use axum_extra::extract::CookieJar;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use mee_db_utils::sql_storage::IRbdStorage;
 use identity_jose::jwk::{Jwk, JwkSet};
+use mee_secrets_manager::signatures_service::SignaturesService;
 use openid::Config;
 use oxide_auth::endpoint::{OwnerConsent, Solicitation};
 use oxide_auth_axum::{OAuthRequest, OAuthResponse, WebError};
 use sea_orm::ConnectionTrait;
 use sea_orm::TransactionTrait;
-use mee_authority_secrets::MeeAuthoritySignatureService;
 use serde::Deserialize;
 use service_utils::{
     mee_provider_manager::{
@@ -67,7 +67,7 @@ pub struct OidcController {
     mee_user_manager_service_client:
         Arc<dyn MeeUserManagerServiceClient + Send + Sync>,
     mee_authority_signature:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+        Arc<dyn SignaturesService + Send + Sync>,
     mee_provider_manager_service_client:
         Arc<dyn MeeProviderManagerServiceClient + Send + Sync>,
     rdb_storage: Arc<dyn IRbdStorage + Send + Sync>,
@@ -80,7 +80,7 @@ impl OidcController {
             dyn MeeUserManagerServiceClient + Send + Sync,
         >,
         mee_authority_signature: Arc<
-            dyn MeeAuthoritySignatureService + Send + Sync,
+            dyn SignaturesService + Send + Sync,
         >,
         mee_provider_manager_service_client: Arc<
             dyn MeeProviderManagerServiceClient + Send + Sync,
@@ -196,7 +196,7 @@ impl OidcController {
     pub async fn jwks(&self) -> MeeOidcProviderResult<JwkSet> {
         let sig = self
             .mee_authority_signature
-            .get_signature()
+            .get_jwk_signature()
             .await?
             .ok_or(MeeOidcProviderErr::MissingMeeAuthoritySignature)?;
 

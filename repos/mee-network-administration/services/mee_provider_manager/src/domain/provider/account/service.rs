@@ -18,7 +18,7 @@ use argon2::{
 use biscuit_auth::macros::biscuit;
 use chrono::{Duration, Utc};
 use mee_crypto::biscuit_auth::biscuit_ed_keypair_from_jwk;
-use mee_authority_secrets::MeeAuthoritySignatureService;
+use mee_secrets_manager::signatures_service::SignaturesService;
 use service_utils::mee_provider_manager::{
     auth::MeeProviderAuthorizer, domain::ProviderRole,
 };
@@ -27,8 +27,7 @@ use std::sync::Arc;
 pub struct ProviderAccountService<'a> {
     provider_account_repository:
         Box<dyn ProviderAccountRepository + Send + Sync + 'a>,
-    mee_authority_signature:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+    mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
 }
 
 impl<'a> ProviderAccountService<'a> {
@@ -36,9 +35,7 @@ impl<'a> ProviderAccountService<'a> {
         provider_account_repository: Box<
             dyn ProviderAccountRepository + Send + Sync + 'a,
         >,
-        mee_authority_signature: Arc<
-            dyn MeeAuthoritySignatureService + Send + Sync,
-        >,
+        mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
     ) -> Self {
         Self {
             provider_account_repository,
@@ -57,7 +54,7 @@ impl<'a> ProviderAccountService<'a> {
         &self,
         provider: ProviderAccountDomainModel,
     ) -> MeeProviderManagerResult<ProviderAccountLoginResponse> {
-        let mee_sig = self.mee_authority_signature.get_signature().await?;
+        let mee_sig = self.mee_authority_signature.get_jwk_signature().await?;
 
         let root_key = mee_sig
             .as_ref()
@@ -172,7 +169,7 @@ impl<'a> ProviderAccountService<'a> {
 impl<'a> MeeProviderAuthorizer for ProviderAccountService<'a> {
     fn mee_authority_signature(
         &self,
-    ) -> Arc<dyn MeeAuthoritySignatureService + Send + Sync> {
+    ) -> Arc<dyn SignaturesService + Send + Sync> {
         self.mee_authority_signature.clone()
     }
 }

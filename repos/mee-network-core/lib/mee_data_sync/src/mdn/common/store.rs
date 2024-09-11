@@ -208,7 +208,8 @@ pub trait MdnAgentDataNodeKvStore {
             .insert_entry(self.data_ns().await?, path, value.clone())
             .await?;
 
-        self.post_set_value(key, value).await?;
+        // TODO uncomment
+        // self.post_set_value(key, value).await?;
 
         Ok(())
     }
@@ -217,7 +218,8 @@ pub trait MdnAgentDataNodeKvStore {
     async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool> {
         let res = self.remove_entries(key).await?.pop().unwrap_or(false);
 
-        self.post_del_value(key).await?;
+        // TODO uncomment
+        // self.post_del_value(key).await?;
 
         Ok(res)
     }
