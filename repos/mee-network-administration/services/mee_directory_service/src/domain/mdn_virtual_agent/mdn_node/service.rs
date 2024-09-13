@@ -1,11 +1,13 @@
 use crate::error::MeeDirectoryServiceResult;
+use futures::StreamExt;
 use mee_data_sync::{
     iroh::iroh_net::key::SecretKey,
     mdn::{
-        common::node::MdnVirtualAgentNode,
+        common::{node::MdnVirtualAgentNode, store::ReadDataRecord},
+        provider_agent::delegation::manager::ImportCapabilitiesFromVirtualAgent,
         virtual_agent::node::VirtualAgentWillowNodeImpl,
     },
-    willow::{interest::CapabilityPack, keys::UserId, peer::WillowPeer},
+    willow::{keys::UserId, peer::WillowPeer},
 };
 use std::sync::Arc;
 
@@ -32,14 +34,34 @@ impl MdnVirtualAgentNodeService {
 
         Ok(ticket.to_string())
     }
+    pub async fn search_schemas(
+        &self,
+    ) -> MeeDirectoryServiceResult<Vec<ReadDataRecord>> {
+        let res = self
+            .node
+            .search_schemas_store()
+            .get_all_values_stream()
+            .await?
+            .collect()
+            .await;
+
+        Ok(res)
+    }
     pub async fn share_search_schemas_ns_with_provider(
         &self,
         provider_id: UserId,
-    ) -> MeeDirectoryServiceResult<Vec<CapabilityPack>> {
-        Ok(self
+    ) -> MeeDirectoryServiceResult<ImportCapabilitiesFromVirtualAgent> {
+        let caps = self
             .node
             .mdn_delegation_manager()
             .share_search_schemas_ns_with_provider(provider_id)
-            .await?)
+            .await?;
+
+        let res = ImportCapabilitiesFromVirtualAgent {
+            virtual_agent_node_ticket: self.iroh_net_ticket().await?,
+            caps,
+        };
+
+        Ok(res)
     }
 }

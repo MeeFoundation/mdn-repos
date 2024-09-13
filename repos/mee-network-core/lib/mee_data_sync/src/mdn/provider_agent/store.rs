@@ -53,8 +53,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
             .get_others_cap_revoke_list_nss()
             .await?;
 
-        // TODO uncomment
-        // let search_schemas_ns = self.mdn_ns_store_manager.get_search_schemas_ns().await?.0;
+        let search_schemas_ns = self.mdn_ns_store_manager.get_search_schemas_ns().await?;
 
         let owned_entries = self
             .willow_peer
@@ -74,7 +73,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
                 let ns = c.namespace();
 
                 if ns != own_revoke_list_caps
-                    // && ns != search_schemas_ns
+                    && search_schemas_ns.map(|sns| sns.0 != ns).unwrap_or(true)
                     && ns != own_data_namespace_id
                     && !others_revoke_list_caps
                         .iter()
@@ -136,14 +135,14 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
     async fn post_set_value(&self, key: &str, _value: Vec<u8>) -> MeeDataSyncResult {
         let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
 
-        self.willow_peer()
-            .willow_data_manager
-            .insert_entry(
-                self.mdn_ns_store_manager.get_search_schemas_ns().await?.0,
-                path,
-                empty_entry_payload().to_vec(),
-            )
-            .await?;
+        // TODO Mandatory search namespace schema before any operation or
+        // later search schema fill up with all written entry paths
+        if let Some(search_schemas_ns) = self.mdn_ns_store_manager.get_search_schemas_ns().await? {
+            self.willow_peer()
+                .willow_data_manager
+                .insert_entry(search_schemas_ns.0, path, empty_entry_payload().to_vec())
+                .await?;
+        }
 
         Ok(())
     }
@@ -151,23 +150,22 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
     async fn post_del_value(&self, key: &str) -> MeeDataSyncResult {
         let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
 
-        let entries = self
-            .willow_peer
-            .willow_data_manager
-            .get_entries_stream(
-                self.mdn_ns_store_manager.get_search_schemas_ns().await?.0,
-                Range3d::new_full(),
-            )
-            .await?
-            .try_filter(|e| async_move! { e.path() == &path })
-            .try_collect()
-            .await?;
+        if let Some(search_schemas_ns) = self.mdn_ns_store_manager.get_search_schemas_ns().await? {
+            let entries = self
+                .willow_peer
+                .willow_data_manager
+                .get_entries_stream(search_schemas_ns.0, Range3d::new_full())
+                .await?
+                .try_filter(|e| async_move! { e.path() == &path })
+                .try_collect()
+                .await?;
 
-        let _res = self
-            .willow_peer
-            .willow_data_manager
-            .remove_entries_softly(entries)
-            .await?;
+            let _res = self
+                .willow_peer
+                .willow_data_manager
+                .remove_entries_softly(entries)
+                .await?;
+        }
 
         Ok(())
     }

@@ -32,7 +32,7 @@ use manager::{
     MdnProviderDelegationManager,
 };
 use mee_macro_utils::let_clone;
-use std::{collections::HashSet, sync::Arc, time::Duration};
+use std::{collections::HashSet, convert::identity, sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};
 
 pub mod manager;
@@ -158,53 +158,50 @@ impl MdnProviderDelegationManagerImpl {
         Ok(revocation_list)
     }
 
-    async fn send_signal_to_owner_cap_list(&self, req_path: Path) -> MeeDataSyncResult {
-        if let Some(owner_cap_list) = self
-            .mdn_ns_store_manager
-            .get_data_owner_cap_list_ns()
-            .await?
-        {
-            let data_owner_cap_list = self
+    async fn send_signal_to_owner_cap_list(
+        &self,
+        req_path: Path,
+        owner_cap_list: NamespaceId,
+    ) -> MeeDataSyncResult {
+        let data_owner_cap_list = self
+            .willow_peer
+            .willow_data_manager
+            .get_entries(owner_cap_list, Range3d::new_full())
+            .await?;
+
+        let req_in_owner_list = data_owner_cap_list
+            .into_iter()
+            .find(|e| e.path() == &req_path);
+
+        if let Some(req_in_owner_list) = req_in_owner_list {
+            let mut record = self
                 .willow_peer
                 .willow_data_manager
-                .get_entries(owner_cap_list.0, Range3d::new_full())
+                .map_payload([req_in_owner_list], |e| e.clone(), |_, p| Ok(p.to_vec()))
                 .await?;
 
-            let req_in_owner_list = data_owner_cap_list
-                .into_iter()
-                .find(|e| e.path() == &req_path);
+            if let Some(record) = record.pop() {
+                let cap_id = req_path.get_component(2);
 
-            if let Some(req_in_owner_list) = req_in_owner_list {
-                let mut record = self
-                    .willow_peer
-                    .willow_data_manager
-                    .map_payload([req_in_owner_list], |e| e.clone(), |_, p| Ok(p.to_vec()))
-                    .await?;
+                if let Some(cap_id) = cap_id {
+                    let cap_id = String::from_utf8(cap_id.to_vec())?;
+                    let local_cap_list = self.mdn_provider_capability_manager.store.list_caps()?;
+                    let removed = local_cap_list.iter().find(|c| c.capability_id == cap_id);
 
-                if let Some(record) = record.pop() {
-                    let cap_id = req_path.get_component(2);
+                    if let Some(removed) = removed {
+                        self.mdn_provider_capability_manager
+                            .store
+                            .del_cap(&removed.capability_id)?;
 
-                    if let Some(cap_id) = cap_id {
-                        let cap_id = String::from_utf8(cap_id.to_vec())?;
-                        let local_cap_list =
-                            self.mdn_provider_capability_manager.store.list_caps()?;
-                        let removed = local_cap_list.iter().find(|c| c.capability_id == cap_id);
+                        let path = revocation_done_record_path(
+                            removed.cap_receiver,
+                            &removed.capability_id,
+                        )?;
 
-                        if let Some(removed) = removed {
-                            self.mdn_provider_capability_manager
-                                .store
-                                .del_cap(&removed.capability_id)?;
-
-                            let path = revocation_done_record_path(
-                                removed.cap_receiver,
-                                &removed.capability_id,
-                            )?;
-
-                            self.willow_peer
-                                .willow_data_manager
-                                .insert_entry(owner_cap_list.0, path, record)
-                                .await?;
-                        }
+                        self.willow_peer
+                            .willow_data_manager
+                            .insert_entry(owner_cap_list, path, record)
+                            .await?;
                     }
                 }
             }
@@ -230,9 +227,10 @@ impl MdnProviderDelegationManagerImpl {
             let req_path = req.path().clone();
 
             let task = async move {
-                self.willow_peer
+                let deleted = self
+                    .willow_peer
                     .willow_data_manager
-                    .remove_entries_softly(vec![req])
+                    .remove_entries_softly(vec![req.clone()])
                     .await?;
 
                 self.willow_peer
@@ -240,7 +238,32 @@ impl MdnProviderDelegationManagerImpl {
                     .remove_entries_softly_for_subspace(vec![res], user)
                     .await?;
 
-                self.send_signal_to_owner_cap_list(req_path).await?;
+                if let Some(owner_cap_list) = self
+                    .mdn_ns_store_manager
+                    .get_data_owner_cap_list_ns()
+                    .await?
+                {
+                    self.send_signal_to_owner_cap_list(req_path, owner_cap_list.0)
+                        .await?;
+                } else {
+                    if deleted.into_iter().all(identity) {
+                        if let Some(cap) = self
+                            .willow_peer
+                            .willow_data_manager
+                            .map_payload(
+                                vec![req],
+                                |e| e.clone(),
+                                |_, b| MdnDataRevocationListRecord::decode(b),
+                            )
+                            .await?
+                            .pop()
+                        {
+                            self.mdn_provider_capability_manager
+                                .store
+                                .del_cap(&cap.revocation_id)?;
+                        }
+                    }
+                }
 
                 MeeDataSyncResult::Ok(())
             };

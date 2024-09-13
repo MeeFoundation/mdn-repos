@@ -1,5 +1,5 @@
 use super::mdn_node::api_methods::{
-    iroh_ticket, share_search_schemas_ns_with_provider,
+    iroh_ticket, search_schemas, share_search_schemas_ns_with_provider,
 };
 use crate::app_ctl::AppCtl;
 use axum::{
@@ -11,7 +11,7 @@ pub fn mdn_virtual_agent_router() -> Router<AppCtl> {
     Router::new()
         .nest(
             "/node",
-            Router::new().route("/iroh_ticket", get(iroh_ticket)), // .route("/willow_id", get(willow_id)),
+            Router::new().route("/iroh_ticket", get(iroh_ticket)),
         )
         .nest(
             "/capabilities",
@@ -19,5 +19,9 @@ pub fn mdn_virtual_agent_router() -> Router<AppCtl> {
                 "/share_search_schemas_ns_with_provider",
                 post(share_search_schemas_ns_with_provider),
             ),
+        )
+        .nest(
+            "/persona",
+            Router::new().route("/search_schemas", get(search_schemas)),
         )
 }

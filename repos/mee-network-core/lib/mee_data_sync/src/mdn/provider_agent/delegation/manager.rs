@@ -165,12 +165,15 @@ pub struct DelegatePrivilegedAccessToOwner {
 #[async_trait]
 impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
     async fn virtual_agent_search_schemas(&self) -> MeeDataSyncResult<Vec<ReadDataRecord>> {
-        let search_schemas_ns = self.mdn_ns_store_manager.get_search_schemas_ns().await?.0;
+        let Some(search_schemas_ns) = self.mdn_ns_store_manager.get_search_schemas_ns().await?
+        else {
+            return Ok(vec![]);
+        };
 
         let list: Vec<_> = self
             .willow_peer
             .willow_data_manager
-            .get_entries_stream(search_schemas_ns, Range3d::new_full())
+            .get_entries_stream(search_schemas_ns.0, Range3d::new_full())
             .await?
             .try_collect()
             .await?;

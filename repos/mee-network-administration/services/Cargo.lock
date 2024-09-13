@@ -3082,6 +3082,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
+ "futures",
  "mee_crypto",
  "mee_data_sync",
  "mee_db_utils",

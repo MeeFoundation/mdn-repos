@@ -9,6 +9,8 @@ use iroh_willow::proto::{
     data_model::{Entry, NamespaceId, Path, PathExt},
     grouping::Range3d,
 };
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// `{user_id}/{root_attribute}/{root_attribute_id}/{sub_attribute}`
 pub struct FullPathAttribute {
@@ -29,7 +31,7 @@ pub enum KeyComponents {
     ShortPathAttribute(ShortPathAttribute),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Hash, PartialEq, Eq, ToSchema)]
 pub struct ReadDataRecord {
     pub key: String,
     pub value: Vec<u8>,
@@ -208,8 +210,7 @@ pub trait MdnAgentDataNodeKvStore {
             .insert_entry(self.data_ns().await?, path, value.clone())
             .await?;
 
-        // TODO uncomment
-        // self.post_set_value(key, value).await?;
+        self.post_set_value(key, value).await?;
 
         Ok(())
     }
@@ -218,8 +219,7 @@ pub trait MdnAgentDataNodeKvStore {
     async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool> {
         let res = self.remove_entries(key).await?.pop().unwrap_or(false);
 
-        // TODO uncomment
-        // self.post_del_value(key).await?;
+        self.post_del_value(key).await?;
 
         Ok(res)
     }

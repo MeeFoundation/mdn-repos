@@ -277,12 +277,10 @@ impl MdnProviderNamespaceStoreManager {
 
         Ok(res)
     }
-    pub async fn get_search_schemas_ns(&self) -> MeeDataSyncResult<VirtualAgentSearchSchemasNs> {
-        let res = self
-            .store
-            .get_search_schemas_ns()
-            .await?
-            .ok_or_else(MeeDataSyncErr::missing_search_schemas_namespace)?;
+    pub async fn get_search_schemas_ns(
+        &self,
+    ) -> MeeDataSyncResult<Option<VirtualAgentSearchSchemasNs>> {
+        let res = self.store.get_search_schemas_ns().await?;
 
         Ok(res)
     }
@@ -325,8 +323,5 @@ impl MeeDataSyncErr {
         MeeDataSyncErr::WillowNamespaceHandler(
             "Missing capability revocation namespace".to_string(),
         )
-    }
-    fn missing_search_schemas_namespace() -> Self {
-        MeeDataSyncErr::WillowNamespaceHandler("Missing search schemas namespace".to_string())
     }
 }

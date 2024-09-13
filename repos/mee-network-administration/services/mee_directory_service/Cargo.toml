@@ -37,6 +37,7 @@ reqwest = { workspace = true, default-features = false, features = [
   "json",
   "rustls-tls",
 ] }
+futures = { workspace = true }
 dotenvy = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }

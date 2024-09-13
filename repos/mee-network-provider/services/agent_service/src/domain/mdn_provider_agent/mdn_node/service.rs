@@ -1,17 +1,18 @@
 use super::api_types::{
-    DelegateReadAccessToProviderRequest, GetPersonaAttributesRequest,
-    GetPersonaAttributesResponse, SetPersonaAttributesRequest,
+    DelPersonaAttributesRequest, DelegateReadAccessToProviderRequest,
+    DelegatedCap, GetPersonaAttributesRequest, GetPersonaAttributesResponse,
+    SetPersonaAttributesRequest,
 };
 use crate::error::AgentServiceResult;
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use mee_data_sync::{
     iroh::iroh_net::key::SecretKey,
     mdn::{
-        common::node::MdnAgentProviderNode,
+        common::{node::MdnAgentProviderNode, store::ReadDataRecord},
         provider_agent::{
             delegation::manager::{
                 ImportCapabilitiesFromProvider,
-                ImportCapabilitiesFromVirtualAgent, MdnProviderCapabilityPack,
+                ImportCapabilitiesFromVirtualAgent,
             },
             node::MdnAgentProviderNodeWillowImpl,
         },
@@ -38,6 +39,39 @@ impl MdnProviderAgentNodeService {
             node: provider_mdn_node,
         })
     }
+    pub async fn delegated_caps(
+        &self,
+    ) -> AgentServiceResult<Vec<DelegatedCap>> {
+        let res = self
+            .node
+            .mdn_delegation_manager()
+            .delegated_caps()
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+        Ok(res)
+    }
+    pub async fn revoke_shared_access_from_provider(
+        &self,
+        DelegatedCap {
+            capability_id,
+            shared_data_path,
+            cap_receiver,
+        }: DelegatedCap,
+    ) -> AgentServiceResult {
+        self.node
+            .mdn_delegation_manager()
+            .revoke_shared_access_from_provider(
+                &capability_id,
+                &shared_data_path,
+                cap_receiver.parse()?,
+            )
+            .await?;
+
+        Ok(())
+    }
     pub async fn set_persona_attributes(
         &self,
         SetPersonaAttributesRequest { key, value }: SetPersonaAttributesRequest,
@@ -49,29 +83,33 @@ impl MdnProviderAgentNodeService {
 
         Ok(())
     }
+    pub async fn del_persona_attributes(
+        &self,
+        DelPersonaAttributesRequest { key }: DelPersonaAttributesRequest,
+    ) -> AgentServiceResult<bool> {
+        let res = self.node.mdn_data_store().del_value(&key).await?;
+
+        Ok(res)
+    }
     pub async fn get_persona_attributes(
         &self,
         GetPersonaAttributesRequest { key }: GetPersonaAttributesRequest,
-    ) -> AgentServiceResult<Option<GetPersonaAttributesResponse>> {
-        let mut res: Vec<_> = self
+    ) -> AgentServiceResult<Vec<GetPersonaAttributesResponse>> {
+        let res: Vec<_> = self
             .node
             .mdn_data_store()
             .get_all_values_stream()
             .await?
-            .filter_map(|v| async {
-                if v.key == key {
-                    Some(v)
+            .map(AgentServiceResult::Ok)
+            .try_filter_map(|v| async {
+                Ok(if v.key.starts_with(&key) {
+                    Some(v.try_into()?)
                 } else {
                     None
-                }
+                })
             })
-            .collect()
-            .await;
-
-        let res = match res.pop() {
-            Some(r) => Some(r.try_into()?),
-            None => None,
-        };
+            .try_collect()
+            .await?;
 
         Ok(res)
     }
@@ -119,12 +157,17 @@ impl MdnProviderAgentNodeService {
             data_path,
             provider_id,
         }: DelegateReadAccessToProviderRequest,
-    ) -> AgentServiceResult<MdnProviderCapabilityPack> {
-        let res = self
+    ) -> AgentServiceResult<ImportCapabilitiesFromProvider> {
+        let caps = self
             .node
             .mdn_delegation_manager()
             .delegate_read_access_to_provider(&data_path, provider_id.parse()?)
             .await?;
+
+        let res = ImportCapabilitiesFromProvider {
+            provider_node_ticket: self.iroh_net_ticket().await?,
+            caps,
+        };
 
         Ok(res)
     }
@@ -137,5 +180,14 @@ impl MdnProviderAgentNodeService {
         let ticket = self.node.user_id().await?;
 
         Ok(ticket.to_string())
+    }
+    pub async fn virtual_agent_search_schemas(
+        &self,
+    ) -> AgentServiceResult<Vec<ReadDataRecord>> {
+        Ok(self
+            .node
+            .mdn_delegation_manager()
+            .virtual_agent_search_schemas()
+            .await?)
     }
 }
