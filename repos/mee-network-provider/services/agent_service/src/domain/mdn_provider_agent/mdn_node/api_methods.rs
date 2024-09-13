@@ -237,7 +237,7 @@ pub async fn get_persona_attributes(
     (
         status = 200,
         description = "Delete persona attributes",
-        body = bool,
+        body = Vec<bool>,
     ),
     (status = 500, description = "Something went wrong", body = String),
   ),
@@ -245,7 +245,7 @@ pub async fn get_persona_attributes(
 pub async fn del_persona_attributes(
     State(app_ctl): State<AppCtl>,
     Json(payload): Json<DelPersonaAttributesRequest>,
-) -> AgentServiceResult<Json<bool>> {
+) -> AgentServiceResult<Json<Vec<bool>>> {
     let res = app_ctl
         .mdn_provider_agent_ctl
         .mdn_provider_agent_node_service

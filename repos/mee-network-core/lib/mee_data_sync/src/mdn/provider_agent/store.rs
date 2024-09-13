@@ -2,34 +2,20 @@ use super::node::MdnAgentProviderNodeWillowImpl;
 use crate::{
     async_move,
     error::MeeDataSyncResult,
-    mdn::common::store::{
-        data_entry_path_from_key_components, key_components, KeyComponents, MdnAgentDataNodeKvStore,
-    },
+    mdn::common::store::{data_entry_path_from_key_path, MdnAgentDataNodeKvStore},
     utils::try_stream_dedup,
     willow::utils::empty_entry_payload,
 };
 use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt, TryStreamExt};
 use iroh_willow::proto::{
-    data_model::{Entry, NamespaceId, Path},
+    data_model::{Entry, NamespaceId},
     grouping::Range3d,
 };
 use mee_macro_utils::let_clone;
 
 #[async_trait]
 impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
-    type KeyComps = KeyComponents;
-
-    fn data_entry_path_from_key_components(
-        &self,
-        key_components: Self::KeyComps,
-    ) -> MeeDataSyncResult<Path> {
-        data_entry_path_from_key_components(key_components)
-    }
-    fn key_components(&self, key: &str) -> MeeDataSyncResult<Self::KeyComps> {
-        key_components(key)
-    }
-
     fn willow_peer(&self) -> crate::willow::peer::WillowPeer {
         self.willow_peer.clone()
     }
@@ -112,14 +98,13 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
         Ok(entries.boxed())
     }
     async fn remove_entries(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
-        let comps = key_components(key)?;
-        let path = data_entry_path_from_key_components(comps)?;
+        let path = data_entry_path_from_key_path(key)?;
         let range = Range3d::new_full();
 
         let entries: Vec<_> = self
             .data_entries(range)
             .await?
-            .try_filter(|e| async_move! {e.path() == &path})
+            .try_filter(|e| async_move! {e.path().is_prefixed_by(&path)})
             .try_collect()
             .await?;
 
@@ -133,7 +118,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
     }
 
     async fn post_set_value(&self, key: &str, _value: Vec<u8>) -> MeeDataSyncResult {
-        let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
+        let path = data_entry_path_from_key_path(key)?;
 
         // TODO Mandatory search namespace schema before any operation or
         // later search schema fill up with all written entry paths
@@ -148,7 +133,7 @@ impl MdnAgentDataNodeKvStore for MdnAgentProviderNodeWillowImpl {
     }
 
     async fn post_del_value(&self, key: &str) -> MeeDataSyncResult {
-        let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
+        let path = data_entry_path_from_key_path(key)?;
 
         if let Some(search_schemas_ns) = self.mdn_ns_store_manager.get_search_schemas_ns().await? {
             let entries = self

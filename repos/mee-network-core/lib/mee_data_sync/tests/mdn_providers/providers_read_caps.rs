@@ -139,7 +139,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
         .del_value(&temp_bob_phone_path)
         .await?;
 
-    assert!(res);
+    assert!(!res.is_empty());
 
     let bob_phone = oyt_mdn_node
         .mdn_data_store()
@@ -199,7 +199,7 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
                             .del_value(&alice_city_path)
                             .await?;
 
-                        assert!(del);
+                        assert!(!del.is_empty());
                     }
                     TestCase::RevokeCapability {
                         other_willow_node_user_id,

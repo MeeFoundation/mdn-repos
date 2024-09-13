@@ -6,10 +6,8 @@ use super::{
 use crate::{
     error::MeeDataSyncResult,
     mdn::common::{
-        network::MdnAgentDataNodeNetworkOps,
-        node::MdnAgentProviderNode,
-        store::{KeyComponents, MdnAgentDataNodeKvStore},
-        user::MdnAgentDataNodeUserOps,
+        network::MdnAgentDataNodeNetworkOps, node::MdnAgentProviderNode,
+        store::MdnAgentDataNodeKvStore, user::MdnAgentDataNodeUserOps,
     },
     willow::peer::WillowPeer,
 };
@@ -29,9 +27,7 @@ impl MdnAgentProviderNode for MdnAgentProviderNodeWillowImpl {
     fn mdn_delegation_manager(&self) -> Arc<dyn MdnProviderDelegationManager + Send + Sync> {
         self.mdn_delegation_manager.clone()
     }
-    fn mdn_data_store(
-        &self,
-    ) -> Arc<dyn MdnAgentDataNodeKvStore<KeyComps = KeyComponents> + Send + Sync> {
+    fn mdn_data_store(&self) -> Arc<dyn MdnAgentDataNodeKvStore + Send + Sync> {
         Arc::new(self.clone())
     }
 }

@@ -8,7 +8,7 @@ use crate::{
                 revocation_request_record_path_prefix, CAPABILITY_LIST_PATH_PREFIX,
                 REVOCATION_REQUEST_PATH_PREFIX,
             },
-            store::{data_entry_path_from_key_components, key_components},
+            store::data_entry_path_from_key_path,
         },
         utils::find_revocation_cap_pairs,
     },
@@ -90,8 +90,7 @@ impl MdnProviderDelegationManagerImpl {
         let _: Vec<_> = futures::stream::iter(caps)
             .map(MeeDataSyncResult::Ok)
             .and_then(|cap| async move {
-                let comps = key_components(&cap.record.shared_data_path)?;
-                let path = data_entry_path_from_key_components(comps)?;
+                let path = data_entry_path_from_key_path(&cap.record.shared_data_path)?;
 
                 let cap_selector = CapSelector::new(
                     cap.record.data_owner_ns,

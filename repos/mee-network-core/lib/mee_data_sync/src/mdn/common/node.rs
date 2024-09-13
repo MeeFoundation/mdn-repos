@@ -1,6 +1,5 @@
 use super::{
-    network::MdnAgentDataNodeNetworkOps,
-    store::{KeyComponents, MdnAgentDataNodeKvStore},
+    network::MdnAgentDataNodeNetworkOps, store::MdnAgentDataNodeKvStore,
     user::MdnAgentDataNodeUserOps,
 };
 use crate::mdn::{
@@ -12,9 +11,7 @@ use std::sync::Arc;
 
 pub trait MdnAgentProviderNode: MdnAgentDataNodeNetworkOps + MdnAgentDataNodeUserOps {
     fn mdn_delegation_manager(&self) -> Arc<dyn MdnProviderDelegationManager + Send + Sync>;
-    fn mdn_data_store(
-        &self,
-    ) -> Arc<dyn MdnAgentDataNodeKvStore<KeyComps = KeyComponents> + Send + Sync>;
+    fn mdn_data_store(&self) -> Arc<dyn MdnAgentDataNodeKvStore + Send + Sync>;
 }
 
 pub trait MdnAgentDataOwnerNode:
@@ -25,7 +22,5 @@ pub trait MdnAgentDataOwnerNode:
 
 pub trait MdnVirtualAgentNode: MdnAgentDataNodeNetworkOps + MdnAgentDataNodeUserOps {
     fn mdn_delegation_manager(&self) -> VirtualAgentDelegationManager;
-    fn search_schemas_store(
-        &self,
-    ) -> Arc<dyn MdnAgentDataNodeKvStore<KeyComps = KeyComponents> + Send + Sync>;
+    fn search_schemas_store(&self) -> Arc<dyn MdnAgentDataNodeKvStore + Send + Sync>;
 }

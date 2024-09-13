@@ -86,7 +86,7 @@ impl MdnProviderAgentNodeService {
     pub async fn del_persona_attributes(
         &self,
         DelPersonaAttributesRequest { key }: DelPersonaAttributesRequest,
-    ) -> AgentServiceResult<bool> {
+    ) -> AgentServiceResult<Vec<bool>> {
         let res = self.node.mdn_data_store().del_value(&key).await?;
 
         Ok(res)

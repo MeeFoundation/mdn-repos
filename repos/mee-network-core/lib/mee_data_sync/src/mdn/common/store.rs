@@ -1,6 +1,6 @@
 use crate::{
     async_move,
-    error::{MeeDataSyncErr, MeeDataSyncResult},
+    error::MeeDataSyncResult,
     willow::{peer::WillowPeer, utils::is_deleted_entry_payload},
 };
 use async_trait::async_trait;
@@ -12,25 +12,6 @@ use iroh_willow::proto::{
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-/// `{user_id}/{root_attribute}/{root_attribute_id}/{sub_attribute}`
-pub struct FullPathAttribute {
-    pub user_id: String,
-    pub attribute_name: String,
-    pub attribute_instance_id: String,
-    pub sub_attribute_name: String,
-}
-
-/// `{user_id}/{root_attribute}`
-pub struct ShortPathAttribute {
-    pub user_id: String,
-    pub attribute_name: String,
-}
-
-pub enum KeyComponents {
-    FullPathAttribute(FullPathAttribute),
-    ShortPathAttribute(ShortPathAttribute),
-}
-
 #[derive(Serialize, Deserialize, Debug, Hash, PartialEq, Eq, ToSchema)]
 pub struct ReadDataRecord {
     pub key: String,
@@ -39,61 +20,10 @@ pub struct ReadDataRecord {
 
 pub const KEY_COMPONENTS_SPLITTER: &str = "/";
 
-/// Extracts key parts (user, attribute name, sub-attribute name, etc.) from a key.
-pub fn key_components(key: &str) -> MeeDataSyncResult<KeyComponents> {
-    let components = key.split(KEY_COMPONENTS_SPLITTER).collect::<Vec<_>>();
-
-    let kc = match &components[..] {
-        [user_id, attribute_name] => KeyComponents::ShortPathAttribute(ShortPathAttribute {
-            user_id: user_id.to_string(),
-            attribute_name: attribute_name.to_string(),
-        }),
-        [user_id, attribute_name, attribute_instance_id, sub_attribute_name] => {
-            KeyComponents::FullPathAttribute(FullPathAttribute {
-                user_id: user_id.to_string(),
-                attribute_name: attribute_name.to_string(),
-                attribute_instance_id: attribute_instance_id.to_string(),
-                sub_attribute_name: sub_attribute_name.to_string(),
-            })
-        }
-        _ => Err(MeeDataSyncErr::SyncedKvStorage(format!(
-            "Error parsing key components: Invalid key: {key}"
-        )))?,
-    };
-
-    Ok(kc)
-}
-
-pub fn data_entry_path_from_key_components(
-    key_components: KeyComponents,
-) -> MeeDataSyncResult<Path> {
-    let mut path_components = vec![];
-
-    match key_components {
-        KeyComponents::FullPathAttribute(FullPathAttribute {
-            user_id,
-            attribute_name,
-            attribute_instance_id,
-            sub_attribute_name,
-        }) => {
-            path_components.extend(vec![
-                user_id,
-                attribute_name,
-                attribute_instance_id,
-                sub_attribute_name,
-            ]);
-        }
-        KeyComponents::ShortPathAttribute(ShortPathAttribute {
-            user_id,
-            attribute_name,
-        }) => {
-            path_components.extend(vec![user_id, attribute_name]);
-        }
-    }
-
-    let path_components = path_components
-        .iter()
-        .map(String::as_bytes)
+pub fn data_entry_path_from_key_path(key_path: &str) -> MeeDataSyncResult<Path> {
+    let path_components = key_path
+        .split(KEY_COMPONENTS_SPLITTER)
+        .map(|s| s.as_bytes())
         .collect::<Vec<_>>();
 
     let path = Path::from_bytes(&path_components)?;
@@ -103,15 +33,6 @@ pub fn data_entry_path_from_key_components(
 
 #[async_trait]
 pub trait MdnAgentDataNodeKvStore {
-    type KeyComps;
-
-    fn data_entry_path_from_key_components(
-        &self,
-        key_components: Self::KeyComps,
-    ) -> MeeDataSyncResult<Path>;
-
-    fn key_components(&self, key: &str) -> MeeDataSyncResult<Self::KeyComps>;
-
     fn willow_peer(&self) -> WillowPeer;
 
     async fn data_ns(&self) -> MeeDataSyncResult<NamespaceId>;
@@ -203,7 +124,7 @@ pub trait MdnAgentDataNodeKvStore {
     }
 
     async fn set_value(&self, key: &str, value: Vec<u8>) -> MeeDataSyncResult {
-        let path = self.data_entry_path_from_key_components(self.key_components(key)?)?;
+        let path = data_entry_path_from_key_path(key)?;
 
         self.willow_peer()
             .willow_data_manager
@@ -216,8 +137,8 @@ pub trait MdnAgentDataNodeKvStore {
     }
 
     /// Delete value by key (full path is required!)
-    async fn del_value(&self, key: &str) -> MeeDataSyncResult<bool> {
-        let res = self.remove_entries(key).await?.pop().unwrap_or(false);
+    async fn del_value(&self, key: &str) -> MeeDataSyncResult<Vec<bool>> {
+        let res = self.remove_entries(key).await?;
 
         self.post_del_value(key).await?;
 

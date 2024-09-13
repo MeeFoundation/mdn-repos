@@ -5,10 +5,8 @@ use super::{
 use crate::{
     error::MeeDataSyncResult,
     mdn::common::{
-        network::MdnAgentDataNodeNetworkOps,
-        node::MdnVirtualAgentNode,
-        store::{KeyComponents, MdnAgentDataNodeKvStore},
-        user::MdnAgentDataNodeUserOps,
+        network::MdnAgentDataNodeNetworkOps, node::MdnVirtualAgentNode,
+        store::MdnAgentDataNodeKvStore, user::MdnAgentDataNodeUserOps,
     },
     willow::peer::WillowPeer,
 };
@@ -63,9 +61,7 @@ impl MdnVirtualAgentNode for VirtualAgentWillowNodeImpl {
         self.virtual_agent_delegation_manager.clone()
     }
 
-    fn search_schemas_store(
-        &self,
-    ) -> std::sync::Arc<dyn MdnAgentDataNodeKvStore<KeyComps = KeyComponents> + Send + Sync> {
+    fn search_schemas_store(&self) -> std::sync::Arc<dyn MdnAgentDataNodeKvStore + Send + Sync> {
         Arc::new(self.search_schemas_store.clone())
     }
 }
