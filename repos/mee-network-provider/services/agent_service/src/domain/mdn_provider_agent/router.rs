@@ -45,7 +45,7 @@ pub fn mdn_provider_agent_router() -> Router<AppCtl> {
                     "/import_search_schemas_ns_from_virtual_agent",
                     post(import_search_schemas_ns_from_virtual_agent),
                 )
-                .route("/delegated_caps", post(delegated_caps))
+                .route("/delegated_caps", get(delegated_caps))
                 .route(
                     "/revoke_shared_access_from_provider",
                     post(revoke_shared_access_from_provider),

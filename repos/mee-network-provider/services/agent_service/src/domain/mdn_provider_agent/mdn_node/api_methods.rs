@@ -138,7 +138,7 @@ pub async fn revoke_shared_access_from_provider(
 }
 
 #[utoipa::path(
-  post,
+  get,
   path = "/api/v1/provider_agent/capabilities/delegated_caps",
   responses(
       (status = 200, description = "Revokes issued capability", body = Vec<DelegatedCap>),

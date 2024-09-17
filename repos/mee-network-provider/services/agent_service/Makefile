@@ -12,4 +12,6 @@ run_provider1:
 
 run_provider2:
 		cd ../dev_secrets && make gen_dev_provider_signature2
-		make dev SERVER_PORT=8011 IROH_SIGNATURE_SECRET_PATH="../target/dev_iroh_signature2"
+		make dev SERVER_PORT=8011 \
+			LOCAL_TESTING_CORS_PORT=5174 \
+			IROH_SIGNATURE_SECRET_PATH="../target/dev_iroh_signature2"

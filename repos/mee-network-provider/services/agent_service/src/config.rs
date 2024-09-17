@@ -23,6 +23,9 @@ pub struct AppConfig {
     #[arg(env, long)]
     pub server_port: u16,
 
+    #[arg(env, long)]
+    pub local_testing_cors_port: Option<u16>,
+
     #[arg(env, long, help = "SQLite/PostgreSQL connection URL")]
     pub database_url: Url,
 

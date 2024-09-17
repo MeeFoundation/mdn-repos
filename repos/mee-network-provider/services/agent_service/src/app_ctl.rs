@@ -93,9 +93,16 @@ impl AppCtl {
                     .allow_headers([CONTENT_TYPE])
                     .allow_credentials(true)
                     .allow_origin(
-                        "http://127.0.0.1:8003".parse::<HeaderValue>().unwrap(),
+                        format!(
+                            "http://127.0.0.1:{}",
+                            self.app_config
+                                .local_testing_cors_port
+                                .unwrap_or(3000)
+                        )
+                        .parse::<HeaderValue>()
+                        .unwrap(),
                     )
-                    .allow_methods([Method::GET]),
+                    .allow_methods([Method::GET, Method::POST]),
             );
         }
 
