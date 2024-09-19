@@ -149,7 +149,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
         .import_privileged_access_from_provider(privileged_access_from_untied)
         .await?;
 
-    let untied_handler = tokio::spawn(progress_session_intents(sync_event_stream, ""));
+    let untied_handler = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
 
     let wallet_handler = tokio::spawn(async move {
         loop {

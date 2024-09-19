@@ -8,9 +8,9 @@ import {
   revokeDelegatedCap,
 } from "../../../api/services";
 import useSWR from "swr";
-import { notifyServerError } from "../../../utils/error";
 import { useCallback, useMemo } from "react";
 import { HookAPI } from "antd/es/modal/useModal";
+import { useServerResponseErrorNotification } from "../../../utils/error";
 
 const useColumns = (
   modal: HookAPI,
@@ -20,7 +20,7 @@ const useColumns = (
   const columns = useMemo<ColumnsType<DelegatedCapInfo>>(() => [
     {
       dataIndex: "cap_receiver",
-      title: "Receiver (short)",
+      title: "Receiver",
       render: (v: string | undefined) => (v || "").slice(0, 16),
     },
     {
@@ -33,7 +33,7 @@ const useColumns = (
           onClick={() => {
             modal.confirm({
               title: "Capability revocation warning",
-              content: "Are you sure to revoke capability?",
+              content: "Are you sure to revoke the capability?",
               onOk: () => onRevoke(record),
             });
           }}
@@ -50,6 +50,9 @@ const useColumns = (
 
 export const DelegatedCaps: React.FC = () => {
   const [modal, modalContextHolder] = Modal.useModal();
+  const [
+    notifyServerError, notifierContext
+  ] = useServerResponseErrorNotification();
 
   const {
     data: delegatedCaps,
@@ -64,13 +67,13 @@ export const DelegatedCaps: React.FC = () => {
     getDelegatedCaps()
       .then(setDelegatedCaps)
       .catch(notifyServerError);
-  }, [setDelegatedCaps]);
+  }, [notifyServerError, setDelegatedCaps]);
 
   const columns = useColumns(modal, useCallback((cap: DelegatedCapInfo) => {
     revokeDelegatedCap(cap)
-      .then(() => setTimeout(getCaps, 5000))
+      .then(getCaps)
       .catch(notifyServerError);
-  }, [getCaps]));
+  }, [getCaps, notifyServerError]));
 
   return (
     <div style={{
@@ -78,6 +81,7 @@ export const DelegatedCaps: React.FC = () => {
       flexDirection: 'column',
       gap: styling.spacing.md
     }}>
+      {notifierContext}
       {modalContextHolder}
       <Table
         rowKey="capability_id"

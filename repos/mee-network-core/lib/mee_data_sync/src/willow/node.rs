@@ -22,6 +22,7 @@ impl WillowNode {
     ) -> MeeDataSyncResult<Self> {
         let endpoint = Endpoint::builder()
             .secret_key(iroh_node_secret_key)
+            .relay_mode(iroh_net::relay::RelayMode::Disabled)
             .alpns(vec![ALPN.to_vec()])
             .bind()
             .await?;

@@ -3,9 +3,13 @@ import { ClusterOutlined } from '@ant-design/icons';
 import useSWR from "swr";
 import { getWillowNodeId } from "../../../api/services";
 import { styling } from "../../ui/theme";
-import { notifyServerError } from "../../../utils/error";
+import { useServerResponseErrorNotification } from "../../../utils/error";
 
 export const Header: React.FC = () => {
+  const [
+    notifyServerError, notifierContext
+  ] = useServerResponseErrorNotification();
+
   const { data: nodeId } = useSWR(
     "getWillowNodeId",
     getWillowNodeId,
@@ -19,6 +23,7 @@ export const Header: React.FC = () => {
         justifyContent: 'space-between',
         alignItems: 'center'
       }}>
+      {notifierContext}
       <div> {import.meta.env.VITE_MDN_PROVIDER_NAME} - Admin UI</div>
       <Tag
         style={{ fontSize: styling.font.md }}

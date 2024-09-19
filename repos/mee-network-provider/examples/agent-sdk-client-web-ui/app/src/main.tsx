@@ -10,6 +10,7 @@ createRoot(document.getElementById('root')!).render(
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
+          fontSize: 16,
           // colorPrimary: "#4f868e",
           // colorBgContainer: "#23262f",
         }

@@ -1,7 +1,7 @@
 use super::api_types::{
     DelPersonaAttributesRequest, DelegateReadAccessToProviderRequest,
     DelegatedCap, GetPersonaAttributesRequest, GetPersonaAttributesResponse,
-    SetPersonaAttributesRequest,
+    ImportedCapability, SetPersonaAttributesRequest,
 };
 use crate::{app_ctl::AppCtl, error::AgentServiceResult};
 use axum::{extract::State, Json};
@@ -141,7 +141,7 @@ pub async fn revoke_shared_access_from_provider(
   get,
   path = "/api/v1/provider_agent/capabilities/delegated_caps",
   responses(
-      (status = 200, description = "Revokes issued capability", body = Vec<DelegatedCap>),
+      (status = 200, description = "Returns delegated capabilities by that peer", body = Vec<DelegatedCap>),
       (status = 500, description = "Something went wrong", body = String),
   ),
 )]
@@ -152,6 +152,26 @@ pub async fn delegated_caps(
         .mdn_provider_agent_ctl
         .mdn_provider_agent_node_service
         .delegated_caps()
+        .await?;
+
+    Ok(Json(res))
+}
+
+#[utoipa::path(
+  get,
+  path = "/api/v1/provider_agent/capabilities/imported_caps",
+  responses(
+      (status = 200, description = "Returns imported capabilities from other peers", body = Vec<ImportedCapability>),
+      (status = 500, description = "Something went wrong", body = String),
+  ),
+)]
+pub async fn imported_caps(
+    State(app_ctl): State<AppCtl>,
+) -> AgentServiceResult<Json<Vec<ImportedCapability>>> {
+    let res = app_ctl
+        .mdn_provider_agent_ctl
+        .mdn_provider_agent_node_service
+        .imported_caps()
         .await?;
 
     Ok(Json(res))

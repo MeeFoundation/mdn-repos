@@ -21,6 +21,7 @@ use utoipa::OpenApi;
         virtual_agent_search_schemas,
         revoke_shared_access_from_provider,
         delegated_caps,
+        imported_caps,
     ),
     components(
         schemas(
@@ -33,6 +34,7 @@ use utoipa::OpenApi;
             ImportCapabilitiesFromVirtualAgent,
             ReadDataRecord,
             DelegatedCap,
+            ImportedCapability,
         ),
     ),
     tags(

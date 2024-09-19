@@ -35,6 +35,9 @@ export const ProviderAgentPersonaApiServiceFactory =
 export const ProviderAgentDelegatedCapsApiService =
   ProviderAgentCapsApiServiceFactory("delegated_caps");
 
+export const ProviderAgentImportedCapsApiService =
+  ProviderAgentCapsApiServiceFactory("imported_caps");
+
 export const ProviderAgentRevokeCapApiService =
   ProviderAgentCapsApiServiceFactory("revoke_shared_access_from_provider");
 
@@ -52,6 +55,9 @@ export const ProviderAgentGetAttributesApiService =
 
 export const ProviderAgentSetAttributesApiService =
   ProviderAgentPersonaApiServiceFactory("set_attributes");
+
+export const ProviderAgentDelAttributesApiService =
+  ProviderAgentPersonaApiServiceFactory("del_attributes");
 
 export type DelegatedCapInfo = {
   cap_receiver: string,
@@ -74,8 +80,21 @@ export type DelegateReadAccessRequest = {
   provider_id: string,
 };
 
+export type ImportedCapability = {
+  namespace_kind: string,
+  namespace: string,
+  owner: string,
+  receiver: string,
+  granted_data_path: string,
+  granted_until?: string,
+}
+
 export const getDelegatedCaps = () => ProviderAgentDelegatedCapsApiService
   .get<DelegatedCapInfo[]>("")
+  .then(d => d.data);
+
+export const getImportedCaps = () => ProviderAgentImportedCapsApiService
+  .get<ImportedCapability[]>("")
   .then(d => d.data);
 
 export const revokeDelegatedCap =
@@ -106,4 +125,9 @@ export const getPersonaAttributes =
 export const setPersonaAttributes =
   (key: string, value: string) => ProviderAgentSetAttributesApiService
     .post<PersonaAttribute[]>("", { key, value })
+    .then(d => d.data)
+
+export const delPersonaAttributes =
+  (key: string) => ProviderAgentDelAttributesApiService
+    .post("", { key })
     .then(d => d.data)

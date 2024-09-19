@@ -7,7 +7,7 @@ use mee_data_sync::{
         provider_agent::delegation::manager::ImportCapabilitiesFromVirtualAgent,
         virtual_agent::node::VirtualAgentWillowNodeImpl,
     },
-    willow::{keys::UserId, peer::WillowPeer},
+    willow::{peer::WillowPeer, proto::keys::UserId},
 };
 use std::sync::Arc;
 

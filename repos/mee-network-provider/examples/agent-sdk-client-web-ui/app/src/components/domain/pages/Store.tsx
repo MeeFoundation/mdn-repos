@@ -1,12 +1,15 @@
-import { Button, Input, Table } from "antd";
+import { Button, Input, Modal, Table } from "antd";
 import { styling } from "../../ui/theme";
-import { CSSProperties, useCallback, useState } from "react";
+import { CSSProperties, useCallback, useMemo, useState } from "react";
 import {
+  delPersonaAttributes,
   getPersonaAttributes, PersonaAttribute, setPersonaAttributes
 } from "../../../api/services";
 import { ColumnsType } from "antd/es/table";
 import useSWR from "swr";
-import { notifyServerError } from "../../../utils/error";
+import { HookAPI } from "antd/es/modal/useModal";
+import { DeleteOutlined } from '@ant-design/icons';
+import { useServerResponseErrorNotification } from "../../../utils/error";
 
 const keyInputWidth = 250;
 
@@ -16,21 +19,51 @@ const inputsRowStyle: CSSProperties = {
   gap: styling.spacing.md
 };
 
-const columns: ColumnsType<PersonaAttribute> = [
-  {
-    dataIndex: "key",
-    title: "Key",
-  },
-  {
-    dataIndex: "value",
-    title: "Value"
-  }
-];
+
+
+const useColumns = (
+  modal: HookAPI,
+  onDelete: (attr: PersonaAttribute) => void
+) => {
+
+  const columns = useMemo<ColumnsType<PersonaAttribute>>(() => [
+    {
+      dataIndex: "key",
+      title: "Key",
+    },
+    {
+      dataIndex: "value",
+      title: "Value"
+    },
+    {
+      width: "60px",
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          onClick={() => {
+            modal.confirm({
+              title: "Attribute deletion warning",
+              content: "Are you sure to delete the attribute?",
+              onOk: () => onDelete(record),
+            });
+          }}
+          danger
+          icon={<DeleteOutlined />}
+        />
+      ),
+    }
+  ], [modal, onDelete]);
+
+  return columns;
+}
 
 export const Store: React.FC = () => {
   const [readKey, setReadKey] = useState("");
   const [writeKey, setWriteKey] = useState("alice/address/0/city");
   const [writeValue, setWriteValue] = useState("Paris");
+  const [
+    notifyServerError, notifierContext
+  ] = useServerResponseErrorNotification();
 
   const {
     data: readData,
@@ -44,18 +77,28 @@ export const Store: React.FC = () => {
     getPersonaAttributes(readKey)
       .then(setReadData)
       .catch(notifyServerError);
-  }, [readKey, setReadData]);
+  }, [notifyServerError, readKey, setReadData]);
 
   const setAttributes = useCallback(async () => {
-    setPersonaAttributes(writeKey, writeValue).catch(notifyServerError);
-  }, [writeKey, writeValue]);
+    setPersonaAttributes(writeKey, writeValue)
+      .then(getAttributes)
+      .catch(notifyServerError);
+  }, [getAttributes, notifyServerError, writeKey, writeValue]);
 
-  const onEnter =
+  const onEnter = useCallback(
     (callback: () => void) => (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') {
         callback();
       }
-    };
+    }, []);
+
+  const [modal, modalContextHolder] = Modal.useModal();
+
+  const columns = useColumns(modal, useCallback((attr: PersonaAttribute) => {
+    delPersonaAttributes(attr.key)
+      .then(getAttributes)
+      .catch(notifyServerError);
+  }, [getAttributes, notifyServerError]));
 
   return (
     <div style={{
@@ -63,6 +106,8 @@ export const Store: React.FC = () => {
       flexDirection: 'column',
       gap: styling.spacing.md
     }}>
+      {notifierContext}
+      {modalContextHolder}
       <h1 style={{ marginTop: 0 }}>Personal data storage</h1>
       <div style={inputsRowStyle}>
         <Input

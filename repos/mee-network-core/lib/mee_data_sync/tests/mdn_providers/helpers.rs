@@ -75,6 +75,24 @@ pub async fn share_data_and_sync(
         })
         .await?;
 
+    // TODO test random path
+    // let cap_for_other = delegate_from_node
+    //     .mdn_delegation_manager()
+    //     .delegate_read_access_to_provider("alice/card", other_willow_node_user_id)
+    //     .await?;
+
+    // let caps = ImportCapabilitiesFromProvider {
+    //     provider_node_ticket: delegate_from_ticket.to_string(),
+    //     caps: cap_for_other,
+    // };
+
+    // let sync_event_stream = other_mdn_node
+    //     .mdn_delegation_manager()
+    //     .import_capabilities_from_provider(caps)
+    //     .await?;
+
+    // let _intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
+
     // single value sub-attribute sharing
     let cap_for_other = delegate_from_node
         .mdn_delegation_manager()
@@ -91,7 +109,7 @@ pub async fn share_data_and_sync(
         .import_capabilities_from_provider(caps)
         .await?;
 
-    let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream, ""));
+    let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
 
     // multiple values root attribute sharing
     let cap_for_other = delegate_from_node
@@ -109,7 +127,7 @@ pub async fn share_data_and_sync(
         .import_capabilities_from_provider(caps)
         .await?;
 
-    let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream, ""));
+    let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
 
     let delegations = tokio::spawn({
         let_clone!(node_name);

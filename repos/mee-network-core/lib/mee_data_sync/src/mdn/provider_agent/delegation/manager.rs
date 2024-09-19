@@ -21,12 +21,18 @@ use iroh_willow::{
         data_model::{NamespaceId, Path},
         grouping::{Area, AreaSubspace, Range, Range3d},
         keys::UserId,
-        meadowcap::AccessMode,
+        meadowcap::{AccessMode, ReadAuthorisation},
     },
     session::{intents::IntentHandle, SessionInit, SessionMode},
 };
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+#[derive(Debug, Clone)]
+pub struct ImportedCapConfig {
+    pub caps_interests: Interests,
+    pub delegated_from_ticket: NodeTicket,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MdnProviderCapabilityPack {
@@ -108,7 +114,7 @@ pub trait MdnProviderDelegationManager {
     async fn import_capabilities_from_provider(
         &self,
         caps: ImportCapabilitiesFromProvider,
-    ) -> MeeDataSyncResult<IntentHandle>;
+    ) -> MeeDataSyncResult<(IntentHandle, ImportedCapConfig)>;
 
     /// Delegates read access from one provider to another one
     async fn delegate_read_access_to_provider(
@@ -133,6 +139,7 @@ pub trait MdnProviderDelegationManager {
     ) -> MeeDataSyncResult<DelegatePrivilegedAccessToOwner>;
 
     async fn delegated_caps(&self) -> MeeDataSyncResult<Vec<MdnProviderCapabilityPack>>;
+    async fn imported_caps(&self) -> MeeDataSyncResult<Vec<ReadAuthorisation>>;
     async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>>;
     async fn is_revocation_list_empty(&self) -> MeeDataSyncResult<bool>;
     async fn virtual_agent_search_schemas(&self) -> MeeDataSyncResult<Vec<ReadDataRecord>>;
@@ -197,6 +204,25 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
     }
     async fn delegated_caps(&self) -> MeeDataSyncResult<Vec<MdnProviderCapabilityPack>> {
         Ok(self.mdn_provider_capability_manager.store.list_caps()?)
+    }
+    /// TODO return write caps also
+    async fn imported_caps(&self) -> MeeDataSyncResult<Vec<ReadAuthorisation>> {
+        let user_id = self
+            .willow_peer
+            .willow_user_manager
+            .get_active_user_profile()
+            .await?;
+
+        let res = self
+            .willow_peer
+            .willow_delegation_manager
+            .list_read_caps()
+            .await?
+            .into_iter()
+            .filter(|cap| cap.read_cap().progenitor() != &user_id)
+            .collect();
+
+        Ok(res)
     }
     async fn delegate_privileged_access_to_owner(
         &self,
@@ -294,7 +320,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             provider_node_ticket,
             caps,
         }: ImportCapabilitiesFromProvider,
-    ) -> MeeDataSyncResult<IntentHandle> {
+    ) -> MeeDataSyncResult<(IntentHandle, ImportedCapConfig)> {
         if let Some(cap) = caps.revocation_list_receiver_namespace.cap_pack.first() {
             let (revocation_ns, _) = cap_granted_components(&cap);
 
@@ -331,7 +357,8 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             interests = interests.add_area(ns, [area]);
         }
 
-        let init = SessionInit::new(interests, SessionMode::Continuous);
+        let interests = interests.build();
+        let init = SessionInit::new(interests.clone(), SessionMode::Continuous);
 
         let sync_intent = self
             .willow_peer
@@ -339,7 +366,13 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             .sync_with_peer(ticket.node_addr().node_id, init)
             .await?;
 
-        Ok(sync_intent)
+        Ok((
+            sync_intent,
+            ImportedCapConfig {
+                caps_interests: interests,
+                delegated_from_ticket: ticket,
+            },
+        ))
     }
     async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>> {
         let mut entries = vec![];
@@ -387,6 +420,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
 
         Ok(res)
     }
+    // TODO clean up revocation namespaces caps from delegated peer
     async fn revoke_shared_access_from_provider(
         &self,
         cap_id: &str,

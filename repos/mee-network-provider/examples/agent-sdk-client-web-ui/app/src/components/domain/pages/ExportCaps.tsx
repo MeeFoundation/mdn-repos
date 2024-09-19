@@ -7,14 +7,14 @@ import {
   delegateReadAccessToProvider
 } from "../../../api/services";
 import { useCallback, useState } from "react";
-import { notifyServerError } from "../../../utils/error";
+import { useServerResponseErrorNotification } from "../../../utils/error";
 
 const onFinishFailed: FormProps<DelegateReadAccessRequest>['onFinishFailed'] =
   (errorInfo) => {
     console.log('Failed:', errorInfo);
   };
 
-const formInputLabelStyle = { width: 100 };
+const formInputLabelStyle = { width: 110 };
 
 export const ExportCaps: React.FC = () => {
   const [
@@ -22,12 +22,16 @@ export const ExportCaps: React.FC = () => {
     setCapPack,
   ] = useState<DelegateReadAccessResponse | null>(null);
 
+  const [
+    notifyServerError, notifierContext
+  ] = useServerResponseErrorNotification();
+
   const onFinish = useCallback(
     async (values: DelegateReadAccessRequest) => {
       delegateReadAccessToProvider(values)
         .then(setCapPack)
         .catch(notifyServerError);
-    }, []
+    }, [notifyServerError]
   );
 
   return (
@@ -36,6 +40,7 @@ export const ExportCaps: React.FC = () => {
       flexDirection: 'column',
       gap: styling.spacing.md
     }}>
+      {notifierContext}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",

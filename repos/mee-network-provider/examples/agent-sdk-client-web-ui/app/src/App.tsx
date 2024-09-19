@@ -1,4 +1,4 @@
-import './App.css'
+import './App.css';
 import { AuditOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { Layout, Menu, theme } from 'antd';
 import { MenuItemType } from 'antd/es/menu/interface';

@@ -1,7 +1,7 @@
 use super::mdn_node::api_methods::{
     del_persona_attributes, delegate_read_access_to_provider, delegated_caps,
     get_persona_attributes, import_capabilities_from_provider,
-    import_search_schemas_ns_from_virtual_agent, iroh_ticket,
+    import_search_schemas_ns_from_virtual_agent, imported_caps, iroh_ticket,
     revoke_shared_access_from_provider, set_persona_attributes,
     virtual_agent_search_schemas, willow_id,
 };
@@ -46,6 +46,7 @@ pub fn mdn_provider_agent_router() -> Router<AppCtl> {
                     post(import_search_schemas_ns_from_virtual_agent),
                 )
                 .route("/delegated_caps", get(delegated_caps))
+                .route("/imported_caps", get(imported_caps))
                 .route(
                     "/revoke_shared_access_from_provider",
                     post(revoke_shared_access_from_provider),
