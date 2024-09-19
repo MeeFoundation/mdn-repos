@@ -97,10 +97,12 @@ export const ImportCaps: React.FC = () => {
 
       <Table
         title={() => (
-          <Button
-            icon={<CloudSyncOutlined />}
-            onClick={refreshImportedCaps}>REFRESH
-          </Button>
+          <div style={{ display: 'flex', justifyContent: "end" }}>
+            <Button
+              icon={<CloudSyncOutlined />}
+              onClick={refreshImportedCaps}>REFRESH
+            </Button>
+          </div>
         )}
         size="small"
         columns={columns}

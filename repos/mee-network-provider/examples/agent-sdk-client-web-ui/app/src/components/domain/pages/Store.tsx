@@ -16,9 +16,9 @@ const keyInputWidth = 250;
 const inputsRowStyle: CSSProperties = {
   display: "flex",
   justifyContent: 'flex-start',
-  gap: styling.spacing.md
+  gap: styling.spacing.md,
+  flexWrap: 'wrap',
 };
-
 
 
 const useColumns = (
