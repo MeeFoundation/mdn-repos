@@ -8,10 +8,7 @@ use futures::{StreamExt, TryStreamExt};
 use mee_data_sync::{
     iroh::iroh_net::key::SecretKey,
     mdn::{
-        common::{
-            network::MdnAgentDataNodeNetworkOps, node::MdnAgentProviderNode,
-            store::ReadDataRecord,
-        },
+        common::{node::MdnAgentProviderNode, store::ReadDataRecord},
         provider_agent::{
             delegation::manager::{
                 ImportCapabilitiesFromProvider,
@@ -20,14 +17,10 @@ use mee_data_sync::{
             node::MdnAgentProviderNodeWillowImpl,
         },
     },
-    willow::{
-        debug::progress_session_intents,
-        peer::WillowPeer,
-        session::{SessionInit, SessionMode},
-    },
+    willow::peer::WillowPeer,
 };
-use std::{ops::Deref, sync::Arc, time::Duration};
-use tokio::{sync::Mutex, task::JoinHandle, time::sleep};
+use std::sync::Arc;
+use tokio::{sync::Mutex, task::JoinHandle};
 
 #[derive(Clone)]
 pub struct MdnProviderAgentNodeService {
@@ -160,68 +153,15 @@ impl MdnProviderAgentNodeService {
         &self,
         caps: ImportCapabilitiesFromProvider,
     ) -> AgentServiceResult {
-        let willow_id = self.node.user_id().await?;
-        let mdn_delegation_manager = self.node.mdn_delegation_manager();
-        let willow_peer =
-            MdnAgentDataNodeNetworkOps::willow_peer(self.node.deref());
-
-        let intent_handle_task = tokio::spawn(async move {
-            let res = async {
-                let (intent_handle, intent_config) = mdn_delegation_manager
-                    .import_capabilities_from_provider(caps)
-                    .await?;
-
-                let mut intent = Some(intent_handle);
-
-                loop {
-                    match intent.take() {
-                        Some(int) => {
-                            progress_session_intents(
-                                int,
-                                &format!("[{willow_id}] "),
-                            )
-                            .await;
-                        }
-                        None => {
-                            let init = SessionInit::new(
-                                intent_config.caps_interests.clone(),
-                                SessionMode::Continuous,
-                            );
-
-                            let sync_intent = willow_peer
-                                .willow_session_manager
-                                .sync_with_peer(
-                                    intent_config
-                                        .delegated_from_ticket
-                                        .node_addr()
-                                        .node_id,
-                                    init,
-                                )
-                                .await;
-
-                            // TODO hack?
-                            if sync_intent.is_err() {
-                                break sync_intent;
-                            }
-
-                            intent.replace(sync_intent?);
-                        }
-                    };
-
-                    sleep(Duration::from_secs(5)).await;
-                }
-
-                // AgentServiceResult::Ok(())
-            };
-
-            if let Err(e) = res.await {
-                tracing::error!("{e}");
-            }
-        });
+        let res = self
+            .node
+            .mdn_delegation_manager()
+            .import_capabilities_from_provider(caps)
+            .await?;
 
         let mut intents = self.sync_intent_handles.lock().await;
 
-        intents.push(intent_handle_task);
+        intents.push(res.sync_intent_task);
 
         Ok(())
     }

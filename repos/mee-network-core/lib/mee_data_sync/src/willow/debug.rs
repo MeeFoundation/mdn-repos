@@ -7,7 +7,10 @@ pub async fn progress_session_intents(
     mut sync_event_stream: IntentHandle,
     additional_info: &str,
 ) -> IntentHandle {
+    log::warn!("{additional_info} intent start");
     while let Some(ev) = sync_event_stream.next().await {
+        log::warn!("{additional_info} intent continue");
+
         match ev {
             iroh_willow::session::intents::EventKind::CapabilityIntersection {
                 area,

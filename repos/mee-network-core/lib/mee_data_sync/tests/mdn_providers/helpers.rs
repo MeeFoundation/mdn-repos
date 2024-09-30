@@ -12,7 +12,6 @@ use mee_data_sync::{
             ImportCapabilitiesFromProvider, ImportCapabilitiesFromVirtualAgent,
         },
     },
-    willow::debug::progress_session_intents,
 };
 use mee_macro_utils::let_clone;
 use std::{collections::HashSet, sync::Arc, time::Duration};
@@ -109,7 +108,7 @@ pub async fn share_data_and_sync(
         .import_capabilities_from_provider(caps)
         .await?;
 
-    let intent_handler1 = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
+    let intent_handler1 = sync_event_stream.sync_intent_task;
 
     // multiple values root attribute sharing
     let cap_for_other = delegate_from_node
@@ -127,7 +126,7 @@ pub async fn share_data_and_sync(
         .import_capabilities_from_provider(caps)
         .await?;
 
-    let intent_handler2 = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
+    let intent_handler2 = sync_event_stream.sync_intent_task;
 
     let delegations = tokio::spawn({
         let_clone!(node_name);

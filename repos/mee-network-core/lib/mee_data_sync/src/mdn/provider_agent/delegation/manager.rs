@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use super::MdnProviderDelegationManagerImpl;
 use crate::{
-    error::MeeDataSyncResult,
+    error::{MeeDataSyncErr, MeeDataSyncResult},
     json_codec,
     mdn::common::{
         delegation::revocation_request_record_path,
@@ -16,7 +18,10 @@ use async_trait::async_trait;
 use futures::TryStreamExt;
 use iroh_net::ticket::NodeTicket;
 use iroh_willow::{
-    interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
+    interest::{
+        AreaSelector, CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea,
+        UserSelector,
+    },
     proto::{
         data_model::{NamespaceId, Path},
         grouping::{Area, AreaSubspace, Range, Range3d},
@@ -25,8 +30,18 @@ use iroh_willow::{
     },
     session::{intents::IntentHandle, SessionInit, SessionMode},
 };
+use mee_macro_utils::let_clone;
 use serde::{Deserialize, Serialize};
+use tokio::{task::JoinHandle, time::sleep};
 use utoipa::ToSchema;
+
+#[derive(Debug)]
+pub struct CapImportResult {
+    /// TODO remove this field after willow sync fix and return `sync_intent`
+    pub sync_intent_task: JoinHandle<()>,
+    // pub sync_intent: IntentHandle,
+    pub imported_cap_config: ImportedCapConfig,
+}
 
 #[derive(Debug, Clone)]
 pub struct ImportedCapConfig {
@@ -114,7 +129,7 @@ pub trait MdnProviderDelegationManager {
     async fn import_capabilities_from_provider(
         &self,
         caps: ImportCapabilitiesFromProvider,
-    ) -> MeeDataSyncResult<(IntentHandle, ImportedCapConfig)>;
+    ) -> MeeDataSyncResult<CapImportResult>;
 
     /// Delegates read access from one provider to another one
     async fn delegate_read_access_to_provider(
@@ -320,7 +335,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
             provider_node_ticket,
             caps,
         }: ImportCapabilitiesFromProvider,
-    ) -> MeeDataSyncResult<(IntentHandle, ImportedCapConfig)> {
+    ) -> MeeDataSyncResult<CapImportResult> {
         if let Some(cap) = caps.revocation_list_receiver_namespace.cap_pack.first() {
             let (revocation_ns, _) = cap_granted_components(&cap);
 
@@ -335,8 +350,39 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
         let ticket: NodeTicket = provider_node_ticket.parse()?;
 
         let mut caps_for_import = vec![];
-        caps_for_import.extend(caps.revocation_list_sender_namespace.cap_pack);
-        caps_for_import.extend(caps.revocation_list_receiver_namespace.cap_pack.clone());
+
+        let own_caps = self
+            .willow_peer
+            .willow_delegation_manager
+            .list_read_caps()
+            .await?;
+
+        if !own_caps.iter().any(|c| {
+            caps.revocation_list_sender_namespace
+                .cap_pack
+                .iter()
+                .any(|cc| match cc {
+                    CapabilityPack::Read(read_authorisation) => read_authorisation == c,
+                    CapabilityPack::Write(_mc_capability) => false,
+                })
+        }) {
+            caps_for_import.extend(caps.revocation_list_sender_namespace.cap_pack);
+        }
+
+        let has_revoke_list_cap = own_caps.iter().any(|c| {
+            caps.revocation_list_receiver_namespace
+                .cap_pack
+                .iter()
+                .any(|cc| match cc {
+                    CapabilityPack::Read(read_authorisation) => read_authorisation == c,
+                    CapabilityPack::Write(_mc_capability) => false,
+                })
+        });
+
+        if !has_revoke_list_cap {
+            caps_for_import.extend(caps.revocation_list_receiver_namespace.cap_pack.clone());
+        }
+
         caps_for_import.extend(caps.data_source_namespace.cap_pack.clone());
 
         self.willow_peer
@@ -348,31 +394,91 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
 
         let mut interest_caps = vec![];
 
-        interest_caps.extend(caps.revocation_list_receiver_namespace.cap_pack);
+        if !has_revoke_list_cap {
+            interest_caps.extend(caps.revocation_list_receiver_namespace.cap_pack);
+        }
+
         interest_caps.extend(caps.data_source_namespace.cap_pack);
 
         for cap in interest_caps.iter() {
             let (ns, area) = cap_granted_components(&cap);
 
-            interests = interests.add_area(ns, [area]);
+            let cap_selector = CapSelector::new(
+                ns,
+                UserSelector::Any,
+                AreaSelector::ContainsArea(area.clone()),
+            );
+
+            interests = interests.add_area(cap_selector, [area]);
         }
 
         let interests = interests.build();
-        let init = SessionInit::new(interests.clone(), SessionMode::Continuous);
 
-        let sync_intent = self
-            .willow_peer
-            .willow_session_manager
-            .sync_with_peer(ticket.node_addr().node_id, init)
-            .await?;
+        let sync_intent_task = tokio::spawn({
+            let_clone!(interests);
+            let_clone!(ticket);
+            let willow_peer = self.willow_peer.clone();
 
-        Ok((
-            sync_intent,
-            ImportedCapConfig {
+            async move {
+                loop {
+                    let res = async {
+                        // TODO remove this hack after iroh-willow live sync fix
+                        let init = SessionInit::new(interests.clone(), SessionMode::ReconcileOnce);
+
+                        let mut sync_intent = willow_peer
+                            .willow_session_manager
+                            .sync_with_peer(ticket.node_addr().node_id, init)
+                            .await?;
+
+                        sync_intent
+                            .complete()
+                            .await
+                            .map_err(|e| MeeDataSyncErr::WillowDelegationHandler(e.to_string()))?;
+
+                        let caps = willow_peer
+                            .willow_delegation_manager
+                            .list_read_caps()
+                            .await?;
+
+                        let mut cap_match = true;
+
+                        for cap_inter in interest_caps.iter() {
+                            let cap = caps.iter().find(|cap| match cap_inter {
+                                CapabilityPack::Read(read_cap) => &read_cap == cap,
+                                CapabilityPack::Write(_) => false,
+                            });
+
+                            if cap.is_none() {
+                                cap_match = false;
+                                break;
+                            }
+                        }
+
+                        MeeDataSyncResult::Ok(cap_match)
+                    };
+
+                    match res.await {
+                        Err(e) => {
+                            log::error!("Error during sync intent: {e}");
+                        }
+                        Ok(cap_match) if !cap_match => {
+                            break;
+                        }
+                        _ => {}
+                    };
+
+                    sleep(Duration::from_secs(2)).await;
+                }
+            }
+        });
+
+        Ok(CapImportResult {
+            sync_intent_task,
+            imported_cap_config: ImportedCapConfig {
                 caps_interests: interests,
                 delegated_from_ticket: ticket,
             },
-        ))
+        })
     }
     async fn read_revocation_list(&self) -> MeeDataSyncResult<Vec<MdnDataRevocationListResponse>> {
         let mut entries = vec![];

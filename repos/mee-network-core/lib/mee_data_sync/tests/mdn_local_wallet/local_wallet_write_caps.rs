@@ -11,7 +11,6 @@ use mee_data_sync::{
             ImportCapabilitiesFromVirtualAgent,
         },
     },
-    willow::debug::progress_session_intents,
 };
 use std::time::Duration;
 use tokio::{select, time::sleep};
@@ -149,7 +148,7 @@ async fn local_wallet_write_caps() -> anyhow::Result<()> {
         .import_privileged_access_from_provider(privileged_access_from_untied)
         .await?;
 
-    let untied_handler = tokio::spawn(progress_session_intents(sync_event_stream.0, ""));
+    let untied_handler = sync_event_stream.sync_intent_task;
 
     let wallet_handler = tokio::spawn(async move {
         loop {
