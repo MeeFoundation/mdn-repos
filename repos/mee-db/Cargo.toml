@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 
-members = ["mee_ql", "mee_storage"]
+members = ["tree_sitter_mee_ql", "mee_ql", "mee_storage", "mee_ql_api"]
 
 [workspace.dependencies]
 clap = "4.5"
@@ -24,3 +24,8 @@ async-stream = "0.3"
 async-trait = "0.1"
 futures = "0.3"
 regex = "1.5"
+tree-sitter = "0.23"
+tree-sitter-language = "0.1.0"
+
+[workspace.build-dependencies]
+cc = "1.1.15"

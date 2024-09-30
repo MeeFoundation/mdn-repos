@@ -1,0 +1,396 @@
+==================
+Find by Id
+==================
+
+[
+  user
+  for user in users() if user.id == "534622344"
+]
+
+---
+
+    (query
+      (array_query
+        (path
+          (ident))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))))))
+
+==================
+Find by email
+==================
+
+[
+  user
+  for user in users() if user.email == "some@gmail.com"
+]
+
+---
+
+    (query
+      (array_query
+        (path
+          (ident))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))))))
+
+==================
+Find by country code
+==================
+
+[
+  {
+    "name" : user.name,
+    "phone" : user.phone
+  }
+
+  for user in users() 
+  if user.phone matches "+1[0-9]{11}"
+]
+
+---
+
+    (query
+      (array_query
+        (object
+          (pair
+            (string
+              (string_content))
+            (path
+              (ident)
+              (ident)))
+          (pair
+            (string
+              (string_content))
+            (path
+              (ident)
+              (ident))))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))))))
+
+==================
+Select users who made a purchase after a date
+==================
+
+[
+  user.id
+
+  for user in users()
+  for order in user.orders
+    if order.date >= "2023-09-24"
+]
+
+---
+
+ (query
+      (array_query
+        (path
+          (ident)
+          (ident))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (iterator
+          (ident)
+          (path
+            (ident)
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))))))
+
+==================
+Select 10 by age, gender, and country
+==================
+
+[
+  user
+  for user in users() 
+    if (user.age >= 18 or user.age <= 25) 
+      and user.gender == "Male"
+      and user.country == "USA"
+  limit 10    
+]
+
+---
+
+ (query
+      (array_query
+        (path
+          (ident))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (condition
+          (comparison
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (number))
+              (logical_op)
+              (comparison
+                (path
+                  (ident)
+                  (ident))
+                (comparator
+                  (number))))
+            (logical_op)
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (string
+                  (string_content)))
+              (logical_op)
+              (comparison
+                (path
+                  (ident)
+                  (ident))
+                (comparator
+                  (string
+                    (string_content)))))))
+        (limit
+          (pos_int))))
+
+==================
+Select users for refund for a canceled flight
+==================
+
+[
+  {
+    "name": user.name,
+    "family_name": user.last_name,
+    "card_number": number
+  }
+
+  for user in users()
+  for flight in user.flights
+    if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00"
+  number = (card.number for card in user.payment_cards limit 1)
+  if number exists
+]
+
+---
+
+    (query
+      (array_query
+        (object
+          (pair
+            (string
+              (string_content))
+            (path
+              (ident)
+              (ident)))
+          (pair
+            (string
+              (string_content))
+            (path
+              (ident)
+              (ident)))
+          (pair
+            (string
+              (string_content))
+            (path
+              (ident))))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (iterator
+          (ident)
+          (path
+            (ident)
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))
+            (logical_op)
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (string
+                  (string_content))))))
+        (assignment
+          (ident)
+          (query
+            (element_query
+              (path
+                (ident)
+                (ident))
+              (iterator
+                (ident)
+                (path
+                  (ident)
+                  (ident)))
+              (limit
+                (pos_int)))))
+        (condition
+          (comparison
+            (path
+              (ident))
+            (comparator)))))
+
+==================
+Update flight departure time
+==================
+
+[
+  user.passport
+
+  for user in users()
+  for flight in user.flights
+    if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00"
+  set flight.dt = "2024.11.11T12:00:00"
+]
+
+---
+
+(query
+      (array_query
+        (path
+          (ident)
+          (ident))
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (iterator
+          (ident)
+          (path
+            (ident)
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))
+            (logical_op)
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (string
+                  (string_content))))))
+        (update_assignment
+          (path
+            (ident)
+            (ident))
+          (string
+            (string_content)))))
+
+==================
+Add a payment card
+==================
+
+[
+  for user in users() if user.id == "4435"
+  set user.payment_cards = [
+    {"number":"1234 1234 1234 1234", "expires": "08/30", "cvv" : "111"},
+    {"number":"5555 1234 1234 1234", "expires": "08/30", "cvv" : "222"}
+  ]
+]
+
+---
+
+(query
+      (array_query
+        (iterator
+          (ident)
+          (path
+            (ident)))
+        (condition
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))))
+        (update_assignment
+          (path
+            (ident)
+            (ident))
+          (array
+            (object
+              (pair
+                (string
+                  (string_content))
+                (string
+                  (string_content)))
+              (pair
+                (string
+                  (string_content))
+                (string
+                  (string_content)))
+              (pair
+                (string
+                  (string_content))
+                (string
+                  (string_content))))
+            (object
+              (pair
+                (string
+                  (string_content))
+                (string
+                  (string_content)))
+              (pair
+                (string
+                  (string_content))
+                (string
+                  (string_content)))
+              (pair
+                (string
+                  (string_content))
+                (string
+                  (string_content))))))))

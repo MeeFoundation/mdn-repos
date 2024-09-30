@@ -4,18 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-chrono = { workspace = true }
-axum = { workspace = true, features = ["macros"] }
-utoipa = { workspace = true, features = ["axum_extras", "url"] }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-thiserror = { workspace = true }
-strum = { workspace = true }
-tracing = { workspace = true }
-clap = { workspace = true, features = ["derive", "env"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-sled = { workspace = true }
-mee_storage = { path = "../mee_storage" }
-futures = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-mee-ql = { path = "../tree_sitter_mee_ql" }
