@@ -2,8 +2,7 @@ import { Button, Input, Modal, Table } from "antd";
 import { styling } from "../../ui/theme";
 import { CSSProperties, useCallback, useMemo, useState } from "react";
 import {
-  delPersonaAttributes,
-  getPersonaAttributes, PersonaAttribute, setPersonaAttributes
+  ownProviderAgentApiService, PersonaAttribute
 } from "../../../api/services";
 import { ColumnsType } from "antd/es/table";
 import useSWR from "swr";
@@ -59,8 +58,8 @@ const useColumns = (
 
 export const Store: React.FC = () => {
   const [readKey, setReadKey] = useState("");
-  const [writeKey, setWriteKey] = useState("alice/address/0/city");
-  const [writeValue, setWriteValue] = useState("Paris");
+  const [writeKey, setWriteKey] = useState("alice/card/0/number");
+  const [writeValue, setWriteValue] = useState("777");
   const [
     notifyServerError, notifierContext
   ] = useServerResponseErrorNotification();
@@ -69,18 +68,20 @@ export const Store: React.FC = () => {
     data: readData,
     mutate: setReadData,
   } = useSWR('getPersonaAttributes',
-    () => getPersonaAttributes(readKey),
+    () => ownProviderAgentApiService.getPersonaAttributes(readKey),
     { onError: notifyServerError },
   );
 
   const getAttributes = useCallback(() => {
-    getPersonaAttributes(readKey)
+    ownProviderAgentApiService
+      .getPersonaAttributes(readKey)
       .then(setReadData)
       .catch(notifyServerError);
   }, [notifyServerError, readKey, setReadData]);
 
   const setAttributes = useCallback(async () => {
-    setPersonaAttributes(writeKey, writeValue)
+    ownProviderAgentApiService
+      .setPersonaAttributes(writeKey, writeValue)
       .then(getAttributes)
       .catch(notifyServerError);
   }, [getAttributes, notifyServerError, writeKey, writeValue]);
@@ -95,7 +96,8 @@ export const Store: React.FC = () => {
   const [modal, modalContextHolder] = Modal.useModal();
 
   const columns = useColumns(modal, useCallback((attr: PersonaAttribute) => {
-    delPersonaAttributes(attr.key)
+    ownProviderAgentApiService.
+      delPersonaAttributes(attr.key)
       .then(getAttributes)
       .catch(notifyServerError);
   }, [getAttributes, notifyServerError]));

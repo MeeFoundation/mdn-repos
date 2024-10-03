@@ -435,24 +435,25 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
                             .await
                             .map_err(|e| MeeDataSyncErr::WillowDelegationHandler(e.to_string()))?;
 
-                        let caps = willow_peer
-                            .willow_delegation_manager
-                            .list_read_caps()
-                            .await?;
+                        // let caps = willow_peer
+                        //     .willow_delegation_manager
+                        //     .list_read_caps()
+                        //     .await?;
 
-                        let mut cap_match = true;
+                        // TODO fix sync stop
+                        let cap_match = true;
 
-                        for cap_inter in interest_caps.iter() {
-                            let cap = caps.iter().find(|cap| match cap_inter {
-                                CapabilityPack::Read(read_cap) => &read_cap == cap,
-                                CapabilityPack::Write(_) => false,
-                            });
+                        // for cap_inter in interest_caps.iter() {
+                        //     let cap = caps.iter().find(|cap| match cap_inter {
+                        //         CapabilityPack::Read(read_cap) => &read_cap == cap,
+                        //         CapabilityPack::Write(_) => false,
+                        //     });
 
-                            if cap.is_none() {
-                                cap_match = false;
-                                break;
-                            }
-                        }
+                        //     if cap.is_none() {
+                        //         cap_match = false;
+                        //         break;
+                        //     }
+                        // }
 
                         MeeDataSyncResult::Ok(cap_match)
                     };

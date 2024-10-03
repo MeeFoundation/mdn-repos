@@ -4,7 +4,7 @@ import { Button, Form, Input } from 'antd';
 import {
   DelegateReadAccessRequest,
   DelegateReadAccessResponse,
-  delegateReadAccessToProvider
+  ownProviderAgentApiService,
 } from "../../../api/services";
 import { useCallback, useState } from "react";
 import { useServerResponseErrorNotification } from "../../../utils/error";
@@ -28,7 +28,8 @@ export const ExportCaps: React.FC = () => {
 
   const onFinish = useCallback(
     async (values: DelegateReadAccessRequest) => {
-      delegateReadAccessToProvider(values)
+      ownProviderAgentApiService
+        .delegateReadAccessToProvider(values)
         .then(setCapPack)
         .catch(notifyServerError);
     }, [notifyServerError]
@@ -48,7 +49,6 @@ export const ExportCaps: React.FC = () => {
       }}>
         <Form
           name="export_caps"
-          initialValues={{ remember: true }}
           onFinish={onFinish}
           onFinishFailed={onFinishFailed}
           autoComplete="off"

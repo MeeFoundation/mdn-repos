@@ -4,8 +4,7 @@ import { CloudSyncOutlined, RedoOutlined } from '@ant-design/icons';
 import { ColumnsType } from "antd/es/table";
 import {
   DelegatedCapInfo,
-  getDelegatedCaps,
-  revokeDelegatedCap,
+  ownProviderAgentApiService,
 } from "../../../api/services";
 import useSWR from "swr";
 import { useCallback, useMemo } from "react";
@@ -59,18 +58,18 @@ export const DelegatedCaps: React.FC = () => {
     mutate: setDelegatedCaps,
   } = useSWR(
     'getDelegatedCaps',
-    getDelegatedCaps,
+    ownProviderAgentApiService.getDelegatedCaps,
     { onError: notifyServerError, }
   );
 
   const getCaps = useCallback(() => {
-    getDelegatedCaps()
+    ownProviderAgentApiService.getDelegatedCaps()
       .then(setDelegatedCaps)
       .catch(notifyServerError);
   }, [notifyServerError, setDelegatedCaps]);
 
   const columns = useColumns(modal, useCallback((cap: DelegatedCapInfo) => {
-    revokeDelegatedCap(cap)
+    ownProviderAgentApiService.revokeDelegatedCap(cap)
       .then(getCaps)
       .catch(notifyServerError);
   }, [getCaps, notifyServerError]));

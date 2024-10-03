@@ -1,12 +1,12 @@
 {
-  "name": "app",
+  "name": "agent-sdk-user-web-ui",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "provider1": "vite",
-    "provider2": "VITE_MDN_PROVIDER_API_PORT=8011 VITE_MDN_PROVIDER_NAME='Untied Airlines' vite",
+    "provider2": "VITE_MDN_PROVIDER_API_PORT=8011 VITE_MDN_ANOTHER_PROVIDER_API_PORT=8010 VITE_MDN_PROVIDER_NAME='Untied Airlines' vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -14,13 +14,14 @@
   "dependencies": {
     "antd": "^5.20.6",
     "axios": "^1.7.7",
-    "swr": "^2.2.5",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.0",
+    "swr": "^2.2.5",
+    "mdn_client_sdk": "file:../agent-sdk-provider-web-ui"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",
-    "@types/node": "^22.5.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

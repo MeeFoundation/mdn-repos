@@ -88,22 +88,24 @@ impl AppCtl {
             use axum::http::{header::CONTENT_TYPE, HeaderValue, Method};
             use tower_http::cors::CorsLayer;
 
-            app = app.layer(
-                CorsLayer::new()
-                    .allow_headers([CONTENT_TYPE])
-                    .allow_credentials(true)
-                    .allow_origin(
-                        format!(
-                            "http://127.0.0.1:{}",
-                            self.app_config
-                                .local_testing_cors_port
-                                .unwrap_or(3000)
-                        )
+            let origins = self
+                .app_config
+                .local_testing_cors_port
+                .iter()
+                .map(|port| {
+                    format!("http://127.0.0.1:{port}")
                         .parse::<HeaderValue>()
-                        .unwrap(),
-                    )
-                    .allow_methods([Method::GET, Method::POST]),
-            );
+                        .unwrap()
+                })
+                .collect::<Vec<_>>();
+
+            let cors_layer = CorsLayer::new()
+                .allow_headers([CONTENT_TYPE])
+                .allow_credentials(true)
+                .allow_origin(origins)
+                .allow_methods([Method::GET, Method::POST]);
+
+            app = app.layer(cors_layer);
         }
 
         let listener = tokio::net::TcpListener::bind(format!(

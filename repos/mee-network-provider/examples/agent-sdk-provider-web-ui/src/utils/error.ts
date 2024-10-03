@@ -26,5 +26,5 @@ export function useServerResponseErrorNotification() {
         message: "Other error",
       });
     }
-  }, notifierContextHolder] as const;
+  }, notifierContextHolder, notifier] as const;
 }

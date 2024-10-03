@@ -1,9 +1,16 @@
 import { Tag } from "antd";
 import { ClusterOutlined } from '@ant-design/icons';
 import useSWR from "swr";
-import { getWillowNodeId } from "../../../api/services";
+import { ownProviderAgentApiService } from "../../../api/services";
 import { styling } from "../../ui/theme";
 import { useServerResponseErrorNotification } from "../../../utils/error";
+import { useEffect } from "react";
+
+const HEADER_TITLE = `${import.meta.env.VITE_MDN_PROVIDER_NAME} - Admin UI`;
+
+const DOCUMENT_TITLE = import.meta.env.VITE_MDN_PROVIDER_NAME
+  .split(" ")
+  .reduce((acc, v) => `${acc}${v.charAt(0)}`, "") + " - Admin UI";
 
 export const Header: React.FC = () => {
   const [
@@ -12,9 +19,13 @@ export const Header: React.FC = () => {
 
   const { data: nodeId } = useSWR(
     "getWillowNodeId",
-    getWillowNodeId,
+    ownProviderAgentApiService.getWillowNodeId,
     { onError: notifyServerError }
   );
+
+  useEffect(() => {
+    document.title = DOCUMENT_TITLE;
+  }, []);
 
   return (
     <div
@@ -24,7 +35,7 @@ export const Header: React.FC = () => {
         alignItems: 'center'
       }}>
       {notifierContext}
-      <div> {import.meta.env.VITE_MDN_PROVIDER_NAME} - Admin UI</div>
+      <div>{HEADER_TITLE}</div>
       <Tag
         style={{ fontSize: styling.font.md }}
         icon={<ClusterOutlined />}

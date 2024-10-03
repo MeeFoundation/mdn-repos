@@ -4,8 +4,7 @@ import { styling } from "../../ui/theme";
 import { useCallback, useState } from "react";
 import {
   DelegateReadAccessResponse,
-  getImportedCaps,
-  importCapabilitiesFromProvider,
+  ownProviderAgentApiService,
   ImportedCapability
 } from "../../../api/services";
 import useSWR from "swr";
@@ -48,18 +47,18 @@ export const ImportCaps: React.FC = () => {
     mutate: setImportedCaps,
   } = useSWR(
     'getImportedCaps',
-    getImportedCaps,
+    ownProviderAgentApiService.getImportedCaps,
     { onError: notifyServerError, }
   );
 
   const refreshImportedCaps = useCallback(() => {
-    getImportedCaps().then(setImportedCaps);
+    ownProviderAgentApiService.getImportedCaps().then(setImportedCaps);
   }, [setImportedCaps]);
 
   const handleImport = useCallback(async () => {
     try {
       const pack: DelegateReadAccessResponse = JSON.parse(capPack);
-      await importCapabilitiesFromProvider(pack);
+      await ownProviderAgentApiService.importCapabilitiesFromProvider(pack);
 
       setCapPack("");
       refreshImportedCaps();
