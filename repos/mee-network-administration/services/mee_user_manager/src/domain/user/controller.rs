@@ -9,7 +9,7 @@ use super::account::{
 };
 use crate::error::MeeUserManagerResult;
 use mee_db_utils::sql_storage::IRbdStorage;
-use mee_authority_secrets::MeeAuthoritySignatureService;
+use mee_secrets_manager::signatures_service::SignaturesService;
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use service_utils::mee_user_manager::api_types::{
     AuthorizeUserRequest, AuthorizeUserResponse,
@@ -19,16 +19,13 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct UserController {
     rdb_storage: Arc<dyn IRbdStorage + Sync + Send>,
-    mee_authority_signature:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+    mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
 }
 
 impl UserController {
     pub fn new(
         rdb_storage: Arc<dyn IRbdStorage + Sync + Send>,
-        mee_authority_signature: Arc<
-            dyn MeeAuthoritySignatureService + Send + Sync,
-        >,
+        mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
     ) -> Self {
         Self {
             rdb_storage,

@@ -9,7 +9,10 @@ pub struct AppConfig {
     pub mdn_license_manager_url: Url,
 
     #[arg(env, long)]
-    pub mee_signature_secret_path: String,
+    pub jwk_auth_signature_secret_path: String,
+
+    #[arg(env, long)]
+    pub iroh_signature_secret_path: String,
 
     #[arg(env, long)]
     pub inter_service_api_secret: String,
@@ -19,6 +22,9 @@ pub struct AppConfig {
 
     #[arg(env, long)]
     pub server_port: u16,
+
+    #[arg(env, long)]
+    pub local_testing_cors_port: Vec<u16>,
 
     #[arg(env, long, help = "SQLite/PostgreSQL connection URL")]
     pub database_url: Url,

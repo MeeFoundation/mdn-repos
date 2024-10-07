@@ -9,13 +9,13 @@ use biscuit_auth::{
     AuthorizerLimits, Biscuit,
 };
 use chrono::{DateTime, Duration, Utc};
+use mee_secrets_manager::signatures_service::SignaturesService;
 use oxide_auth::primitives::{
     generator::{RandomGenerator, TagGrant},
     grant::Grant,
     issuer::{IssuedToken, RefreshedToken, TokenType},
 };
 use oxide_auth_async::primitives::Issuer;
-use mee_authority_secrets::MeeAuthoritySignatureService;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use strum_macros::{Display, EnumString};
@@ -40,7 +40,7 @@ pub struct OidcProviderIssuerService<'a> {
     oidc_provider_issued_tokens_repository:
         Arc<dyn OidcProviderIssuedTokensRepository + Send + Sync + 'a>,
     mee_network_authority_signature_service:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+        Arc<dyn SignaturesService + Send + Sync>,
     token_duration: Duration,
 }
 
@@ -50,7 +50,7 @@ impl<'a> OidcProviderIssuerService<'a> {
             dyn OidcProviderIssuedTokensRepository + Send + Sync + 'a,
         >,
         mee_network_authority_signature_service: Arc<
-            dyn MeeAuthoritySignatureService + Send + Sync,
+            dyn SignaturesService + Send + Sync,
         >,
     ) -> Self {
         Self {
@@ -65,7 +65,7 @@ impl<'a> OidcProviderIssuerService<'a> {
     ) -> MeeOidcProviderResult<Option<String>> {
         let root_key = self
             .mee_network_authority_signature_service
-            .get_signature_for_biscuit()
+            .get_biscuit_signature()
             .await?
             .ok_or(MeeOidcProviderErr::MissingMeeAuthoritySignature)?;
 
@@ -98,7 +98,7 @@ impl<'a> OidcProviderIssuerService<'a> {
     ) -> MeeOidcProviderResult<(String, DateTime<Utc>)> {
         let root_key = self
             .mee_network_authority_signature_service
-            .get_signature_for_biscuit()
+            .get_biscuit_signature()
             .await?
             .ok_or(MeeOidcProviderErr::MissingMeeAuthoritySignature)?;
 

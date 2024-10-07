@@ -19,7 +19,7 @@ use super::{
 };
 use crate::error::MeeProviderManagerResult;
 use mee_db_utils::sql_storage::IRbdStorage;
-use mee_authority_secrets::MeeAuthoritySignatureService;
+use mee_secrets_manager::signatures_service::SignaturesService;
 use sea_orm::ConnectionTrait;
 use sea_orm::TransactionTrait;
 use service_utils::mee_provider_manager::{
@@ -30,16 +30,13 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct ProviderController {
     rdb_storage: Arc<dyn IRbdStorage + Sync + Send>,
-    mee_authority_signature:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+    mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
 }
 
 impl ProviderController {
     pub fn new(
         rdb_storage: Arc<dyn IRbdStorage + Sync + Send>,
-        mee_authority_signature: Arc<
-            dyn MeeAuthoritySignatureService + Send + Sync,
-        >,
+        mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
     ) -> Self {
         Self {
             rdb_storage,

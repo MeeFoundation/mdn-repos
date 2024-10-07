@@ -3,6 +3,7 @@ name = "agent_service"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
+default-run = "agent_service"
 
 [[bin]]
 name = "migrator"
@@ -13,11 +14,11 @@ name = "migrations"
 path = "migrations/mod.rs"
 
 [dependencies]
-provider_authority_secrets = { path = "../provider_authority_secrets" }
 mee_db_utils = { path = "../../../mee-utils/lib/mee_db_utils" }
 mee_http_utils = { path = "../../../mee-utils/lib/mee_http_utils" }
 mee_crypto = { path = "../../../mee-network-core/lib/mee_crypto" }
 mee_secrets_manager = { path = "../../../mee-network-core/lib/mee_secrets_manager" }
+mee_data_sync = { path = "../../../mee-network-core/lib/mee_data_sync" }
 
 clap = { workspace = true, features = ["derive", "env"] }
 sea-orm-migration = { workspace = true }
@@ -33,6 +34,7 @@ reqwest = { workspace = true, default-features = false, features = [
   "json",
   "rustls-tls",
 ] }
+futures = { workspace = true }
 dotenvy = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
@@ -45,6 +47,7 @@ axum = { workspace = true }
 axum-extra = { workspace = true, features = ["typed-header", "cookie"] }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true }
+serde_json = { workspace = true }
 strum_macros = { workspace = true }
 async-trait = { workspace = true }
 argon2 = { workspace = true }

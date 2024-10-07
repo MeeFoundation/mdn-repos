@@ -10,10 +10,10 @@ use axum::Router;
 use clap::Parser;
 use mee_db_utils::sql_storage::RbdStorage;
 use mee_http_utils::monitoring::health_check_router;
-use mee_authority_secrets::{
-    MeeAuthoritySignatureService, MeeAuthoritySignatureServiceDefault,
+use mee_secrets_manager::{
+    client::SimpleFileSecretsManagerClient,
+    signatures_service::{SignaturesService, SignaturesServiceDefault},
 };
-use mee_secrets_manager::client::SimpleFileSecretsManagerClient;
 use service_utils::{
     mee_provider_manager::{
         auth::MeeProviderAuthorizer,
@@ -30,7 +30,7 @@ use utoipa_swagger_ui::SwaggerUi;
 pub struct AppCtl {
     pub(crate) app_config: AppConfig,
     pub(crate) mee_authority_signature:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+        Arc<dyn SignaturesService + Send + Sync>,
 
     pub(crate) oidc_controller: OidcController,
 }
@@ -55,15 +55,15 @@ impl AppCtl {
         )
         .await?;
 
-        let mee_authority_signature =
-            Arc::new(MeeAuthoritySignatureServiceDefault::new(
-                app_config.mee_signature_secret_path.clone(),
-                // TODO replace with real world secure secret manager
-                Arc::new(SimpleFileSecretsManagerClient::new(format!(
-                    "{}/../target",
-                    env!("CARGO_MANIFEST_DIR")
-                ))),
-            ));
+        let mee_authority_signature = Arc::new(SignaturesServiceDefault::new(
+            app_config.mee_signature_secret_path.clone(),
+            None,
+            // TODO replace with real world secure secret manager
+            Arc::new(SimpleFileSecretsManagerClient::new(format!(
+                "{}/../target",
+                env!("CARGO_MANIFEST_DIR")
+            ))),
+        ));
 
         let mee_user_manager_service_client =
             Arc::new(MeeUserManagerServiceClientDefault::try_new(
@@ -115,7 +115,7 @@ impl AppCtl {
 impl MeeProviderAuthorizer for AppCtl {
     fn mee_authority_signature(
         &self,
-    ) -> Arc<dyn MeeAuthoritySignatureService + Send + Sync> {
+    ) -> Arc<dyn SignaturesService + Send + Sync> {
         self.mee_authority_signature.clone()
     }
 }

@@ -7,6 +7,8 @@ export DATABASE_URL=postgres://${PG_DATABASE_USER}:${PG_DATABASE_PSWD}@${PG_DATA
 
 DB_CONT_NAME=local-dev-mee-pgsql
 
+RUST_LOG=info
+
 stop_db_daemon:
 	docker stop ${DB_CONT_NAME}
 
@@ -35,10 +37,10 @@ clean_db:
 		-c "drop database if exists ${PG_DATABASE_NAME};"
 
 dev:
-	RUST_LOG=debug DATABASE_URL=${DATABASE_URL} cargo run
+	RUST_LOG=${RUST_LOG} DATABASE_URL=${DATABASE_URL} cargo run
 
 db_migrate:
-	RUST_LOG=debug cargo run --bin=migrator
+	RUST_LOG=${RUST_LOG} cargo run --bin=migrator
 
 db_generate_models:
 	sea-orm-cli generate entity \

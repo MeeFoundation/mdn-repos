@@ -18,14 +18,13 @@ use argon2::{
 use biscuit_auth::{macros::biscuit, Authorizer, AuthorizerLimits, Biscuit};
 use chrono::{Duration, Utc};
 use mee_crypto::biscuit_auth::biscuit_ed_keypair_from_jwk;
-use mee_authority_secrets::MeeAuthoritySignatureService;
+use mee_secrets_manager::signatures_service::SignaturesService;
 use service_utils::mee_user_manager::api_types::AuthorizeUserResponse;
 use std::sync::Arc;
 
 pub struct UserAccountService<'a> {
     user_account_repository: Box<dyn UserAccountRepository + Send + Sync + 'a>,
-    mee_authority_signature:
-        Arc<dyn MeeAuthoritySignatureService + Send + Sync>,
+    mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
 }
 
 impl<'a> UserAccountService<'a> {
@@ -33,9 +32,7 @@ impl<'a> UserAccountService<'a> {
         user_account_repository: Box<
             dyn UserAccountRepository + Send + Sync + 'a,
         >,
-        mee_authority_signature: Arc<
-            dyn MeeAuthoritySignatureService + Send + Sync,
-        >,
+        mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
     ) -> Self {
         Self {
             user_account_repository,
@@ -46,7 +43,7 @@ impl<'a> UserAccountService<'a> {
         &self,
         user: UserAccountDomainModel,
     ) -> MeeUserManagerResult<UserAccountLoginResponse> {
-        let mee_sig = self.mee_authority_signature.get_signature().await?;
+        let mee_sig = self.mee_authority_signature.get_jwk_signature().await?;
 
         let root_key = mee_sig
             .as_ref()
@@ -167,7 +164,7 @@ impl<'a> UserAccountService<'a> {
     ) -> MeeUserManagerResult<LoggedInUser> {
         let pkey = self
             .mee_authority_signature
-            .get_signature_for_biscuit()
+            .get_biscuit_signature()
             .await?
             .ok_or(MeeUserManagerErr::MissingMeeAuthoritySignature)?;
 

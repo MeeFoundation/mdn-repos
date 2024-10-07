@@ -2,15 +2,8 @@ use std::io::ErrorKind;
 
 #[async_trait::async_trait]
 pub trait SecretsManagerClient {
-    async fn get_secret(
-        &self,
-        key: &str,
-    ) -> Result<Option<Vec<u8>>, anyhow::Error>;
-    async fn set_secret(
-        &self,
-        key: &str,
-        val: Vec<u8>,
-    ) -> Result<(), anyhow::Error>;
+    async fn get_secret(&self, key: &str) -> Result<Option<Vec<u8>>, anyhow::Error>;
+    async fn set_secret(&self, key: &str, val: Vec<u8>) -> Result<(), anyhow::Error>;
     async fn del_secret(&self, key: &str) -> Result<Option<()>, anyhow::Error>;
 }
 
@@ -28,9 +21,7 @@ impl SimpleFileSecretsManagerClient {
     }
 }
 
-fn handle_file_not_found<T>(
-    res: Result<T, std::io::Error>,
-) -> anyhow::Result<Option<T>> {
+fn handle_file_not_found<T>(res: Result<T, std::io::Error>) -> anyhow::Result<Option<T>> {
     Ok(match res {
         Ok(v) => Some(v),
         Err(e) => {
@@ -45,19 +36,12 @@ fn handle_file_not_found<T>(
 
 #[async_trait::async_trait]
 impl SecretsManagerClient for SimpleFileSecretsManagerClient {
-    async fn get_secret(
-        &self,
-        key: &str,
-    ) -> Result<Option<Vec<u8>>, anyhow::Error> {
+    async fn get_secret(&self, key: &str) -> Result<Option<Vec<u8>>, anyhow::Error> {
         let res = tokio::fs::read(self.file_path(key)).await;
 
         handle_file_not_found(res)
     }
-    async fn set_secret(
-        &self,
-        key: &str,
-        val: Vec<u8>,
-    ) -> Result<(), anyhow::Error> {
+    async fn set_secret(&self, key: &str, val: Vec<u8>) -> Result<(), anyhow::Error> {
         tokio::fs::write(self.file_path(key), val).await?;
 
         Ok(())

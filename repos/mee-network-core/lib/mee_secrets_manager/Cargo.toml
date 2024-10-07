@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 mee_crypto = { path = "../mee_crypto" }
+mee_data_sync = { path = "../mee_data_sync" }
 
 async-trait = { workspace = true }
 thiserror = { workspace = true }

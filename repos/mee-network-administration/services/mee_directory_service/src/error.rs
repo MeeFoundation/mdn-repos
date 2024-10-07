@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use mee_crypto::error::MeeCryptoErr;
+use mee_data_sync::error::MeeDataSyncErr;
 use sea_orm::TransactionError;
 
 pub type MeeDirectoryServiceResult<T = ()> = Result<T, MeeDirectoryServiceErr>;
@@ -34,11 +35,14 @@ pub enum MeeDirectoryServiceErr {
     AuthToken(#[from] biscuit_auth::error::Token),
 
     // domain errors
-    #[error("Mee authority signature problem: {0}")]
-    MeeAuthoritySignatureProblem(String),
-
     #[error("Mee crypto utils error: {0}")]
     MeeCryptoUtils(#[from] MeeCryptoErr),
+
+    #[error("Mee data sync module error: {0}")]
+    MeeDataSync(#[from] MeeDataSyncErr),
+
+    #[error("MDN virtual agent secrets management error: {0}")]
+    VirtualAgentSecretsManagement(String),
 }
 
 impl From<TransactionError<MeeDirectoryServiceErr>> for MeeDirectoryServiceErr {

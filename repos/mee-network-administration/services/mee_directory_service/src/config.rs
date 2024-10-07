@@ -15,7 +15,10 @@ pub struct AppConfig {
     pub provider_manager_url: Url,
 
     #[arg(env, long)]
-    pub mee_signature_secret_path: String,
+    pub jwk_auth_signature_secret_path: String,
+
+    #[arg(env, long)]
+    pub iroh_signature_secret_path: String,
 
     #[arg(env, long)]
     pub inter_service_api_secret: String,

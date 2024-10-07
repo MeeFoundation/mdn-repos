@@ -19,7 +19,6 @@ path = "migrations/mod.rs"
 mee_db_utils = { path = "../../../mee-utils/lib/mee_db_utils" }
 mee_http_utils = { path = "../../../mee-utils/lib/mee_http_utils" }
 service_utils = { path = "../service_utils" }
-mee_authority_secrets = { path = "../mee_authority_secrets" }
 mee_secrets_manager = { path = "../../../mee-network-core/lib/mee_secrets_manager" }
 mee_crypto = { path = "../../../mee-network-core/lib/mee_crypto" }
 

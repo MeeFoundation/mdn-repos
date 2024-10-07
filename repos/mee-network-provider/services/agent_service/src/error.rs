@@ -1,5 +1,8 @@
+use std::string::FromUtf8Error;
+
 use axum::{http::StatusCode, response::IntoResponse};
 use mee_crypto::error::MeeCryptoErr;
+use mee_data_sync::error::MeeDataSyncErr;
 use sea_orm::TransactionError;
 
 pub type AgentServiceResult<T = ()> = Result<T, AgentServiceErr>;
@@ -27,6 +30,9 @@ pub enum AgentServiceErr {
     #[error("std::io error: {0}")]
     StdIo(#[from] std::io::Error),
 
+    #[error("std::string FromUtf8Error error: {0}")]
+    StdStringFromUtf8Error(#[from] FromUtf8Error),
+
     #[error("Boxed std::error::Error: {0}")]
     BoxedStdError(#[from] Box<dyn std::error::Error + Send + Sync>),
 
@@ -34,8 +40,14 @@ pub enum AgentServiceErr {
     AuthToken(#[from] biscuit_auth::error::Token),
 
     // domain errors
+    #[error("MDN provider secrets management error: {0}")]
+    ProviderSecretsManagement(String),
+
     #[error("Mee crypto utils error: {0}")]
     MeeCryptoUtils(#[from] MeeCryptoErr),
+
+    #[error("Mee data sync module error: {0}")]
+    MeeDataSync(#[from] MeeDataSyncErr),
 }
 
 impl From<TransactionError<AgentServiceErr>> for AgentServiceErr {
