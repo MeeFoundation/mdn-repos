@@ -1317,7 +1317,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dev_secrets"
+name = "dev_secrets_keygen"
 version = "0.1.0"
 dependencies = [
  "anyhow",

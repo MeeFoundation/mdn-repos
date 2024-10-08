@@ -17,7 +17,11 @@ impl SimpleFileSecretsManagerClient {
     }
 
     fn file_path(&self, key: &str) -> String {
-        format!("{}/{}", self.base_path, key)
+        if self.base_path.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}/{}", self.base_path, key)
+        }
     }
 }
 

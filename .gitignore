@@ -13,3 +13,4 @@ build
 **/Generated
 **/xcuserdata
 tmp
+.cargo

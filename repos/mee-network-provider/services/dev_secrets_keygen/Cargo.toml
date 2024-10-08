@@ -1,12 +1,8 @@
 [package]
-name = "dev_secrets"
+name = "dev_secrets_keygen"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
-
-[[bin]]
-name = "keygen"
-path = "src/keygen.rs"
 
 [dependencies]
 mee_secrets_manager = { path = "../../../mee-network-core/lib/mee_secrets_manager" }

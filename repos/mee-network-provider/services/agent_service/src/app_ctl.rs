@@ -50,10 +50,7 @@ impl AppCtl {
                 app_config.jwk_auth_signature_secret_path.clone(),
                 Some(app_config.iroh_signature_secret_path.clone()),
                 // TODO replace with real world secure secret manager
-                Arc::new(SimpleFileSecretsManagerClient::new(format!(
-                    "{}/../target",
-                    env!("CARGO_MANIFEST_DIR")
-                ))),
+                Arc::new(SimpleFileSecretsManagerClient::new("".to_string())),
             ));
 
         Ok(Self {

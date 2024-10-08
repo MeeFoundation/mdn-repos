@@ -1,0 +1,8 @@
+mee-network-administration/services/target
+mee-network-provider/services/target
+mee-network-provider/services/.cargo
+mee-network-provider/services/agent_service/.env
+mee-network-provider/services/dev_secrets_keygen/.env
+mee-network-provider/examples
+mee-network-core/lib/target
+mee-utils/lib/target

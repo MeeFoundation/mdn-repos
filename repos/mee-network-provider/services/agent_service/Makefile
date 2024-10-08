@@ -20,7 +20,7 @@ profile_provider1:
 
 
 run_provider1:
-	cd ../dev_secrets && make gen_dev_provider_signature1
+	cd ../dev_secrets_keygen && make gen_dev_provider_signature1
 	
 	RUST_LOG=${RUST_LOG} \
 	DATABASE_URL=${DATABASE_URL} \
@@ -29,7 +29,7 @@ run_provider1:
 		cargo run -- ${TEST_CORS}
 
 run_provider2:
-		cd ../dev_secrets && make gen_dev_provider_signature2
+		cd ../dev_secrets_keygen && make gen_dev_provider_signature2
 
 		RUST_LOG=${RUST_LOG} \
 		DATABASE_URL=${DATABASE_URL} \

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["agent_service", "dev_secrets"]
+members = ["agent_service", "dev_secrets_keygen"]
 
 [workspace.package]
 edition = "2021"

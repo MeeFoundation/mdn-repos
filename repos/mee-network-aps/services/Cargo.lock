@@ -2537,6 +2537,7 @@ checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 [[package]]
 name = "iroh-base"
 version = "0.24.0"
+source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "aead",
  "anyhow",
@@ -2577,6 +2578,7 @@ dependencies = [
 [[package]]
 name = "iroh-blobs"
 version = "0.24.0"
+source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -2629,6 +2631,7 @@ dependencies = [
 [[package]]
 name = "iroh-metrics"
 version = "0.24.0"
+source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "erased_set",
@@ -2648,6 +2651,7 @@ dependencies = [
 [[package]]
 name = "iroh-net"
 version = "0.24.0"
+source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "backoff",
@@ -2771,6 +2775,7 @@ dependencies = [
 [[package]]
 name = "iroh-willow"
 version = "0.24.0"
+source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "bytes",
