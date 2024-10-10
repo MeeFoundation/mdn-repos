@@ -8,7 +8,7 @@
     },
     "_query": {
       "type": "PREC_LEFT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "CHOICE",
         "members": [
@@ -25,7 +25,7 @@
     },
     "array_query": {
       "type": "PREC_LEFT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [
@@ -50,7 +50,7 @@
     },
     "element_query": {
       "type": "PREC_LEFT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [
@@ -75,7 +75,7 @@
     },
     "_query_body": {
       "type": "PREC_LEFT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [
@@ -108,7 +108,7 @@
           },
           {
             "type": "FIELD",
-            "name": "update_stmts",
+            "name": "updates",
             "content": {
               "type": "REPEAT",
               "content": {
@@ -119,7 +119,7 @@
           },
           {
             "type": "FIELD",
-            "name": "delete_stmts",
+            "name": "deletes",
             "content": {
               "type": "REPEAT",
               "content": {
@@ -133,7 +133,7 @@
     },
     "iterator_stmt": {
       "type": "PREC_LEFT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [
@@ -278,7 +278,7 @@
     },
     "assignment": {
       "type": "PREC_RIGHT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [
@@ -307,7 +307,7 @@
     },
     "update_stmt": {
       "type": "PREC_RIGHT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [
@@ -340,7 +340,7 @@
     },
     "delete_stmt": {
       "type": "PREC_LEFT",
-      "value": 23,
+      "value": 100,
       "content": {
         "type": "SEQ",
         "members": [

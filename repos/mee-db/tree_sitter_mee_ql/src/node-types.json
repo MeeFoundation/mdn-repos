@@ -135,7 +135,7 @@
           }
         ]
       },
-      "delete_stmts": {
+      "deletes": {
         "multiple": true,
         "required": false,
         "types": [
@@ -193,7 +193,7 @@
           }
         ]
       },
-      "update_stmts": {
+      "updates": {
         "multiple": true,
         "required": false,
         "types": [
@@ -491,7 +491,7 @@
           }
         ]
       },
-      "delete_stmts": {
+      "deletes": {
         "multiple": true,
         "required": false,
         "types": [
@@ -549,7 +549,7 @@
           }
         ]
       },
-      "update_stmts": {
+      "updates": {
         "multiple": true,
         "required": false,
         "types": [

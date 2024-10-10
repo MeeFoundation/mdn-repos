@@ -3,29 +3,18 @@
 
 const PREC = {
 
+    expression: 1,
     value: 2,
     bool_expression: 3,
-    expression: 1,
-    parenthesized_expression: 14,
 
     or: 10,
     and: 11,
     not: 12,
     compare: 13,
-    bitwise_or: 14,
-    bitwise_and: 15,
-    xor: 16,
-    shift: 17,
-    plus: 18,
-    times: 19,
-    unary: 20,
-    power: 21,
-    call: 22,
-    instruction: 23,
-    key_word: 1000,
+    parenthesized_expression: 14,
 
-    query: 9999,
-    iterator: 10000,
+    instruction: 100,
+    key_word: 1000,
 };
 
 module.exports = grammar({
@@ -51,8 +40,8 @@ module.exports = grammar({
         _query_body: $ => prec.left(PREC.instruction, seq(
             optional(field('result', $._value)),
             field('iterators', repeat1($.iterator_stmt)),
-            field('update_stmts', repeat($.update_stmt)),
-            field('delete_stmts', repeat($.delete_stmt)),
+            field('updates', repeat($.update_stmt)),
+            field('deletes', repeat($.delete_stmt)),
         )),
 
         iterator_stmt: $ => prec.left(PREC.instruction, seq(

@@ -1,24 +1,44 @@
-// mod bindings;
+use parser::ASTBuilder;
+use tree_sitter::Parser;
 mod ast;
-use tree_sitter::{InputEdit, Language, Parser, Point};
-use tree_sitter_mee_ql;
+mod error;
+mod parser;
+mod visitor;
+// mod _visitor;
+
+// Импортируем сгенерированный модуль языка, например, `tree_sitter_mee_ql`
 
 fn main() {
-    let mut parser = Parser::new();
+    // Инициализируем парсер
 
-    let language = tree_sitter_mee_ql::LANGUAGE;
-    parser
-        .set_language(&language.into())
-        .expect("Error loading MeeQl parser");
+    // Пример кода MeeQL для парсинга
+    let source_code = r#"
+       [
+  user
+  for user in users() if user.id == "534622344"
+]
+    "#;
 
-    let source_code = "[ for item in source limit 10 ]";
+    let mut builder = ASTBuilder::new(source_code.to_string());
+    match builder.parse() {
+        Ok(ast) => {
+            println!("Parsed AST: {:#?}", ast);
+            // Далее вы можете использовать посетителей для обработки AST
+        }
+        Err(e) => {
+            eprintln!("Error parsing source code: {}", e);
+        }
+    }
 
-    // let source_code = "fn test() {}";
-    let tree = parser.parse(source_code, None).unwrap();
+    // // Парсим код и получаем синтаксическое дерево
+    // let tree = parser
+    //     .parse(source_code, None)
+    //     .expect("Failed to parse code");
+    // let root_node = tree.root_node();
+    // println!("{:#?}", root_node.to_sexp());
 
-    println!("{:?}", tree.root_node().to_sexp());
+    // let mut visitor = Visitor::new();
 
-    let ast = ast::parse_query(tree.root_node());
-
-    println!("{:?}", ast);
+    // let ast = visitor.visit(root_node, source_code);
+    // println!("{:#?}", ast);
 }
