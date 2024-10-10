@@ -1,0 +1,204 @@
+===
+greedy and grouping
+===
+
+[for user in users if true and false and path]
+---
+
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+    (and_expression
+        (true)
+        (false)
+        (path
+            (ident))))))
+        
+===
+greedy or grouping
+===
+
+[for user in users if true or false or path]
+---
+
+    (start
+      (array_query
+        (iterator_stmt
+          (ident)
+          (path
+            (ident))
+        (or_expression
+            (true)
+            (false)
+            (path
+            (ident))))))
+
+===
+not operation
+===
+
+[for user in users if not true]
+---
+
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (not_expression
+          (true)))))
+
+===
+and operation
+===
+
+[for user in users if true and false]
+---
+
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (and_expression
+          (true)
+          (false)))))
+
+===
+or operation
+===
+
+[for user in users if true or false]
+---
+
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (or_expression
+          (true)
+          (false)))))
+
+===
+grouped expression
+===
+
+[for user in users if true and (false or true)]
+---
+
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (and_expression
+        (true)
+        (or_expression
+        (false)
+        (true))))))
+
+
+===
+operation priorities
+===
+
+[for user in users if true and not true or false and true]
+---
+
+        (start
+      (array_query
+        (iterator_stmt
+          (ident)
+          (path
+            (ident))
+        (or_expression
+            (and_expression
+            (true)
+            (not_expression
+                (true)))
+            (and_expression
+            (false)
+            (true))))))
+
+===
+Complicated expression
+===
+
+[for user in users if not user.is_admin or check1 and check2 and (check4 or not check5 or not (check6 and check7))]
+---
+
+        (start
+      (array_query
+        (iterator_stmt
+          (ident)
+          (path
+            (ident))
+            (or_expression
+                (not_expression
+                (path
+                    (ident)
+                    (ident)))
+                (and_expression
+                (path
+                    (ident))
+                (path
+                    (ident))
+                (or_expression
+                    (path
+                    (ident))
+                    (not_expression
+                    (path
+                        (ident)))
+                    (not_expression
+                    (and_expression
+                        (path
+                        (ident))
+                        (path
+                        (ident))))))))))
+
+
+===
+With comparator
+===
+
+[for user in users if true and user.last_name exists or user.age > 18 and user.prone matches "+1\\d{10}" ]
+---
+
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (or_expression
+        (and_expression
+          (true)
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator)))
+        (and_expression
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (number)))
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)
+                (escape_sequence)
+                (string_content)))))))))

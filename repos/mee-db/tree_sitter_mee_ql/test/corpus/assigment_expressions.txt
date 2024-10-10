@@ -1,0 +1,89 @@
+===
+JSON object
+===
+
+[res for user in users res = {"name": user.name}]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (assignment
+        (ident)
+        (object
+          (pair
+            (string
+              (string_content))
+            (path
+              (ident)
+              (ident))))))))
+              
+===
+Path
+===
+
+[res for user in users res = user.name]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (assignment
+        (ident)
+        (path
+          (ident)
+          (ident))))))
+
+===
+String
+===
+
+[res for user in users res = "=name"]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (assignment
+        (ident)
+        (string
+          (string_content))))))
+        
+===
+Logical expression
+===
+
+[res for user in users res = not user.is_admin or true ]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (assignment
+        (ident)
+        (or_expression
+          (not_expression
+            (path
+              (ident)
+              (ident)))
+          (true))))))

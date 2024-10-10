@@ -1,95 +1,142 @@
 /// <reference types="tree-sitter-cli/dsl" />
 // @ts-check
 
+const PREC = {
+
+    value: 2,
+    bool_expression: 3,
+    expression: 1,
+    parenthesized_expression: 14,
+
+    or: 10,
+    and: 11,
+    not: 12,
+    compare: 13,
+    bitwise_or: 14,
+    bitwise_and: 15,
+    xor: 16,
+    shift: 17,
+    plus: 18,
+    times: 19,
+    unary: 20,
+    power: 21,
+    call: 22,
+    instruction: 23,
+    key_word: 1000,
+
+    query: 9999,
+    iterator: 10000,
+};
+
 module.exports = grammar({
     name: 'mee_ql',
 
     extras: $ => [
-        /\s|\\n|\\r|\\t/
+        /\s/
     ],
+
 
     rules: {
 
-        query: $ => choice(
+        start: $ => $._query,
+
+        _query: $ => prec.left(PREC.instruction, choice(
             $.array_query,
             $.element_query
-        ),
+        )),
 
-        array_query: $ => seq('[', $._query_body, ']'),
-        element_query: $ => seq('(', $._query_body, ')'),
+        array_query: $ => prec.left(PREC.instruction, seq('[', field('body', $._query_body), ']')),
+        element_query: $ => prec.left(PREC.instruction, seq('(', field('body', $._query_body), ')')),
 
-        _query_body: $ => seq(
-            choice($.iterator, seq(optional($._value), $.iterator)),
-            repeat(choice($.iterator, $.assignment, $.condition)),
-            optional($.limit),
-            optional($.offset),
-            optional($.update_assignment)
-        ),
+        _query_body: $ => prec.left(PREC.instruction, seq(
+            optional(field('result', $._value)),
+            field('iterators', repeat1($.iterator_stmt)),
+            field('update_stmts', repeat($.update_stmt)),
+            field('delete_stmts', repeat($.delete_stmt)),
+        )),
 
-        iterator: $ => seq(
-            'for', field('item', $.ident), 'in', field('source', $._source)
-        ),
+        iterator_stmt: $ => prec.left(PREC.instruction, seq(
+            $._for, field('item', $.ident), $._in, field('source', choice(seq($.path, optional('()')), $.array)),
+            field('assignments', repeat($.assignment)),
+            optional(seq($._if, field('filter', $._bool_expression))),
+            optional(seq($._offset, field('offset', $.pos_int))),
+            optional(seq($._limit, field('limit', $.pos_int))),
+        )),
 
-        _expression: $ => choice($._value, $.query),
-
-        assignment: $ => seq(
+        assignment: $ => prec.right(PREC.instruction, seq(
             field('var', $.ident), '=', field('expr', $._expression)
-        ),
+        )),
 
-        update_assignment: $ => seq(
-            'set', field('field', $.path), '=', field('expr', $._expression)
-        ),
+        update_stmt: $ => prec.right(PREC.instruction, seq(
+            $._set, field('field', $.path), '=', field('expr', $._expression)
+        )),
 
-        _source: $ => seq(
-            $.path, optional('()'),
-            optional($.array)
-        ),
+        delete_stmt: $ => prec.left(PREC.instruction, seq(
+            $._delete, optional(field('field', $.path))
+        )),
 
-        condition: $ => seq(
-            'if', $.comparison
-        ),
-
-        comparison: $ => seq(
-            choice(seq(field('left', $._value), field('right', optional($.comparator))), seq('(', $.comparison, ')')),
-            optional(seq($.logical_op, $.comparison))
-        ),
+        _expression: $ => prec.left(PREC.expression, choice($._value, $._query, $._bool_expression)),
 
         path: $ => seq(
             $.ident,
             repeat(seq('.', $.ident))
         ),
 
-        comparator: $ => choice(
-            seq(field('op', '=='), field('expr', $._expression)),
-            seq(field('op', '!='), field('expr', $._expression)),
-            seq(field('op', '>'), field('expr', $._expression)),
-            seq(field('op', '<'), field('expr', $._expression)),
-            seq(field('op', '>='), field('expr', $._expression)),
-            seq(field('op', '<='), field('expr', $._expression)),
-            seq(field('op', 'matches'), field('expr', $._expression)),
-            field('op', 'exists')
-        ),
+        _parenthesized_bool_expression: $ => prec.left(PREC.parenthesized_expression, seq(
+            '(',
+            $._bool_expression,
+            ')'
+        )),
 
-        logical_op: $ => choice('and', 'or'),
+        not_expression: $ => prec.right(PREC.not, seq(
+            $._not,
+            choice($._bool_value, $._parenthesized_bool_expression)
+        )),
 
-        limit: $ => seq('limit', $.pos_int),
-        offset: $ => seq('offset', $.pos_int),
+        and_expression: $ => prec.left(PREC.and, seq(
+            choice($._bool_value),
+            repeat1(seq($._and, $._bool_value))
+        )),
+
+        or_expression: $ => prec.left(PREC.or, seq(
+            choice($._bool_value, $.and_expression),
+            repeat1(seq('or', choice($._bool_value, $.and_expression)))
+        )),
+
+        _bool_value: $ => choice($.true, $.false, $.path, $._parenthesized_bool_expression, $.not_expression, $.comparison),
+        _bool_expression: $ => prec.left(PREC.bool_expression, choice($.and_expression, $.or_expression, $._bool_value)),
+
+        comparison: $ => prec.right(PREC.compare, seq(
+            field('val', $._value),
+            field('comparator', $.comparator)
+        )),
+
+        comparator: $ => prec.left(PREC.compare, choice(
+            seq('==', field('right', $._expression)),
+            seq('!=', field('right', $._expression)),
+            seq('>', field('right', $._expression)),
+            seq('<', field('right', $._expression)),
+            seq('>=', field('right', $._expression)),
+            seq('<=', field('right', $._expression)),
+            seq('matches', field('right', $._expression)),
+            'exists'
+        )),
 
         pos_int: $ => /\d+/,
 
-        _value: $ => choice(
+        _value: $ => prec.left(PREC.value, choice(
             $.path,
             $.object,
             $.array,
             $.number,
             $.string,
+            $.null,
             $.true,
             $.false,
-            $.null,
-        ),
+        )),
 
         object: $ => seq(
-            '{', seq($.pair, repeat(seq(',', $.pair))), '}',
+            '{', $.pair, repeat(seq(',', $.pair)), '}'
         ),
 
         pair: $ => seq(
@@ -99,12 +146,12 @@ module.exports = grammar({
         ),
 
         array: $ => seq(
-            '[', seq($._value, repeat(seq(',', $._value))), ']',
+            '[', $._value, repeat(seq(',', $._value)), ']'
         ),
 
         string: $ => choice(
-            seq('"', '"'),
-            seq('"', $._string_content, '"'),
+            '""',
+            seq('"', $._string_content, '"')
         ),
 
         _string_content: $ => repeat1(choice(
@@ -140,12 +187,34 @@ module.exports = grammar({
             return token(decimalLiteral);
         },
 
-        true: _ => 'true',
+        _for: _ => prec.left(PREC.key_word, 'for'),
 
-        false: _ => 'false',
+        _in: _ => prec.left(PREC.key_word, 'in'),
 
-        null: _ => 'null',
+        true: _ => prec.left(PREC.key_word, 'true'),
 
-        ident: $ => /[a-zA-Z_][a-zA-Z0-9_]*/
+        false: _ => prec.left(PREC.key_word, 'false'),
+
+        null: _ => prec.left(PREC.key_word, 'null'),
+
+        _and: _ => prec.left(PREC.key_word, 'and'),
+
+        _or: _ => prec.left(PREC.key_word, 'or'),
+
+        _not: _ => prec.left(PREC.key_word, 'not'),
+
+        _if: _ => prec.left(PREC.key_word, 'if'),
+
+        _set: _ => prec.left(PREC.key_word, 'set'),
+
+        _delete: _ => prec.left(PREC.key_word, 'delete'),
+
+        ident: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
+
+        _offset: _ => prec.left(PREC.key_word, 'offset'),
+
+        _limit: _ => prec.left(PREC.key_word, 'limit'),
     }
 });
+
+module.exports.PREC = PREC;
