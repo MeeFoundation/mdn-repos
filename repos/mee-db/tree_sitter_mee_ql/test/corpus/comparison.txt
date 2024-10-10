@@ -1,0 +1,185 @@
+===
+Equal
+===
+
+[ user.id for user in users if user.name == "Ivan"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))              
+
+===
+Not Equal
+===
+
+[ user.id for user in users if user.name != "Ivan"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Greater Than
+===
+
+[ user.id for user in users if user.age > 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Less Than
+===
+
+[ user.id for user in users if user.age < 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Greater Than or Equal
+===
+
+[ user.id for user in users if user.age >= 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Less Than or Equal
+===
+
+[ user.id for user in users if user.age <= 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Matches
+===
+
+[ user.id for user in users if user.name matches "I.*"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Exists
+===
+
+[ user.id for user in users if user.email exists]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident))
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator)))))

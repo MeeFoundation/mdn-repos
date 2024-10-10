@@ -1,0 +1,125 @@
+===
+JSON object
+===
+
+[{"key1": "value1", "key2": 123, "key3": true} for user in users ]
+---
+
+(start
+  (array_query
+    (object
+      (pair
+        (string
+          (string_content))
+        (string
+          (string_content)))
+      (pair
+        (string
+          (string_content))
+        (number))
+      (pair
+        (string
+          (string_content))
+        (true)))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))))
+
+===
+JSON array
+===
+
+[[1, 2, 3, "four", false] for user in users ]
+---
+
+(start
+  (array_query
+    (array
+      (number)
+      (number)
+      (number)
+      (string
+        (string_content))
+      (false))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))))
+
+===
+String
+===
+
+["four" for user in users ]
+---
+
+(start
+  (array_query
+    (string
+      (string_content))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))))
+        
+===
+Number
+===
+
+[1 for user in users ]
+---
+
+(start
+  (array_query
+    (number)
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))))
+
+===
+Boolean expression
+===
+
+[ true for user in users  ]
+---
+
+(start
+  (array_query
+    (true)
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))))
+
+===
+Embedded path
+===
+
+( { "age": user.age, "names": [user.name, user.last_name] } for user in users )
+---
+
+(start
+  (element_query
+    (object
+      (pair
+        (string
+          (string_content))
+        (path
+          (ident)
+          (ident)))
+      (pair
+        (string
+          (string_content))
+        (array
+          (path
+            (ident)
+            (ident))
+          (path
+            (ident)
+            (ident)))))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))))

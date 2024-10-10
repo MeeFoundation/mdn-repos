@@ -1,0 +1,8 @@
+[
+  user
+  for user in users() 
+    if (user.age >= 18 or user.age <= 25) 
+      and user.gender == "Male"
+      and user.country == "USA"
+  limit 10    
+]
