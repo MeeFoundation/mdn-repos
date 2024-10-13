@@ -169,7 +169,7 @@ Complicated expression
 With comparator
 ===
 
-[for user in users if true and user.last_name exists or user.age > 18 and user.prone matches "+1\\d{10}" ]
+[for user in users if true and user.last_name exists or user.age > 18 and user.phone matches "+1\\d{10}" ]
 ---
 
 (start
