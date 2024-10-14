@@ -1,5 +1,5 @@
 use std::boxed::Box;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 // ast.rs
 
 use crate::visitor::{Visitable, Visitor};
@@ -20,18 +20,6 @@ impl<T> Visitable<T> for QueryBody {
 impl<T> Visitable<T> for IteratorStmt {
     fn accept(&self, visitor: &mut dyn Visitor<T>) -> T {
         visitor.visit_iterator_stmt(self)
-    }
-}
-
-impl<T> Visitable<T> for Assignment {
-    fn accept(&self, visitor: &mut dyn Visitor<T>) -> T {
-        visitor.visit_assignment(self)
-    }
-}
-
-impl<T> Visitable<T> for UpdateStmt {
-    fn accept(&self, visitor: &mut dyn Visitor<T>) -> T {
-        visitor.visit_update_stmt(self)
     }
 }
 
@@ -88,8 +76,15 @@ pub enum Query {
 pub struct QueryBody {
     pub result: Option<Value>,
     pub iterators: Vec<IteratorStmt>,
-    pub updates: Vec<UpdateStmt>,
-    pub deletes: Vec<DeleteStmt>,
+    pub updates: HashMap<Path, Expression>,
+    pub deletes: DeleteStmt,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeleteStmt {
+    Paths(HashSet<Path>),
+    All,
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -100,23 +95,6 @@ pub struct IteratorStmt {
     pub filter: Option<BoolExpression>,
     pub offset: Option<usize>,
     pub limit: Option<usize>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assignment {
-    pub var: String,
-    pub expr: Expression,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct UpdateStmt {
-    pub field: Path,
-    pub expr: Expression,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DeleteStmt {
-    pub path: Option<Path>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -272,12 +250,18 @@ impl From<Path> for Value {
     }
 }
 
-impl<T> From<HashMap<String, T>> for Value
+impl<S, T> From<HashMap<S, T>> for Value
 where
     T: Into<Value>,
+    S: Into<String>,
 {
-    fn from(value: HashMap<String, T>) -> Self {
-        Value::Object(value.into_iter().map(|(k, v)| (k, v.into())).collect())
+    fn from(value: HashMap<S, T>) -> Self {
+        Value::Object(
+            value
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
     }
 }
 
@@ -362,8 +346,17 @@ impl Value {
 
 pub type ValueMap = HashMap<String, Value>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Path(pub Vec<String>);
+
+impl Path {
+    pub fn from_dot_separated<T>(str: T) -> Self
+    where
+        T: Into<String>,
+    {
+        str.into().into()
+    }
+}
 
 impl<T> From<T> for Path
 where

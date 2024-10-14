@@ -1,5 +1,6 @@
 use crate::ast::{BoolExpression::*, *};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use tree_sitter::{Node, Parser};
 
 pub struct ASTBuilder {
@@ -60,33 +61,14 @@ impl ASTBuilder {
 
     fn visit_query_body(&mut self, node: &Node) -> Result<QueryBody, String> {
         println!("Visiting query body node of kind: {}", node.kind());
-        let mut result = None;
-        let mut iterators = Vec::new();
-        let mut updates = Vec::new();
-        let mut deletes = Vec::new();
+        let result = node
+            .child_by_field_name("result")
+            .map(|node| self.visit_value(&node))
+            .transpose()?;
 
-        if let Some(result_node) = node.child_by_field_name("result") {
-            println!("Found result node");
-            result = Some(self.visit_value(&result_node)?);
-        }
-
-        for child in node.children_by_field_name("iterators", &mut node.walk()) {
-            println!("Visiting iterator statement");
-            let iterator = self.visit_iterator_stmt(&child)?;
-            iterators.push(iterator);
-        }
-
-        for child in node.children_by_field_name("updates", &mut node.walk()) {
-            println!("Visiting update statement");
-            let update = self.visit_update_stmt(&child)?;
-            updates.push(update);
-        }
-
-        for child in node.children_by_field_name("deletes", &mut node.walk()) {
-            println!("Visiting delete statement");
-            let delete = self.visit_delete_stmt(&child)?;
-            deletes.push(delete);
-        }
+        let iterators = self.visit_iterators(node)?;
+        let updates = self.visit_update_stmt(node)?;
+        let deletes = self.visit_delete_stmt(node)?;
 
         Ok(QueryBody {
             result,
@@ -96,78 +78,91 @@ impl ASTBuilder {
         })
     }
 
-    fn visit_iterator_stmt(&mut self, node: &Node) -> Result<IteratorStmt, String> {
-        println!("Visiting iterator statement node k");
-        let item_node = node.child_by_field_name("item").ok_or("Expected item")?;
-        let item = self.node_text(&item_node);
+    fn visit_iterators(&mut self, node: &Node) -> Result<Vec<IteratorStmt>, String> {
+        let mut iterators = Vec::new();
+        for child in node.children_by_field_name("iterators", &mut node.walk()) {
+            println!("Visiting iterator statement");
+            let item_node = child.child_by_field_name("item").ok_or("Expected item")?;
+            let item = self.node_text(&item_node);
 
-        let source_node = node
-            .child_by_field_name("source")
-            .ok_or("Expected source")?;
-        let source = self.visit_source(&source_node)?;
+            let source_node = child
+                .child_by_field_name("source")
+                .ok_or("Expected source")?;
+            let source = self.visit_source(&source_node)?;
 
-        let assignments = node
-            .children_by_field_name("assignments", &mut node.walk())
-            .map(|node| self.visit_assignment(&node))
-            .collect::<Result<HashMap<_, _>, String>>()?;
+            let assignments = self.visit_assignment(&child)?;
 
-        let filter = if let Some(filter_node) = node.child_by_field_name("filter") {
-            Some(self.visit_bool_expression(&filter_node)?)
-        } else {
-            None
-        };
+            let filter = if let Some(filter_node) = child.child_by_field_name("filter") {
+                Some(self.visit_bool_expression(&filter_node)?)
+            } else {
+                None
+            };
 
-        let offset = if let Some(offset_node) = node.child_by_field_name("offset") {
-            Some(self.visit_pos_int(&offset_node)?)
-        } else {
-            None
-        };
+            let offset = if let Some(offset_node) = child.child_by_field_name("offset") {
+                Some(self.visit_pos_int(&offset_node)?)
+            } else {
+                None
+            };
 
-        let limit = if let Some(limit_node) = node.child_by_field_name("limit") {
-            Some(self.visit_pos_int(&limit_node)?)
-        } else {
-            None
-        };
+            let limit = if let Some(limit_node) = child.child_by_field_name("limit") {
+                Some(self.visit_pos_int(&limit_node)?)
+            } else {
+                None
+            };
 
-        Ok(IteratorStmt {
-            item,
-            source,
-            assignments,
-            filter,
-            offset,
-            limit,
-        })
+            iterators.push(IteratorStmt {
+                item,
+                source,
+                assignments,
+                filter,
+                offset,
+                limit,
+            });
+        }
+        Ok(iterators)
     }
 
-    fn visit_assignment(&mut self, node: &Node) -> Result<(String, Expression), String> {
-        let var_node = node.child_by_field_name("var").ok_or("Expected var")?;
-        let var = self.node_text(&var_node);
-
-        let expr_node = node.child_by_field_name("expr").ok_or("Expected expr")?;
-        let expr = self.visit_expression(&expr_node)?;
-
-        Ok((var, expr))
+    fn visit_assignment(&mut self, node: &Node) -> Result<HashMap<String, Expression>, String> {
+        let mut assignments = HashMap::new();
+        for child in node.children_by_field_name("assignments", &mut node.walk()) {
+            println!("Visiting assignment");
+            dbg!(&child);
+            let key = self.node_text(&child.named_child(0).ok_or("Expected key")?);
+            println!("Visited key: {:?}", &key);
+            let expr =
+                self.visit_expression(&child.named_child(1).ok_or("Expected expression")?)?;
+            println!("Visited expression: {:?}", &expr);
+            assignments.insert(key, expr);
+        }
+        Ok(assignments)
     }
 
-    fn visit_update_stmt(&mut self, node: &Node) -> Result<UpdateStmt, String> {
-        let field_node = node.child_by_field_name("field").ok_or("Expected field")?;
-        let field = self.visit_path(&field_node)?;
-
-        let expr_node = node.child_by_field_name("expr").ok_or("Expected expr")?;
-        let expr = self.visit_expression(&expr_node)?;
-
-        Ok(UpdateStmt { field, expr })
+    fn visit_update_stmt(&mut self, node: &Node) -> Result<HashMap<Path, Expression>, String> {
+        let mut updates = HashMap::new();
+        for child in node.children_by_field_name("updates", &mut node.walk()) {
+            let path = self.visit_path(&child.named_child(0).ok_or("Expected key")?)?;
+            let expr =
+                self.visit_expression(&child.named_child(1).ok_or("Expected expression")?)?;
+            updates.insert(path, expr);
+        }
+        Ok(updates.into())
     }
 
     fn visit_delete_stmt(&mut self, node: &Node) -> Result<DeleteStmt, String> {
-        let path_node = node.child_by_field_name("field");
-        let path = if let Some(path_node) = path_node {
-            Some(self.visit_path(&path_node)?)
+        let mut deletes = HashSet::new();
+        for child in node.children_by_field_name("deletes", &mut node.walk()) {
+            if let Some(path_node) = child.named_child(0) {
+                let path = self.visit_path(&path_node)?;
+                deletes.insert(path);
+            } else {
+                return Ok(DeleteStmt::All);
+            }
+        }
+        if deletes.is_empty() {
+            Ok(DeleteStmt::None)
         } else {
-            None
-        };
-
-        Ok(DeleteStmt { path })
+            Ok(DeleteStmt::Paths(deletes))
+        }
     }
 
     fn visit_source(&mut self, node: &Node) -> Result<Source, String> {
@@ -400,8 +395,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -423,8 +418,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -446,8 +441,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -469,8 +464,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -492,8 +487,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -515,8 +510,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -538,8 +533,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -573,8 +568,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -603,8 +598,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -630,8 +625,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -659,8 +654,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -682,8 +677,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -705,8 +700,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -728,8 +723,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -761,8 +756,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -786,8 +781,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -811,8 +806,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -834,8 +829,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -857,8 +852,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -880,8 +875,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -903,8 +898,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -928,8 +923,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -952,8 +947,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -981,8 +976,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1008,8 +1003,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1035,8 +1030,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1066,8 +1061,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1091,8 +1086,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1118,8 +1113,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1152,8 +1147,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1191,8 +1186,8 @@ mod tests {
                         limit: None,
                     },
                 ],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1226,8 +1221,8 @@ mod tests {
                     offset: None,
                     limit: Some(10),
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1263,8 +1258,8 @@ mod tests {
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::new(),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1302,11 +1297,11 @@ mod tests {
                         limit: None,
                     },
                 ],
-                updates: vec![UpdateStmt {
-                    field: Path(vec!["flight".to_string(), "dt".to_string()]),
-                    expr: Expression::Value(Value::String("2024.11.11T12:00:00".to_string())),
-                }],
-                deletes: vec![],
+                updates: HashMap::from([(
+                    Path(vec!["flight".to_string(), "dt".to_string()]),
+                    Expression::Value(Value::String("2024.11.11T12:00:00".to_string())),
+                )]),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
@@ -1314,22 +1309,37 @@ mod tests {
 
     #[test]
     fn test_add_a_payment_card() {
-        let source = "[for user in users() if user.id == \"4435\" set user.payment_cards = [{\"number\":\"1234 1234 1234 1234\", \"expires\": \"08/30\", \"cvv\" : \"111\"}, {\"number\":\"5555 1234 1234 1234\", \"expires\": \"08/30\", \"cvv\" : \"222\"}]]";
+        let source = r#"[for user in users() if user.id == "4435" set user.payment_cards = [{"number":"1234 1234 1234 1234", "expires": "08/30", "cvv" : "111"}, {"number":"5555 1234 1234 1234", "expires": "08/30", "cvv" : "222"}]]"#;
         let mut builder = ASTBuilder::new(source.to_string());
         let query = builder.parse().unwrap();
+        let card1 = HashMap::from([
+            ("number", "1234 1234 1234 1234"),
+            ("expires", "08/30"),
+            ("cvv", "111"),
+        ]);
+        let card1: Value = card1.into();
+        let card2 = HashMap::from([
+            ("number", "5555 1234 1234 1234"),
+            ("expires", "08/30"),
+            ("cvv", "222"),
+        ]);
+        let card2: Value = card2.into();
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
                 iterators: vec![IteratorStmt {
                     item: "user".to_string(),
-                    source: Source::PathSource(Path(vec!["users".to_string()])),
+                    source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
-                    filter: Some(BoolPath(Path(vec!["user".to_string(), "id".to_string()]))),
+                    filter: Some(Value::Path("user.id".into()).eq("4435")),
                     offset: None,
                     limit: None,
                 }],
-                updates: vec![],
-                deletes: vec![],
+                updates: HashMap::from([(
+                    Path::from_dot_separated("user.payment_cards"),
+                    Expression::Value(vec![card1, card2].into()),
+                )]),
+                deletes: DeleteStmt::None,
             },
         };
         assert_eq!(query, expected);
