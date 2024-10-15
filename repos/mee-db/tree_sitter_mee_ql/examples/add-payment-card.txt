@@ -1,0 +1,7 @@
+[
+  for user in users() if user.id == "4435"
+  set user.payment_cards = [
+    {"number":"1234 1234 1234 1234", "expires": "08/30", "cvv" : "111"},
+    {"number":"5555 1234 1234 1234", "expires": "08/30", "cvv" : "222"}
+  ]
+]
