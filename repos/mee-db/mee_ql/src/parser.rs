@@ -7,9 +7,38 @@ pub struct ASTBuilder {
     source_code: String,
 }
 
+fn unescape(s: &str) -> String {
+    match s {
+        r#"\\"# => r#"\"#.to_string(),
+        r#"\""# => r#"""#.to_string(),
+        r#"\/""# => r#"/"#.to_string(),
+        r#"\b"# => r#"\b"#.to_string(),
+        r#"\f"# => r#"\f"#.to_string(),
+        r#"\n"# => r#"\n"#.to_string(),
+        r#"\r"# => r#"\r"#.to_string(),
+        r#"\t"# => r#"\t"#.to_string(),
+        str if str.starts_with(r#"\u"#) => {
+            let hex_digits = str.get(2..6).unwrap();
+            let unicode_value = u32::from_str_radix(&hex_digits, 16).unwrap();
+            char::from_u32(unicode_value).unwrap().to_string()
+        }
+        _ => String::new(),
+    }
+}
+
 impl ASTBuilder {
     pub fn new(source_code: String) -> Self {
         ASTBuilder { source_code }
+    }
+
+    fn dbg_node(&self, node: &Node, method: &str) {
+        println!(
+            "{}: Visiting node of kind: '{}', text: '{}', node: {:?}",
+            method,
+            node.kind(),
+            self.node_text(node),
+            node
+        );
     }
 
     pub fn parse(&mut self) -> Result<Query, String> {
@@ -26,16 +55,14 @@ impl ASTBuilder {
             .ok_or("Failed to parse")?;
         let root_node = tree.root_node();
 
-        println!("Parse tree root node kind: {}", root_node.kind());
         self.visit_node(&root_node)
     }
 
     fn visit_node(&mut self, node: &Node) -> Result<Query, String> {
-        println!("Visiting node of kind: {}", node.kind());
+        self.dbg_node(node, "visit_node");
         match node.kind() {
             "start" => {
                 let query_node = node.named_child(0).ok_or("Expected query node")?;
-                println!("Found start node, visiting query node");
                 self.visit_query(&query_node)
             }
             _ => Err(format!("Unknown node kind: {}", node.kind())),
@@ -43,15 +70,13 @@ impl ASTBuilder {
     }
 
     fn visit_query(&mut self, node: &Node) -> Result<Query, String> {
-        println!("Visiting query node of kind: {}", node.kind());
+        self.dbg_node(node, "visit_query");
         match node.kind() {
             "array_query" => {
-                println!("Processing array_query");
                 let body = self.visit_query_body(&node)?;
                 Ok(Query::ArrayQuery { body })
             }
             "element_query" => {
-                println!("Processing element_query");
                 let body = self.visit_query_body(&node)?;
                 Ok(Query::ElementQuery { body })
             }
@@ -60,7 +85,7 @@ impl ASTBuilder {
     }
 
     fn visit_query_body(&mut self, node: &Node) -> Result<QueryBody, String> {
-        println!("Visiting query body node of kind: {}", node.kind());
+        self.dbg_node(node, "visit_query_body");
         let result = node
             .child_by_field_name("result")
             .map(|node| self.visit_value(&node))
@@ -79,9 +104,10 @@ impl ASTBuilder {
     }
 
     fn visit_iterators(&mut self, node: &Node) -> Result<Vec<IteratorStmt>, String> {
+        self.dbg_node(node, "visit_iterators");
         let mut iterators = Vec::new();
         for child in node.children_by_field_name("iterators", &mut node.walk()) {
-            println!("Visiting iterator statement");
+            self.dbg_node(&child, "visit_iterators child");
             let item_node = child.child_by_field_name("item").ok_or("Expected item")?;
             let item = self.node_text(&item_node);
 
@@ -123,23 +149,23 @@ impl ASTBuilder {
     }
 
     fn visit_assignment(&mut self, node: &Node) -> Result<HashMap<String, Expression>, String> {
+        self.dbg_node(node, "visit_assignment");
         let mut assignments = HashMap::new();
         for child in node.children_by_field_name("assignments", &mut node.walk()) {
-            println!("Visiting assignment");
-            dbg!(&child);
+            self.dbg_node(&child, "visit_assignment child");
             let key = self.node_text(&child.named_child(0).ok_or("Expected key")?);
-            println!("Visited key: {:?}", &key);
             let expr =
                 self.visit_expression(&child.named_child(1).ok_or("Expected expression")?)?;
-            println!("Visited expression: {:?}", &expr);
             assignments.insert(key, expr);
         }
         Ok(assignments)
     }
 
     fn visit_update_stmt(&mut self, node: &Node) -> Result<HashMap<Path, Expression>, String> {
+        self.dbg_node(node, "visit_update_stmt");
         let mut updates = HashMap::new();
         for child in node.children_by_field_name("updates", &mut node.walk()) {
+            self.dbg_node(&child, "visit_update_stmt child");
             let path = self.visit_path(&child.named_child(0).ok_or("Expected key")?)?;
             let expr =
                 self.visit_expression(&child.named_child(1).ok_or("Expected expression")?)?;
@@ -149,8 +175,10 @@ impl ASTBuilder {
     }
 
     fn visit_delete_stmt(&mut self, node: &Node) -> Result<DeleteStmt, String> {
+        self.dbg_node(node, "visit_delete_stmt");
         let mut deletes = HashSet::new();
         for child in node.children_by_field_name("deletes", &mut node.walk()) {
+            self.dbg_node(&child, "visit_delete_stmt child");
             if let Some(path_node) = child.named_child(0) {
                 let path = self.visit_path(&path_node)?;
                 deletes.insert(path);
@@ -166,6 +194,7 @@ impl ASTBuilder {
     }
 
     fn visit_source(&mut self, node: &Node) -> Result<Source, String> {
+        self.dbg_node(node, "visit_source");
         match node.kind() {
             "path" => {
                 let path = self.visit_path(node)?;
@@ -180,8 +209,9 @@ impl ASTBuilder {
     }
 
     fn visit_expression(&mut self, node: &Node) -> Result<Expression, String> {
+        self.dbg_node(node, "visit_expression");
         match node.kind() {
-            "query" => {
+            "element_query" | "array_query" => {
                 let query = self.visit_query(node)?;
                 Ok(Expression::Query(Box::new(query)))
             }
@@ -200,6 +230,7 @@ impl ASTBuilder {
     }
 
     fn visit_value(&mut self, node: &Node) -> Result<Value, String> {
+        self.dbg_node(node, "visit_value");
         match node.kind() {
             "path" => {
                 let path = self.visit_path(node)?;
@@ -230,11 +261,21 @@ impl ASTBuilder {
     }
 
     fn visit_string(&mut self, node: &Node) -> Result<String, String> {
-        let string_content = node.named_child(0).ok_or("Expected string content")?;
-        Ok(self.node_text(&string_content))
+        self.dbg_node(node, "visit_string");
+        let mut string_content = String::new();
+        for child in node.named_children(&mut node.walk()) {
+            self.dbg_node(&child, "visit_string child");
+            if child.kind() == "string_content" {
+                string_content.push_str(&self.node_text(&child));
+            } else if child.kind() == "escape_sequence" {
+                string_content.push_str(&unescape(&self.node_text(&child)));
+            }
+        }
+        Ok(string_content)
     }
 
     fn visit_bool_expression(&mut self, node: &Node) -> Result<BoolExpression, String> {
+        self.dbg_node(node, "visit_bool_expression");
         match node.kind() {
             "comparison" => {
                 let val_node = node.child_by_field_name("val").ok_or("Expected val")?;
@@ -279,14 +320,16 @@ impl ASTBuilder {
                 self.visit_bool_expression(&next_sibling)
             }
             _ => Err(format!(
-                "Unknown bool expression kind: {}. next: {}",
+                "Unknown bool expression kind: {}. next: {}, text: {}",
                 node.kind(),
-                self.node_text(&node.next_sibling().unwrap())
+                self.node_text(&node.next_sibling().unwrap()),
+                self.node_text(&node)
             )),
         }
     }
 
     fn visit_comparator(&mut self, node: &Node) -> Result<Comparator, String> {
+        self.dbg_node(node, "visit_comparator");
         let operator_node = node.child(0).ok_or("Expected operator")?;
         let operator = self.node_text(&operator_node);
         match operator.as_str() {
@@ -326,14 +369,20 @@ impl ASTBuilder {
                 Ok(Comparator::Matches(expr))
             }
             "exists" => Ok(Comparator::Exists),
-            _ => Err(format!("Unknown comparator operator: {}", operator)),
+            _ => Err(format!(
+                "Unknown comparator operator: {}, text: {}",
+                operator,
+                self.node_text(&node)
+            )),
         }
     }
 
     fn visit_object(&mut self, node: &Node) -> Result<ValueMap, String> {
+        self.dbg_node(node, "visit_object");
         let mut pairs = HashMap::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "pair" {
+                self.dbg_node(&child, "visit_object pair");
                 let key = self.visit_string(&child.named_child(0).ok_or("Expected key")?)?;
 
                 let value = self.visit_value(&child.named_child(1).ok_or("Expected value")?)?;
@@ -345,8 +394,10 @@ impl ASTBuilder {
     }
 
     fn visit_array(&mut self, node: &Node) -> Result<Vec<Value>, String> {
+        self.dbg_node(node, "visit_array");
         let mut elements = Vec::new();
         for child in node.named_children(&mut node.walk()) {
+            self.dbg_node(&child, "visit_array child");
             let value = self.visit_value(&child)?;
             elements.push(value);
         }
@@ -354,6 +405,7 @@ impl ASTBuilder {
     }
 
     fn visit_path(&mut self, node: &Node) -> Result<Path, String> {
+        self.dbg_node(node, "visit_path");
         let mut segments = Vec::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "ident" {
@@ -576,10 +628,10 @@ mod tests {
     }
 
     //TODO: fix escaping
-    #[ignore]
     #[test]
     fn test_with_comparator() {
-        let source = r#"[for user in users if true and user.last_name exists or user.age > 18 and user.phone matches "+1\d{10}"]"#;
+        let source = r#"[for user in users 
+        if true and user.last_name exists or user.age > 18 and user.phone matches "+1\\d{10}"]"#;
         let mut builder = ASTBuilder::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
@@ -593,7 +645,7 @@ mod tests {
                         True.and(Value::Path("user.last_name".into()).exists())
                             .or(Value::Path("user.age".into())
                                 .gt(18)
-                                .and(Value::Path("user.phone".into()).matches("+1\\d{10}"))),
+                                .and(Value::Path("user.phone".into()).matches(r#"+1\d{10}"#))),
                     ),
                     offset: None,
                     limit: None,
@@ -1230,7 +1282,16 @@ mod tests {
 
     #[test]
     fn test_select_users_for_refund_for_a_canceled_flight() {
-        let source = r#"[{"name": user.name, "family_name": user.last_name, "card_number": number} for user in users() flight = (1 for flight in user.flights if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00") number = (card.number for card in user.payment_cards limit 1) if flight exists and number exists]"#;
+        let source = r#"[
+        {
+            "name": user.name, 
+            "family_name": user.last_name, 
+            "card_number": number
+        } 
+        for user in users()
+        flight = (1 for flight in user.flights if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00") 
+        number = (card.number for card in user.payment_cards limit 1) 
+        if flight exists and number exists]"#;
         let mut builder = ASTBuilder::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
@@ -1249,7 +1310,49 @@ mod tests {
                 iterators: vec![IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
-                    assignments: HashMap::new(),
+                    assignments: HashMap::from([
+                        (
+                            "flight".to_string(),
+                            Expression::Query(Box::new(Query::ElementQuery {
+                                body: QueryBody {
+                                    result: Some(1.into()),
+                                    iterators: vec![IteratorStmt {
+                                        item: "flight".to_string(),
+                                        source: Source::PathSource("user.flights".into()),
+                                        assignments: HashMap::new(),
+                                        filter: Some(
+                                            Value::Path("flight.number".into()).eq("AS702").and(
+                                                Value::Path("flight.dt".into())
+                                                    .eq("2024.11.11T11:00:00"),
+                                            ),
+                                        ),
+                                        offset: None,
+                                        limit: None,
+                                    }],
+                                    updates: HashMap::new(),
+                                    deletes: DeleteStmt::None,
+                                },
+                            })),
+                        ),
+                        (
+                            "number".to_string(),
+                            Expression::Query(Box::new(Query::ElementQuery {
+                                body: QueryBody {
+                                    result: Some(Value::Path("card.number".into())),
+                                    iterators: vec![IteratorStmt {
+                                        item: "card".to_string(),
+                                        source: Source::PathSource("user.payment_cards".into()),
+                                        assignments: HashMap::new(),
+                                        filter: None,
+                                        offset: None,
+                                        limit: Some(1),
+                                    }],
+                                    updates: HashMap::new(),
+                                    deletes: DeleteStmt::None,
+                                },
+                            })),
+                        ),
+                    ]),
                     filter: Some(
                         Value::Path("flight".into())
                             .exists()
@@ -1267,12 +1370,12 @@ mod tests {
 
     #[test]
     fn test_update_flight_departure_time() {
-        let source = "[user.passport for user in users() for flight in user.flights if flight.number == \"AS702\" and flight.dt == \"2024.11.11T11:00:00\" set flight.dt = \"2024.11.11T12:00:00\"]";
+        let source = r#"[user.passport for user in users() for flight in user.flights if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00" set flight.dt = "2024.11.11T12:00:00"]"#;
         let mut builder = ASTBuilder::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: None,
+                result: Some(Value::Path("user.passport".into())),
                 iterators: vec![
                     IteratorStmt {
                         item: "user".to_string(),
@@ -1289,10 +1392,11 @@ mod tests {
                             "flights".to_string(),
                         ])),
                         assignments: HashMap::new(),
-                        filter: Some(And(vec![
-                            BoolPath(Path(vec!["flight".to_string(), "number".to_string()])),
-                            BoolPath(Path(vec!["flight".to_string(), "dt".to_string()])),
-                        ])),
+                        filter: Some(
+                            Value::Path("flight.number".into())
+                                .eq("AS702")
+                                .and(Value::Path("flight.dt".into()).eq("2024.11.11T11:00:00")),
+                        ),
                         offset: None,
                         limit: None,
                     },
