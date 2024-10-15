@@ -1,17 +1,15 @@
-use parser::ASTBuilder;
-use tree_sitter::Parser;
+use parser::ASTBuilderImpl;
 mod ast;
-mod error;
+// mod error;
 mod parser;
-mod visitor;
+mod support;
+// mod visitable;
+// mod visitor;
 // mod _visitor;
 
 // Импортируем сгенерированный модуль языка, например, `tree_sitter_mee_ql`
 
 fn main() {
-    // Инициализируем парсер
-
-    // Пример кода MeeQL для парсинга
     let source_code = r#"
        [
   user
@@ -19,7 +17,7 @@ fn main() {
 ]
     "#;
 
-    let mut builder = ASTBuilder::new(source_code.to_string());
+    let mut builder = ASTBuilderImpl::new(source_code.to_string());
     match builder.parse() {
         Ok(ast) => {
             println!("Parsed AST: {:#?}", ast);

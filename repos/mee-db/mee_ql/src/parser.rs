@@ -1,47 +1,20 @@
 use crate::ast::{BoolExpression::*, *};
+use crate::support::unescape;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use tracing::debug;
 use tree_sitter::{Node, Parser};
 
-pub struct ASTBuilder {
+pub struct ASTBuilderImpl {
     source_code: String,
 }
 
-fn unescape(s: &str) -> String {
-    match s {
-        r#"\\"# => r#"\"#.to_string(),
-        r#"\""# => r#"""#.to_string(),
-        r#"\/""# => r#"/"#.to_string(),
-        r#"\b"# => r#"\b"#.to_string(),
-        r#"\f"# => r#"\f"#.to_string(),
-        r#"\n"# => r#"\n"#.to_string(),
-        r#"\r"# => r#"\r"#.to_string(),
-        r#"\t"# => r#"\t"#.to_string(),
-        str if str.starts_with(r#"\u"#) => {
-            let hex_digits = str.get(2..6).unwrap();
-            let unicode_value = u32::from_str_radix(&hex_digits, 16).unwrap();
-            char::from_u32(unicode_value).unwrap().to_string()
-        }
-        _ => String::new(),
-    }
+pub trait ASTBuilder {
+    fn parse(&mut self) -> Result<Query, String>;
 }
 
-impl ASTBuilder {
-    pub fn new(source_code: String) -> Self {
-        ASTBuilder { source_code }
-    }
-
-    fn dbg_node(&self, node: &Node, method: &str) {
-        println!(
-            "{}: Visiting node of kind: '{}', text: '{}', node: {:?}",
-            method,
-            node.kind(),
-            self.node_text(node),
-            node
-        );
-    }
-
-    pub fn parse(&mut self) -> Result<Query, String> {
+impl ASTBuilder for ASTBuilderImpl {
+    fn parse(&mut self) -> Result<Query, String> {
         println!("Starting parse with source code: {}", self.source_code);
         let mut parser = Parser::new();
 
@@ -56,6 +29,22 @@ impl ASTBuilder {
         let root_node = tree.root_node();
 
         self.visit_node(&root_node)
+    }
+}
+
+impl ASTBuilderImpl {
+    pub fn new(source_code: String) -> Box<dyn ASTBuilder> {
+        Box::new(ASTBuilderImpl { source_code })
+    }
+
+    fn dbg_node(&self, node: &Node, method: &str) {
+        debug!(
+            "{}: Visiting node of kind: '{}', text: '{}', node: {:?}",
+            method,
+            node.kind(),
+            self.node_text(node),
+            node
+        );
     }
 
     fn visit_node(&mut self, node: &Node) -> Result<Query, String> {
@@ -377,7 +366,7 @@ impl ASTBuilder {
         }
     }
 
-    fn visit_object(&mut self, node: &Node) -> Result<ValueMap, String> {
+    fn visit_object(&mut self, node: &Node) -> Result<HashMap<String, Value>, String> {
         self.dbg_node(node, "visit_object");
         let mut pairs = HashMap::new();
         for child in node.named_children(&mut node.walk()) {
@@ -427,14 +416,14 @@ impl ASTBuilder {
 }
 
 mod tests {
-    use super::ASTBuilder;
+    use super::*;
     use crate::ast::{BoolExpression::*, *};
     use std::collections::HashMap;
 
     #[test]
     fn test_greedy_and_grouping() {
         let source = "[for user in users if true and false and path]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -457,7 +446,7 @@ mod tests {
     #[test]
     fn test_greedy_or_grouping() {
         let source = "[for user in users if true or false or path]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -480,7 +469,7 @@ mod tests {
     #[test]
     fn test_not_operation() {
         let source = "[for user in users if not true]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -503,7 +492,7 @@ mod tests {
     #[test]
     fn test_and_operation() {
         let source = "[for user in users if true and false]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -526,7 +515,7 @@ mod tests {
     #[test]
     fn test_or_operation() {
         let source = "[for user in users if true or false]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -549,7 +538,7 @@ mod tests {
     #[test]
     fn test_grouped_expression() {
         let source = "[for user in users if true and (false or true)]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -572,7 +561,7 @@ mod tests {
     #[test]
     fn test_operation_priorities() {
         let source = "[for user in users if true and not true or false and true]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -595,7 +584,7 @@ mod tests {
     #[test]
     fn test_complicated_expression() {
         let source = "[for user in users if not user.is_admin or check1 and check2 and (check4 or not check5 or not (check6 and check7))]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -632,7 +621,7 @@ mod tests {
     fn test_with_comparator() {
         let source = r#"[for user in users 
         if true and user.last_name exists or user.age > 18 and user.phone matches "+1\\d{10}"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -660,7 +649,7 @@ mod tests {
     #[test]
     fn test_json_object() {
         let source = r#"[{"key1": "value1", "key2": 123, "key3": true} for user in users]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let mut map = HashMap::new();
         map.insert("key1".to_string(), Value::String("value1".to_string()));
@@ -687,7 +676,7 @@ mod tests {
     #[test]
     fn test_json_array() {
         let source = "[[1, 2, 3, \"four\", false] for user in users]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -716,7 +705,7 @@ mod tests {
     #[test]
     fn test_string() {
         let source = r#"["four" for user in users]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -739,7 +728,7 @@ mod tests {
     #[test]
     fn test_number() {
         let source = "[1 for user in users]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -762,7 +751,7 @@ mod tests {
     #[test]
     fn test_boolean_expression() {
         let source = "[true for user in users]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -786,7 +775,7 @@ mod tests {
     fn test_embedded_path() {
         let source =
             r#"({"age": user.age, "names": [user.name, user.last_name]} for user in users)"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let mut map = HashMap::new();
         map.insert("age".to_string(), Value::Path("user.age".into()));
@@ -818,7 +807,7 @@ mod tests {
     #[test]
     fn test_equal() {
         let source = r#"[user.id for user in users if user.name == "Ivan"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -843,7 +832,7 @@ mod tests {
     #[test]
     fn test_not_equal() {
         let source = r#"[user.id for user in users if user.name != "Ivan"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -868,7 +857,7 @@ mod tests {
     #[test]
     fn test_greater_than() {
         let source = r#"[user.id for user in users if user.age > 30]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -891,7 +880,7 @@ mod tests {
     #[test]
     fn test_less_than() {
         let source = r#"[user.id for user in users if user.age < 30]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -914,7 +903,7 @@ mod tests {
     #[test]
     fn test_greater_than_or_equal() {
         let source = r#"[user.id for user in users if user.age >= 30]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -937,7 +926,7 @@ mod tests {
     #[test]
     fn test_less_than_or_equal() {
         let source = r#"[user.id for user in users if user.age <= 30]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -960,7 +949,7 @@ mod tests {
     #[test]
     fn test_matches() {
         let source = r#"[user.id for user in users if user.name matches "I.*"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -985,7 +974,7 @@ mod tests {
     #[test]
     fn test_exists() {
         let source = r#"[user.id for user in users if user.email exists]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1009,7 +998,7 @@ mod tests {
     #[test]
     fn test_json_object_assignment() {
         let source = r#"[res for user in users res = {"name": user.name}]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1038,7 +1027,7 @@ mod tests {
     #[test]
     fn test_path_assignment() {
         let source = "[res for user in users res = user.name]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1065,7 +1054,7 @@ mod tests {
     #[test]
     fn test_string_assignment() {
         let source = r#"[res for user in users res = "=name"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1092,7 +1081,7 @@ mod tests {
     #[test]
     fn test_logical_expression_assignment() {
         let source = "[res for user in users res = not user.is_admin or true]";
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1123,7 +1112,7 @@ mod tests {
     #[test]
     fn test_find_by_id() {
         let source = r#"[user for user in users() if user.id == "534622344"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1148,7 +1137,7 @@ mod tests {
     #[test]
     fn test_find_last_name_by_email_and_name() {
         let source = r#"[user.last_name for user in users() if user.email == "some@gmail.com" and name == "Denis"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1175,7 +1164,7 @@ mod tests {
     #[test]
     fn test_find_by_country_code_or_country() {
         let source = r#"[{"name" : user.name, "phone" : user.phone} for user in users() if user.phone matches "+1[0-9]{11}" or user.country == "USA"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1209,7 +1198,7 @@ mod tests {
     #[test]
     fn test_select_users_who_made_a_purchase_after_a_date() {
         let source = r#"[user.id for user in users() for order in user.orders if order.date >= "2023-09-24"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1248,7 +1237,7 @@ mod tests {
     #[test]
     fn test_select_10_by_age_gender_and_country() {
         let source = r#"[user for user in users() if (user.age >= 18 or user.age <= 25) and user.gender == "Male" and user.country == "USA" limit 10]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1292,7 +1281,7 @@ mod tests {
         flight = (1 for flight in user.flights if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00") 
         number = (card.number for card in user.payment_cards limit 1) 
         if flight exists and number exists]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1371,7 +1360,7 @@ mod tests {
     #[test]
     fn test_update_flight_departure_time() {
         let source = r#"[user.passport for user in users() for flight in user.flights if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00" set flight.dt = "2024.11.11T12:00:00"]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
@@ -1414,7 +1403,7 @@ mod tests {
     #[test]
     fn test_add_a_payment_card() {
         let source = r#"[for user in users() if user.id == "4435" set user.payment_cards = [{"number":"1234 1234 1234 1234", "expires": "08/30", "cvv" : "111"}, {"number":"5555 1234 1234 1234", "expires": "08/30", "cvv" : "222"}]]"#;
-        let mut builder = ASTBuilder::new(source.to_string());
+        let mut builder = ASTBuilderImpl::new(source.to_string());
         let query = builder.parse().unwrap();
         let card1 = HashMap::from([
             ("number", "1234 1234 1234 1234"),
