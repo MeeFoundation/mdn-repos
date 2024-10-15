@@ -1,10 +1,9 @@
-use parser::ASTBuilderImpl;
+use parser::ASTParserImpl;
 mod ast;
 // mod error;
 mod parser;
-mod support;
-// mod visitable;
-// mod visitor;
+mod visitable;
+mod visitor;
 // mod _visitor;
 
 fn main() {
@@ -15,8 +14,8 @@ fn main() {
 ]
     "#;
 
-    let mut builder = ASTBuilderImpl::new(source_code.to_string());
-    match builder.parse() {
+    let mut parser = ASTParserImpl::new(source_code.to_string());
+    match parser.parse() {
         Ok(ast) => {
             println!("Parsed AST: {:#?}", ast);
         }

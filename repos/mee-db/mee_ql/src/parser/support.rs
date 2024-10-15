@@ -1,3 +1,5 @@
+use tree_sitter::Node;
+
 pub fn unescape(s: &str) -> String {
     match s {
         r#"\\"# => r#"\"#.to_string(),
@@ -10,9 +12,13 @@ pub fn unescape(s: &str) -> String {
         r#"\t"# => "\t".to_string(),
         str if str.starts_with(r#"\u"#) => {
             let hex_digits = str.get(2..6).unwrap();
-            let unicode_value = u32::from_str_radix(&hex_digits, 16).unwrap();
+            let unicode_value = u32::from_str_radix(hex_digits, 16).unwrap();
             char::from_u32(unicode_value).unwrap().to_string()
         }
         _ => String::new(),
     }
+}
+
+pub fn node_text(node: &Node, source_text: &str) -> Result<String, String> {
+    Ok(source_text[node.byte_range()].to_string())
 }
