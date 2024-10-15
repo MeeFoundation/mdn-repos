@@ -1,5 +1,5 @@
 use super::parser::{Parser, ParserList};
-use crate::ast::*;
+use super::*;
 use tree_sitter::Node;
 
 pub struct ExpressionParser;
