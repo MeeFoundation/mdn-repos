@@ -27,8 +27,8 @@ import MobileLayout from "../layouts/MobileLayout.astro";
   let ccNumberInput = document.querySelector("#card-num") as HTMLInputElement,
     ccExpiryInput = document.querySelector("#card-exp") as HTMLInputElement,
     ccCVCInput = document.querySelector("#card-cvv") as HTMLInputElement;
-  const OWN_BASE_URL = `${import.meta.env.PUBLIC_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_OWN_PROVIDER_PORT}/api/v1`;
-  const ANOTHER_BASE_URL = `${import.meta.env.PUBLIC_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_ANOTHER_PROVIDER_PORT}/api/v1`;
+  const OWN_BASE_URL = `${import.meta.env.PUBLIC_OWN_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_OWN_PROVIDER_PORT}/api/v1`;
+  const ANOTHER_BASE_URL = `${import.meta.env.PUBLIC_ANOTHER_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_ANOTHER_PROVIDER_PORT}/api/v1`;
   const dialog = document.querySelector("#consent-popover") as HTMLDialogElement;
   const dialogOkBtn = document.querySelector("#dialog-submit");
   const autofillBtn = document.querySelector("#autofillBtn");
