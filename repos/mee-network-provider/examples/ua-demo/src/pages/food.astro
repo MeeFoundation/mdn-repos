@@ -1,0 +1,62 @@
+---
+import Button from "../components/Button.astro";
+import MobileLayout from "../layouts/MobileLayout.astro";
+---
+
+<MobileLayout headerText="Food & drink menu" backlink="/profile">
+  <section class="flex flex-col w-full h-full bg-white max-w-screen-md mx-auto">
+    <div class="flex w-full p-4 pb-0 gap-6 h-fit">
+      <div class="bg-dark-gr/10 rounded-lg w-full flex h-fit p-0.5">
+        <span
+          class="inline-flex w-1/2 text-sm font-medium text-white text-center rounded-md bg-dark-gr items-center justify-center py-[5px]"
+          >Snacks</span
+        >
+        <span
+          class="inline-flex w-1/2 text-sm font-medium text-dark-gr text-center rounded-md items-center justify-center py-[5px]"
+          >Beverages</span
+        >
+      </div>
+    </div>
+    <div class="flex flex-col p-4 text-text-primary">
+      <h2 class="text-xl font-bold mb-2 border-t border-dark-gr/20 pt-4">Snacks</h2>
+      <ul class="flex flex-col">
+        <li class="py-4 flex justify-between border-y border-dark-gr/20 gap-6">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold">Potato Chips®</h3>
+            <span class="text-sm">Original potato crisps</span>
+            <span class="text-sm">$5 or 590 miles</span>
+          </div>
+          <Button appearance="secondary" to="/payment">Buy</Button>
+        </li>
+        <li class="py-4 flex justify-between border-y border-dark-gr/20 gap-6">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold">UNREAL Milk Chocolate Gems</h3>
+            <span class="text-sm"
+              >Milk chocolate covered in iconic crunchy candy coating made with natural ingredients</span
+            >
+            <span class="text-sm">$5 or 590 miles</span>
+          </div>
+          <Button appearance="secondary" to="/payment">Buy</Button>
+        </li>
+        <li class="py-4 flex justify-between border-y border-dark-gr/20 gap-6">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold">Field Trip Everything Bagel Jerky</h3>
+            <span class="text-sm"
+              >Grass fed beef jerky jam-packed with onion, garlic, sesame, and poppy seed flavor with 10g of protein.</span
+            >
+            <span class="text-sm">$6 or 710 miles</span>
+          </div>
+          <Button appearance="secondary" to="/payment">Buy</Button>
+        </li>
+        <li class="py-4 flex justify-between border-y border-dark-gr/20 gap-6">
+          <div class="flex flex-col gap-1.5">
+            <h3 class="font-bold">Snack Owl Sour Nova</h3>
+            <span class="text-sm">Chewy, plant-based sour gummies that are low in sugar and calories.</span>
+            <span class="text-sm">$4 or 470 miles</span>
+          </div>
+          <Button appearance="secondary" to="/payment">Buy</Button>
+        </li>
+      </ul>
+    </div>
+  </section>
+</MobileLayout>

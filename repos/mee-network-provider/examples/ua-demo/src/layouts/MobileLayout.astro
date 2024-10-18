@@ -1,0 +1,33 @@
+---
+import "@fontsource/roboto";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+
+type Props = {
+  withHeader?: boolean;
+  withFooter?: boolean;
+  headerText?: string;
+  backlink?: string;
+};
+
+const { withHeader = true, withFooter = true, headerText, backlink } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Untied Airlines</title>
+  </head>
+  <body class="bg-slate-900 flex flex-col items-center justify-center w-full h-svh antialiased">
+    <main class="flex flex-col flex-shrink-0 flex-grow w-screen h-svh overflow-hidden">
+      {withHeader && <Header headerText={headerText} backlink={backlink} />}
+      <section class="flex flex-col w-full h-full bg-white">
+        <slot />
+      </section>
+      {withFooter && <Footer />}
+    </main>
+  </body>
+</html>

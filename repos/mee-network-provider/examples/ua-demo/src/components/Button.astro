@@ -1,0 +1,35 @@
+---
+type Props = {
+  type?: astroHTML.JSX.IntrinsicElements["button"]["type"];
+  appearance?: "primary" | "secondary";
+  to?: string;
+};
+
+const { type, appearance = "primary", to } = Astro.props;
+---
+
+{
+  to ? (
+    <a
+      href={to}
+      class:list={[
+        "inline-block text-center py-2.5 px-6 rounded text-sm font-medium tracking-[0.1px] h-fit",
+        { "bg-primary text-white": appearance === "primary" },
+        { "border-2 border-primary bg-white": appearance === "secondary" },
+      ]}
+    >
+      <slot />
+    </a>
+  ) : (
+    <button
+      type={type}
+      class:list={[
+        "text-center py-2.5 px-6 rounded text-sm font-medium",
+        { "bg-primary text-white": appearance === "primary" },
+        { "border-2 border-primary bg-white": appearance === "secondary" },
+      ]}
+    >
+      <slot />
+    </button>
+  )
+}

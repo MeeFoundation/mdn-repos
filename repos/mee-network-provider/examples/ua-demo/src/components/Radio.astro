@@ -1,0 +1,12 @@
+---
+interface Props {
+  checked?: boolean;
+  text?: string;
+}
+const { checked = true, text } = Astro.props;
+---
+
+<div class="flex w-full h-fit gap-4 items-center">
+  <input type="radio" checked={checked} class="w-5 h-5 accent-dark-tiff" />
+  <span class="tracking-wide text-dark-gr">{text}</span>
+</div>

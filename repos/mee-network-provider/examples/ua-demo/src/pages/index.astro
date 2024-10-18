@@ -1,0 +1,32 @@
+---
+import Button from "../components/Button.astro";
+import Input from "../components/Input.astro";
+import Link from "../components/Link.astro";
+import MobileLayout from "../layouts/MobileLayout.astro";
+---
+
+<MobileLayout withHeader={false} withFooter={false}>
+  <section
+    class="flex w-full h-full p-3.5 items-end"
+    style={{
+      background:
+        "linear-gradient(180deg, rgba(11, 34, 62, 0.00) 33.97%, #0B223E 97%), url('/images/main-bg.webp') lightgray -200px -19.969px / 432.813% 80.841% no-repeat",
+      backgroundSize: "cover",
+    }}
+  >
+    <div class="bg-white py-6 px-3.5 w-full flex flex-col gap-4 max-w-screen-sm mx-auto">
+      <h1 class="font-semibold max-w-44">Sign in to your MileagePlus® account</h1>
+      <Input name="member" value="2716656896" label="MileagesPlus number" helperText="Forgot MileagePlus number?" />
+      <Input
+        name="pass"
+        type="password"
+        value="*************"
+        label="Password"
+        helperText="Forgot MileagePlus password?"
+      />
+      <Button to="/profile">Sign in</Button>
+      <Link text="Continue as guest" />
+      <Link text="Create a MileagePlus account" underline={false} />
+    </div>
+  </section>
+</MobileLayout>

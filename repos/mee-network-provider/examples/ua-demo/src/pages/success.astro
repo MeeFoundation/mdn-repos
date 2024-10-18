@@ -1,0 +1,50 @@
+---
+import { Image } from "astro:assets";
+import ChipsImage from "../assets/chips.png";
+import QRImage from "../assets/qr.png";
+import Button from "../components/Button.astro";
+import MobileLayout from "../layouts/MobileLayout.astro";
+---
+
+<MobileLayout withHeader={false} withFooter={false}>
+  <section
+    class="flex flex-col w-full h-full bg-white p-4 text-text-primary justify-center rounded-2xl"
+    style={{
+      background:
+        "linear-gradient(180deg, rgba(11, 34, 62, 0.00) 14.13%, #0B223E 90%), url('/images/main-bg.webp') lightgray -200px -100px no-repeat",
+      backgroundSize: "cover",
+    }}
+  >
+    <div class="flex flex-col w-full gap-4 h-fit max-w-screen-md mx-auto">
+      <div class="border border-dark-gr/20 bg-white rounded-[3px] flex flex-col w-full h-fit">
+        <div
+          class="py-[14px] px-4 bg-dark-gr/5 border-b border-dark-gr/20 flex w-full items-center gap-2 justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
+            <path
+              d="M7.898 11.0173C7.86019 11.065 7.81188 11.1033 7.75683 11.1292C7.70178 11.1551 7.64149 11.1679 7.58067 11.1667C7.48991 11.1687 7.40098 11.1411 7.32733 11.088L4.49267 8.98133C4.45033 8.95112 4.41464 8.91253 4.38781 8.86796C4.36099 8.8234 4.3436 8.7738 4.33673 8.72224C4.32985 8.67068 4.33364 8.61825 4.34785 8.56821C4.36206 8.51818 4.38639 8.47159 4.41933 8.43133C4.54933 8.25867 4.81 8.22733 4.98933 8.36067L7.50733 10.2233L10.9373 5.97933C11.0068 5.89874 11.1042 5.84746 11.21 5.83583C11.3158 5.8242 11.422 5.85309 11.5073 5.91667C11.6873 6.05 11.7193 6.294 11.5807 6.46667L7.898 11.0173ZM0 8.5C0 12.916 3.584 16.5 8 16.5C12.416 16.5 16 12.916 16 8.5C16 4.076 12.416 0.5 8 0.5C3.584 0.5 0 4.076 0 8.5Z"
+              fill="#008000"></path>
+          </svg>
+          <h2 class="text-dark-gr font-semibold leading-normal">Payment successful</h2>
+        </div>
+        <div class="flex flex-col bg-white w-full py-8 justify-center gap-4 text-dark-gr items-center">
+          <Image src={ChipsImage} width={96} height={105} alt="Chips" />
+          <p class="flex flex-col justify-center items-center">
+            <span class="font-bold">You bought</span>
+            <b class="text-2xl font-bold">Potato Chips®</b>
+          </p>
+          <Image src={QRImage} width={186} height={186} alt="QR" />
+        </div>
+        <div
+          class="py-[14px] px-4 bg-dark-gr/5 border-b border-dark-gr/20 flex w-full items-center gap-2 justify-center"
+        >
+          <h2 class="text-dark-gr leading-normal text-center text-sm">
+            Scan the QR code at a vending machine or ask the stewards to scan it during the flight.
+          </h2>
+        </div>
+      </div>
+      <Button to="/" appearance="primary">Return to home</Button>
+      <Button to="/payment" appearance="secondary">Buy more</Button>
+    </div>
+  </section>
+</MobileLayout>

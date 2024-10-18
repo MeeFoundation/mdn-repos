@@ -1,0 +1,191 @@
+---
+type Props = {};
+
+const {} = Astro.props;
+---
+
+<div class="flex flex-col">
+  <label for="card" class="text-gr text-xs font-medium">Card details</label>
+  <div
+    class="relative group focus-within:bg-dark-tiff/15 border border-gr rounded bg-white px-4 py-2 text-on-surface mb-1 flex justify-between gap-4"
+  >
+    <input
+      type="text"
+      name="card-num"
+      id="card-num"
+      placeholder="Card number"
+      class="focus:border-0 focus:outline-none placeholder:text-dark-gr/65 w-full bg-transparent"
+      maxlength="19"
+    />
+    <input
+      type="text"
+      name="card-exp"
+      id="card-exp"
+      placeholder="MM/DD"
+      class="focus:border-0 focus:outline-none w-14 placeholder:text-dark-gr/65 bg-transparent"
+      maxlength="5"
+    />
+    <input
+      type="text"
+      name="card-cvv"
+      id="card-cvv"
+      placeholder="CIV"
+      class="focus:border-0 focus:outline-none w-[25px] placeholder:text-dark-gr/65 bg-transparent"
+      maxlength="3"
+    />
+    <div
+      id="autofill"
+      class="absolute -left-0.5 top-[calc(100%+1px)] z-50 w-[calc(100%+4px)] border border-dark-gr/20 rounded-b-[3px] hidden group-focus-within:block"
+      style={{ boxShadow: "0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.30)" }}
+    >
+      <button id="autofillBtn" class="p-2 bg-white gap-2 flex items-center w-full">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <g clip-path="url(#clip0_6838_6622)">
+            <path d="M24 0H0V24H24V0Z" fill="#4F868E"></path>
+            <path
+              d="M14.44 8.08423C13.9686 8.08744 13.5042 8.19753 13.0815 8.40619C12.6589 8.61484 12.2891 8.91665 12 9.28884C11.7112 8.91667 11.3416 8.61489 10.9192 8.40621C10.4967 8.19756 10.0324 8.08747 9.56124 8.08423C7.80374 8.08423 6.375 9.59623 6.375 11.4581V15.147C6.375 15.3458 6.45401 15.5365 6.59467 15.6771C6.73531 15.8177 6.92609 15.8967 7.125 15.8967C7.32391 15.8967 7.51466 15.8177 7.65533 15.6771C7.79599 15.5365 7.875 15.3458 7.875 15.147V11.4557C7.875 10.421 8.63376 9.58125 9.56626 9.58125C10.4988 9.58125 11.2575 10.4235 11.2575 11.4557V15.1445C11.2575 15.3433 11.3365 15.534 11.4772 15.6746C11.6178 15.8152 11.8086 15.8942 12.0075 15.8942C12.2064 15.8942 12.3972 15.8152 12.5378 15.6746C12.6785 15.534 12.7575 15.3433 12.7575 15.1445V11.4557C12.7575 10.421 13.5162 9.58125 14.4487 9.58125C15.3812 9.58125 16.14 10.4235 16.14 11.4557V15.1445C16.14 15.3433 16.219 15.534 16.3597 15.6746C16.5003 15.8152 16.6911 15.8942 16.89 15.8942C17.0889 15.8942 17.2797 15.8152 17.4203 15.6746C17.561 15.534 17.64 15.3433 17.64 15.1445V11.4557C17.6262 9.59623 16.1975 8.08423 14.44 8.08423Z"
+              fill="#EBEAEF"></path>
+            <path
+              d="M12 2.61597C9.51451 2.61894 7.13167 3.60731 5.37415 5.36425C3.61666 7.1212 2.62798 9.50327 2.625 11.988C2.62798 14.4727 3.61666 16.8547 5.37415 18.6117C7.13167 20.3686 9.51451 21.357 12 21.36C14.4856 21.3573 16.8686 20.3691 18.6262 18.612C20.3838 16.855 21.3724 14.4728 21.375 11.988C21.372 9.50327 20.3833 7.1212 18.6258 5.36425C16.8683 3.60731 14.4855 2.61894 12 2.61597ZM12 20.9851C9.61387 20.9824 7.32622 20.0337 5.63897 18.347C3.95172 16.6603 3.00264 14.3734 3 11.988C3.00264 9.60258 3.95172 7.31567 5.63897 5.62897C7.32622 3.94226 9.61387 2.99349 12 2.99085C14.3861 2.99349 16.6738 3.94226 18.361 5.62897C20.0483 7.31567 20.9974 9.60258 21 11.988C20.9974 14.3734 20.0483 16.6603 18.361 18.347C16.6738 20.0337 14.3861 20.9824 12 20.9851Z"
+              fill="#EBEAEF"></path>
+          </g>
+          <defs>
+            <clipPath id="clip0_6838_6622">
+              <rect width="24" height="24" rx="3" fill="white"></rect>
+            </clipPath>
+          </defs>
+        </svg>
+        <span>Autofill with Mee</span>
+      </button>
+      <section class="p-2 bg-[#F3F5F6] border-t border-dark-gr/20">View details</section>
+    </div>
+  </div>
+  <dialog id="consent-popover" class="rounded-3xl">
+    <div class="flex flex-col gap-6 p-6 bg-[#E1E3E3] max-w-[312px] text-on-surface">
+      <h3 class="text-2xl font-bold">Autofill with Mee</h3>
+      <p>
+        The following information from your Mee personal data service will be shared with Untied Airlines and used to
+        fill in this form:
+      </p>
+      <ul class="border-b border-dark-gr/20 pb-2">
+        <li>
+          <h6 class="text-base">Credit Card Number</h6>
+          <span class="text-xs text-[#49454F]">Source: The Olde York Times</span>
+        </li>
+      </ul>
+      <div class="flex justify-end gap-4">
+        <button id="dialog-submit" class="text-sm font-medium text-dark-tiff">Ok</button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<style is:global>
+  ::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
+</style>
+
+<script>
+  // Inputs masking
+  let ccNumberInput = document.querySelector("#card-num") as HTMLInputElement,
+    ccNumberPattern = /^\d{0,16}$/g,
+    ccNumberSeparator = " ",
+    ccNumberInputOldValue = "",
+    ccNumberInputOldCursor = 0,
+    ccExpiryInput = document.querySelector("#card-exp") as HTMLInputElement,
+    ccExpiryPattern = /^\d{0,4}$/g,
+    ccExpirySeparator = "/",
+    ccExpiryInputOldValue = "";
+  const mask = (value: string | any[], limit: number, separator: string) => {
+      var output = [];
+      for (let i = 0; i < value.length; i++) {
+        if (i !== 0 && i % limit === 0) {
+          output.push(separator);
+        }
+
+        output.push(value[i]);
+      }
+
+      return output.join("");
+    },
+    unmask = (value: string) => value.replace(/[^\d]/g, ""),
+    checkSeparator = (position: number, interval: number) => Math.floor(position / (interval + 1)),
+    ccNumberInputKeyDownHandler = (e: { target: any }) => {
+      let el = e.target;
+      ccNumberInputOldValue = el.value;
+      ccNumberInputOldCursor = el.selectionEnd;
+    },
+    ccNumberInputInputHandler = (e: { target: any }) => {
+      let el = e.target,
+        newValue = unmask(el.value),
+        newCursorPosition;
+
+      if (newValue.match(ccNumberPattern)) {
+        newValue = mask(newValue, 4, ccNumberSeparator);
+
+        newCursorPosition =
+          ccNumberInputOldCursor -
+          checkSeparator(ccNumberInputOldCursor, 4) +
+          checkSeparator(ccNumberInputOldCursor + (newValue.length - ccNumberInputOldValue.length), 4) +
+          (unmask(newValue).length - unmask(ccNumberInputOldValue).length);
+
+        el.value = newValue !== "" ? newValue : "";
+      } else {
+        el.value = ccNumberInputOldValue;
+        newCursorPosition = ccNumberInputOldCursor;
+      }
+
+      el.setSelectionRange(newCursorPosition, newCursorPosition);
+
+      highlightCC(el.value);
+    },
+    highlightCC = (ccValue: any) => {
+      let ccCardType = "",
+        ccCardTypePatterns = {
+          amex: /^3/,
+          visa: /^4/,
+          mastercard: /^5/,
+          disc: /^6/,
+
+          genric: /(^1|^2|^7|^8|^9|^0)/,
+        };
+
+      for (const cardType in ccCardTypePatterns) {
+        if (ccCardTypePatterns[cardType as keyof typeof ccCardTypePatterns].test(ccValue)) {
+          ccCardType = cardType;
+          break;
+        }
+      }
+
+      let activeCC = document.querySelector(".cc-types__img--active"),
+        newActiveCC = document.querySelector(`.cc-types__img--${ccCardType}`);
+
+      if (activeCC) activeCC.classList.remove("cc-types__img--active");
+      if (newActiveCC) newActiveCC.classList.add("cc-types__img--active");
+    },
+    ccExpiryInputKeyDownHandler = (e: { target: any }) => {
+      let el = e.target;
+      ccExpiryInputOldValue = el.value;
+    },
+    ccExpiryInputInputHandler = (e: { target: any }) => {
+      let el = e.target,
+        newValue = el.value;
+
+      newValue = unmask(newValue);
+      if (newValue.match(ccExpiryPattern)) {
+        newValue = mask(newValue, 2, ccExpirySeparator);
+        el.value = newValue;
+      } else {
+        el.value = ccExpiryInputOldValue;
+      }
+    };
+  if (ccNumberInput) {
+    ccNumberInput.addEventListener("keydown", ccNumberInputKeyDownHandler);
+    ccNumberInput.addEventListener("input", ccNumberInputInputHandler);
+  }
+  if (ccExpiryInput) {
+    ccExpiryInput.addEventListener("keydown", ccExpiryInputKeyDownHandler);
+    ccExpiryInput.addEventListener("input", ccExpiryInputInputHandler);
+  }
+</script>

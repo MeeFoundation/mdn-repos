@@ -1,0 +1,191 @@
+---
+import Button from "../components/Button.astro";
+import CardInput from "../components/CardInput.astro";
+import Input from "../components/Input.astro";
+import Radio from "../components/Radio.astro";
+import MobileLayout from "../layouts/MobileLayout.astro";
+---
+
+<MobileLayout headerText="Payment options" backlink="/food" withFooter={false}>
+  <section class="flex flex-col w-full h-full bg-white p-4 text-text-primary max-w-screen-md mx-auto">
+    <div class="border border-dark-gr/20 rounded-[3px] flex flex-col">
+      <h2 class="p-4 border-b border-dark-gr/20 font-semibold tracking-wide">Choose payment method</h2>
+      <div class="flex flex-col p-4 gap-4">
+        <div class="mb-4">
+          <Radio text="Credit card" />
+        </div>
+        <CardInput />
+        <Input label="Name on card" name="holder" />
+        <Input label="Postal code" name="postal" />
+        <Button to="/success">Save and pay</Button>
+      </div>
+    </div>
+  </section>
+</MobileLayout>
+
+<script>
+  let ccNumberInput = document.querySelector("#card-num") as HTMLInputElement,
+    ccExpiryInput = document.querySelector("#card-exp") as HTMLInputElement,
+    ccCVCInput = document.querySelector("#card-cvv") as HTMLInputElement;
+  const OWN_BASE_URL = `${import.meta.env.PUBLIC_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_OWN_PROVIDER_PORT}/api/v1`;
+  const ANOTHER_BASE_URL = `${import.meta.env.PUBLIC_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_ANOTHER_PROVIDER_PORT}/api/v1`;
+  const dialog = document.querySelector("#consent-popover") as HTMLDialogElement;
+  const dialogOkBtn = document.querySelector("#dialog-submit");
+  const autofillBtn = document.querySelector("#autofillBtn");
+  const PAYMENT_CARD_PATH = "alice/card/0";
+  const PAYMENT_CARD_NUMBER = `${PAYMENT_CARD_PATH}/number`;
+  const PAYMENT_CARD_CVV = `${PAYMENT_CARD_PATH}/cvv`;
+  const PAYMENT_CARD_EXPIRES = `${PAYMENT_CARD_PATH}/expires`;
+  let ownNodeId: string | undefined;
+
+  type PersonaAttribute = {
+    key: string;
+    value: string;
+  };
+  type PaymentFormData = {
+    card_num: string;
+    card_cvv: string;
+    card_exp: string;
+  };
+
+  type ImportedCapability = {
+    namespace_kind: string;
+    namespace: string;
+    owner: string;
+    receiver: string;
+    granted_data_path: string;
+    granted_until?: string;
+  };
+
+  function parsePaymentCard(attrs: PersonaAttribute[]) {
+    const card: PaymentFormData = {
+      card_cvv: "",
+      card_exp: "",
+      card_num: "",
+    };
+
+    for (const attr of attrs) {
+      if (attr.key === PAYMENT_CARD_CVV) {
+        card.card_cvv = attr.value;
+      }
+      if (attr.key === PAYMENT_CARD_NUMBER) {
+        card.card_num = attr.value;
+      }
+      if (attr.key === PAYMENT_CARD_EXPIRES) {
+        card.card_exp = attr.value;
+      }
+    }
+
+    return card;
+  }
+
+  const getImportedCaps = async () => {
+    const res = await fetch(`${OWN_BASE_URL}/provider_agent/capabilities/imported_caps`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await res.json();
+    return data as ImportedCapability[];
+  };
+
+  const fetchHandler = async () => {
+    const res = await fetch(`${OWN_BASE_URL}/provider_agent/persona/get_attributes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key: PAYMENT_CARD_PATH,
+      }),
+    });
+    const data = await res.json();
+
+    return data as PersonaAttribute[];
+  };
+
+  const fillCard = async () => {
+    const timerId = setInterval(async () => {
+      try {
+        const data = await fetchHandler();
+
+        if (data.length) {
+          const card = parsePaymentCard(data);
+          ccNumberInput.value = card.card_num;
+          ccExpiryInput.value = card.card_exp;
+          ccCVCInput.value = card.card_cvv;
+          clearInterval(timerId);
+          (document.activeElement as HTMLElement)?.blur();
+        }
+      } catch (e) {
+        clearInterval(timerId);
+        (document.activeElement as HTMLElement)?.blur();
+      }
+    }, 1000);
+  };
+
+  const getNodeId = async () => {
+    const res = await fetch(`${OWN_BASE_URL}/provider_agent/node/willow_id`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.text();
+    return data as string | undefined;
+  };
+
+  const getConsentHandler = async () => {
+    if (!ownNodeId) {
+      return;
+    }
+    const res = await fetch(`${ANOTHER_BASE_URL}/provider_agent/capabilities/delegate_read_access_to_provider`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        data_path: PAYMENT_CARD_PATH,
+        provider_id: ownNodeId,
+      }),
+    });
+    const caps = await res.json();
+
+    await fetch(`${OWN_BASE_URL}/provider_agent/capabilities/import_capabilities_from_provider`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(caps),
+    });
+  };
+
+  const autofillClickHandler = async () => {
+    const caps = await getImportedCaps();
+
+    if (!caps.some((cap) => cap.granted_data_path === PAYMENT_CARD_PATH)) {
+      dialog.showModal();
+    } else {
+      await fillCard();
+    }
+  };
+
+  if (autofillBtn && ccNumberInput && ccExpiryInput) {
+    const nodeId = await getNodeId();
+    ownNodeId = nodeId;
+
+    autofillBtn.addEventListener("click", async () => {
+      await autofillClickHandler();
+    });
+  }
+
+  if (dialogOkBtn) {
+    dialogOkBtn.addEventListener("click", async () => {
+      await getConsentHandler();
+      dialog.close();
+      await fillCard();
+    });
+  }
+</script>

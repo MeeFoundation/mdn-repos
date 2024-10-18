@@ -1,0 +1,10 @@
+---
+interface Props {
+  to?: string;
+  text: string
+  underline?: boolean
+}
+const { to = "#", text, underline = true } = Astro.props;
+---
+
+<a href={to} class:list={["text-tiff text-xs font-medium", {"underline" : underline}]}>{text}</a>

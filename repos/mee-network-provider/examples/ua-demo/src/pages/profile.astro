@@ -1,0 +1,75 @@
+---
+import MobileLayout from "../layouts/MobileLayout.astro";
+---
+
+<MobileLayout>
+  <section
+    class="flex flex-col justify-between w-full h-full"
+    style={{
+      background:
+        "linear-gradient(180deg, rgba(255, 255, 255, 0.00) 33.97%, #FFF 90%), url('/images/profile-bg.webp') lightgray 0 0 no-repeat;",
+      backgroundSize: "cover",
+    }}
+  >
+    <div
+      class="flex flex-col w-full h-fit py-8"
+      style={{ background: "linear-gradient(180deg, rgba(11, 34, 62, 0.75) 23%, rgba(11, 34, 62, 0.00) 100%)" }}
+    >
+      <h2 class="text-[11px] uppercase font-semibold text-white mb-1 px-[18px]">Escape to Maui</h2>
+      <p class="text-white font-medium px-[18px] mb-2">Hike a volcano by day and take on the city by night</p>
+      <span class="inline-block w-fit px-[18px] py-[3px] text-white" style={{ background: "rgba(11, 34, 62, 0.80)" }}
+        >Maui, Hawaii (OGG)</span
+      >
+    </div>
+    <div
+      class="flex mx-[14px] mb-[14px] h-fit bg-dark-gr p-[14px] rounded-[3px] divide-x divide-white/10"
+      style={{ boxShadow: "0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.30)" }}
+    >
+      <div class="w-1/3 flex flex-col gap-2 text-white items-center">
+        <i class="p-2 rounded-full border border-white w-fit h-fit">
+          <svg width="25" height="24" viewBox="0 0 25 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              id="Vector"
+              d="M12.5136 15.776C12.4569 15.8475 12.3844 15.9049 12.3019 15.9438C12.2193 15.9826 12.1289 16.0019 12.0376 16C11.9015 16.003 11.7681 15.9616 11.6576 15.882L7.40563 12.722C7.34211 12.6767 7.28858 12.6188 7.24835 12.5519C7.20811 12.4851 7.18203 12.4107 7.17172 12.3334C7.16141 12.256 7.16708 12.1774 7.1884 12.1023C7.20971 12.0273 7.24621 11.9574 7.29563 11.897C7.49063 11.638 7.88163 11.591 8.15063 11.791L11.9276 14.585L17.0726 8.219C17.1768 8.0981 17.323 8.02119 17.4816 8.00375C17.6403 7.9863 17.7996 8.02963 17.9276 8.125C18.1976 8.325 18.2456 8.691 18.0376 8.95L12.5136 15.776ZM0.666626 12C0.666626 18.624 6.04263 24 12.6666 24C19.2906 24 24.6666 18.624 24.6666 12C24.6666 5.364 19.2906 0 12.6666 0C6.04263 0 0.666626 5.364 0.666626 12Z"
+              fill="white"></path>
+          </svg>
+        </i>
+        <span class="text-xs font-medium">Check in</span>
+      </div>
+      <div class="w-1/3 flex flex-col gap-2 text-white items-center">
+        <i class="p-2 rounded-full border border-white w-fit h-fit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <g clip-path="url(#clip0_5971_2846)">
+              <path
+                d="M5.911 24H7.382C7.52386 24.0021 7.66402 23.969 7.78999 23.9037C7.91597 23.8385 8.02384 23.7431 8.104 23.626L14.959 14.5L22.481 13.719C22.9164 13.4955 23.3104 13.1993 23.646 12.843C23.8732 12.6084 24.0002 12.2946 24.0002 11.968C24.0002 11.6414 23.8732 11.3276 23.646 11.093C23.3106 10.7369 22.9165 10.4409 22.481 10.218L14.959 9.438L8.131 0.374C8.04865 0.259644 7.94059 0.166224 7.81554 0.101264C7.69048 0.0363037 7.55191 0.00161796 7.411 0L5.938 0L9.018 9.906L3.163 10.313L0.97 8.063C0.65987 7.9484 0.330446 7.89508 0 7.906L1.25 12.031L0 16.094C0.32124 16.0991 0.640744 16.0459 0.943 15.937L3.136 13.688L8.992 14.094L5.912 24H5.911Z"
+                fill="white"></path>
+            </g>
+            <defs>
+              <clipPath id="clip0_5971_2846">
+                <rect width="24" height="24" fill="white"></rect>
+              </clipPath>
+            </defs>
+          </svg>
+        </i>
+        <span class="text-xs font-medium">Add a trip</span>
+      </div>
+      <a href="/food" class="w-1/3 flex flex-col gap-2 px-3 text-white items-center text-center">
+        <i class="p-2 rounded-full border border-white w-fit h-fit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" viewBox="0 0 25 24" fill="none">
+            <g clip-path="url(#clip0_5971_2852)">
+              <path
+                d="M20.6284 13.538C19.5604 13.354 18.7134 12.699 18.3404 11.832C18.1544 11.414 18.1304 10.948 18.1794 10.495L18.7694 6H23.7294L24.3094 10.399C24.3814 10.984 24.2964 11.593 23.9994 12.107C23.5714 12.831 22.8144 13.373 21.8594 13.537V16.304C23.1724 16.518 23.8294 16.784 23.8294 17.104C23.8294 17.594 22.6714 17.972 21.2444 17.972C19.8164 17.972 18.6594 17.593 18.6594 17.104C18.6594 16.784 19.3154 16.518 20.6294 16.304L20.6284 13.538ZM1.81137 15.622C0.895374 15.622 1.24437 14.772 1.24437 14.772C2.22837 12.023 4.80137 10.136 7.75537 9.897V9.37C7.75537 9.036 8.03737 8.773 8.37037 8.773C8.45017 8.771 8.52956 8.78495 8.6039 8.81402C8.67824 8.84309 8.74603 8.8867 8.8033 8.9423C8.86057 8.99789 8.90617 9.06436 8.93744 9.1378C8.9687 9.21124 8.985 9.29018 8.98537 9.37V9.897C11.9524 10.136 14.5234 12.023 15.5084 14.772C15.5084 14.785 15.9144 15.622 14.9424 15.622H1.81137ZM0.949374 16.804H15.6814C16.0254 16.804 16.2964 17.068 16.2964 17.402C16.2935 17.5626 16.2272 17.7156 16.112 17.8277C15.9968 17.9397 15.842 18.0016 15.6814 18H0.949374C0.788537 18.0019 0.633489 17.94 0.518079 17.828C0.402668 17.716 0.336268 17.5628 0.333374 17.402C0.333374 17.068 0.604374 16.804 0.949374 16.804Z"
+                fill="white"></path>
+            </g>
+            <defs>
+              <clipPath id="clip0_5971_2852">
+                <rect width="24" height="24" fill="white" transform="translate(0.333374)"></rect>
+              </clipPath>
+            </defs>
+          </svg>
+        </i>
+        <span class="text-xs font-medium">Food & drink menu</span>
+      </a>
+    </div>
+  </section>
+</MobileLayout>
