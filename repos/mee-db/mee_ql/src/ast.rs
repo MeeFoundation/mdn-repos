@@ -1,6 +1,8 @@
 use std::boxed::Box;
 use std::collections::{HashMap, HashSet};
 
+pub const TARGET_PATH_SEPARATOR: char = mee_storage::PATH_SEPARATOR;
+
 /* #region AST */
 #[derive(Debug, Clone, PartialEq)]
 pub enum Query {
@@ -10,8 +12,9 @@ pub enum Query {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryBody {
-    pub result: Option<Value>,
-    pub iterators: Vec<IteratorStmt>,
+    pub result: Option<MeeValue>,
+    pub main_iterator: IteratorStmt,
+    pub embedded_iterators: Vec<IteratorStmt>,
     pub updates: HashMap<Path, Expression>,
     pub deletes: DeleteStmt,
 }
@@ -35,7 +38,10 @@ pub struct IteratorStmt {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BoolExpression {
-    Comparison { val: Value, comparator: Comparator },
+    Comparison {
+        val: MeeValue,
+        comparator: Comparator,
+    },
     And(Vec<BoolExpression>),
     Or(Vec<BoolExpression>),
     Not(Box<BoolExpression>),
@@ -59,21 +65,21 @@ pub enum Comparator {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Source {
     PathSource(Path),
-    ArraySource(Vec<Value>),
+    ArraySource(Vec<MeeValue>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    Value(Value),
+    Value(MeeValue),
     Query(Box<Query>),
     BoolExpression(Box<BoolExpression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Value {
+pub enum MeeValue {
     Path(Path),
-    Object(HashMap<String, Value>),
-    Array(Vec<Value>),
+    Object(HashMap<String, MeeValue>),
+    Array(Vec<MeeValue>),
     Number(f64),
     String(String),
     Bool(bool),
@@ -81,7 +87,10 @@ pub enum Value {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Path(pub Vec<String>);
+pub struct Path {
+    pub root: String,
+    pub field: Option<String>,
+}
 
 /* #endregion */
 
@@ -104,8 +113,23 @@ mod test_support_impls {
     {
         fn from(value: T) -> Self {
             let str = value.into();
-            let parts = str.split('.').map(|s| s.to_string()).collect();
-            Path(parts)
+            let parts = str.split(".").collect::<Vec<_>>();
+            if parts.len() == 1 {
+                Path {
+                    root: parts.first().unwrap().to_string(),
+                    field: None,
+                }
+            } else if parts.len() == 0 {
+                Path {
+                    root: "".to_string(),
+                    field: None,
+                }
+            } else {
+                Path {
+                    root: "".to_string(),
+                    field: Some(parts[1..].join(&TARGET_PATH_SEPARATOR.to_string())),
+                }
+            }
         }
     }
 
@@ -122,7 +146,7 @@ mod test_support_impls {
 
     impl From<&str> for BoolExpression {
         fn from(value: &str) -> Self {
-            BoolExpression::BoolPath(Path(vec![value.to_string()]))
+            BoolExpression::BoolPath(Path::from(value))
         }
     }
 
@@ -168,7 +192,7 @@ mod test_support_impls {
     // region: Expression implementations
     impl<T> From<T> for Expression
     where
-        T: Into<Value>,
+        T: Into<MeeValue>,
     {
         fn from(value: T) -> Self {
             Expression::Value(value.into())
@@ -177,52 +201,52 @@ mod test_support_impls {
     // endregion
 
     // region: Value implementations
-    impl From<bool> for Value {
+    impl From<bool> for MeeValue {
         fn from(value: bool) -> Self {
-            Value::Bool(value)
+            MeeValue::Bool(value)
         }
     }
 
-    impl From<&str> for Value {
+    impl From<&str> for MeeValue {
         fn from(value: &str) -> Self {
-            Value::String(value.to_string())
+            MeeValue::String(value.to_string())
         }
     }
 
-    impl From<isize> for Value {
+    impl From<isize> for MeeValue {
         fn from(value: isize) -> Self {
-            Value::Number(value as f64)
+            MeeValue::Number(value as f64)
         }
     }
 
-    impl From<f64> for Value {
+    impl From<f64> for MeeValue {
         fn from(value: f64) -> Self {
-            Value::Number(value)
+            MeeValue::Number(value)
         }
     }
 
-    impl<T> From<Vec<T>> for Value
+    impl<T> From<Vec<T>> for MeeValue
     where
-        T: Into<Value>,
+        T: Into<MeeValue>,
     {
         fn from(value: Vec<T>) -> Self {
-            Value::Array(value.into_iter().map(|e| e.into()).collect::<Vec<_>>())
+            MeeValue::Array(value.into_iter().map(|e| e.into()).collect::<Vec<_>>())
         }
     }
 
-    impl From<Path> for Value {
+    impl From<Path> for MeeValue {
         fn from(value: Path) -> Self {
-            Value::Path(value)
+            MeeValue::Path(value)
         }
     }
 
-    impl<S, T> From<HashMap<S, T>> for Value
+    impl<S, T> From<HashMap<S, T>> for MeeValue
     where
-        T: Into<Value>,
+        T: Into<MeeValue>,
         S: Into<String>,
     {
         fn from(value: HashMap<S, T>) -> Self {
-            Value::Object(
+            MeeValue::Object(
                 value
                     .into_iter()
                     .map(|(k, v)| (k.into(), v.into()))
@@ -231,7 +255,7 @@ mod test_support_impls {
         }
     }
 
-    impl Value {
+    impl MeeValue {
         pub fn exists(self) -> BoolExpression {
             BoolExpression::Comparison {
                 val: self,

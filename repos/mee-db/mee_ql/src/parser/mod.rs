@@ -78,14 +78,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
-                    source: Source::PathSource(Path(vec!["users".to_string()])),
+                    source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.and(false).and::<Path>(("path").into())),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -101,14 +102,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.or(false).or::<Path>(("path").into())),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -124,14 +126,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.not()),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -147,14 +150,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.and(false)),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -170,14 +174,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.or(false)),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -193,14 +198,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.and(False.or(true))),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -216,14 +222,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(True.and(True.not()).or(False.and(true))),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -239,7 +246,7 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
@@ -258,7 +265,8 @@ mod tests {
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -276,19 +284,20 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(
-                        True.and(Value::Path("user.last_name".into()).exists())
-                            .or(Value::Path("user.age".into())
+                        True.and(MeeValue::Path("user.last_name".into()).exists())
+                            .or(MeeValue::Path("user.age".into())
                                 .gt(18)
-                                .and(Value::Path("user.phone".into()).matches(r#"+1\d{10}"#))),
+                                .and(MeeValue::Path("user.phone".into()).matches(r#"+1\d{10}"#))),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -302,20 +311,21 @@ mod tests {
         let mut parser = ASTParserImpl::new(source.to_string());
         let query = parser.parse().unwrap();
         let mut map = HashMap::new();
-        map.insert("key1".to_string(), Value::String("value1".to_string()));
-        map.insert("key2".to_string(), Value::Number(123.0));
-        map.insert("key3".to_string(), Value::Bool(true));
+        map.insert("key1".to_string(), MeeValue::String("value1".to_string()));
+        map.insert("key2".to_string(), MeeValue::Number(123.0));
+        map.insert("key3".to_string(), MeeValue::Bool(true));
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: Some(map.into()),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -330,21 +340,22 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Array(vec![
+                result: Some(MeeValue::Array(vec![
                     1.into(),
                     2.into(),
                     3.into(),
                     "four".into(),
                     false.into(),
                 ])),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -360,14 +371,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: Some("four".into()),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -383,14 +395,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: Some(1.into()),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -406,14 +419,15 @@ mod tests {
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: Some(true.into()),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -428,25 +442,26 @@ mod tests {
         let mut parser = ASTParserImpl::new(source.to_string());
         let query = parser.parse().unwrap();
         let mut map = HashMap::new();
-        map.insert("age".to_string(), Value::Path("user.age".into()));
+        map.insert("age".to_string(), MeeValue::Path("user.age".into()));
         map.insert(
             "names".to_string(),
-            Value::Array(vec![
-                Value::Path("user.name".into()),
-                Value::Path("user.last_name".into()),
+            MeeValue::Array(vec![
+                MeeValue::Path("user.name".into()),
+                MeeValue::Path("user.last_name".into()),
             ]),
         );
         let expected = Query::ElementQuery {
             body: QueryBody {
                 result: Some(map.into()),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -461,17 +476,18 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.name".into()).eq(Value::String("Ivan".to_string())),
+                        MeeValue::Path("user.name".into()).eq(MeeValue::String("Ivan".to_string())),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -486,17 +502,18 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.name".into()).ne(Value::String("Ivan".to_string())),
+                        MeeValue::Path("user.name".into()).ne(MeeValue::String("Ivan".to_string())),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -511,15 +528,16 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
-                    filter: Some(Value::Path("user.age".into()).gt(30)),
+                    filter: Some(MeeValue::Path("user.age".into()).gt(30)),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -534,15 +552,16 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
-                    filter: Some(Value::Path("user.age".into()).lt(30)),
+                    filter: Some(MeeValue::Path("user.age".into()).lt(30)),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -557,15 +576,16 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
-                    filter: Some(Value::Path("user.age".into()).ge(30)),
+                    filter: Some(MeeValue::Path("user.age".into()).ge(30)),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -580,15 +600,16 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
-                    filter: Some(Value::Path("user.age".into()).le(30)),
+                    filter: Some(MeeValue::Path("user.age".into()).le(30)),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -603,17 +624,19 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.name".into()).matches(Value::String("I.*".to_string())),
+                        MeeValue::Path("user.name".into())
+                            .matches(MeeValue::String("I.*".to_string())),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -628,16 +651,16 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
-                    filter: Some(Value::Path("user.email".into()).exists()),
+                    filter: Some(MeeValue::Path("user.email".into()).exists()),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -652,21 +675,25 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("res".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("res".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::from([(
                         "res".to_string(),
                         Expression::Value(
-                            HashMap::from([("name".to_string(), Value::Path("user.name".into()))])
-                                .into(),
+                            HashMap::from([(
+                                "name".to_string(),
+                                MeeValue::Path("user.name".into()),
+                            )])
+                            .into(),
                         ),
                     )]),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -681,18 +708,19 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("res".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("res".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::from([(
                         "res".to_string(),
-                        Expression::Value(Value::Path("user.name".into())),
+                        Expression::Value(MeeValue::Path("user.name".into())),
                     )]),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -707,18 +735,19 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("res".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("res".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::from([(
                         "res".to_string(),
-                        Expression::Value(Value::String("=name".to_string())),
+                        Expression::Value(MeeValue::String("=name".to_string())),
                     )]),
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -733,8 +762,8 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("res".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("res".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::from([(
@@ -748,7 +777,8 @@ mod tests {
                     filter: None,
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -763,17 +793,19 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.id".into()).eq(Value::String("534622344".to_string())),
+                        MeeValue::Path("user.id".into())
+                            .eq(MeeValue::String("534622344".to_string())),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -788,19 +820,23 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.last_name".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user.last_name".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.email".into())
-                            .eq(Value::String("some@gmail.com".to_string()))
-                            .and(Value::Path("name".into()).eq(Value::String("Denis".to_string()))),
+                        MeeValue::Path("user.email".into())
+                            .eq(MeeValue::String("some@gmail.com".to_string()))
+                            .and(
+                                MeeValue::Path("name".into())
+                                    .eq(MeeValue::String("Denis".to_string())),
+                            ),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -817,24 +853,25 @@ mod tests {
             body: QueryBody {
                 result: Some(
                     HashMap::from([
-                        ("name".to_string(), Value::Path("user.name".into())),
-                        ("phone".to_string(), Value::Path("user.phone".into())),
+                        ("name".to_string(), MeeValue::Path("user.name".into())),
+                        ("phone".to_string(), MeeValue::Path("user.phone".into())),
                     ])
                     .into(),
                 ),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource(Path(vec!["users".to_string()])),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.phone".into())
-                            .matches(Value::String("+1[0-9]{11}".to_string()))
-                            .or(Value::Path("user.country".into())
-                                .eq(Value::String("USA".to_string()))),
+                        MeeValue::Path("user.phone".into())
+                            .matches(MeeValue::String("+1[0-9]{11}".to_string()))
+                            .or(MeeValue::Path("user.country".into())
+                                .eq(MeeValue::String("USA".to_string()))),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -849,31 +886,29 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.id".into())),
-                iterators: vec![
-                    IteratorStmt {
-                        item: "user".to_string(),
-                        source: Source::PathSource("users".into()),
-                        assignments: HashMap::new(),
-                        filter: None,
-                        offset: None,
-                        limit: None,
-                    },
-                    IteratorStmt {
-                        item: "order".to_string(),
-                        source: Source::PathSource(Path(vec![
-                            "user".to_string(),
-                            "orders".to_string(),
-                        ])),
-                        assignments: HashMap::new(),
-                        filter: Some(
-                            Value::Path("order.date".into())
-                                .ge(Value::String("2023-09-24".to_string())),
-                        ),
-                        offset: None,
-                        limit: None,
-                    },
-                ],
+                result: Some(MeeValue::Path("user.id".into())),
+                main_iterator: IteratorStmt {
+                    item: "user".to_string(),
+                    source: Source::PathSource("users".into()),
+                    assignments: HashMap::new(),
+                    filter: None,
+                    offset: None,
+                    limit: None,
+                },
+                embedded_iterators: vec![IteratorStmt {
+                    item: "order".to_string(),
+                    source: Source::PathSource(Path(vec![
+                        "user".to_string(),
+                        "orders".to_string(),
+                    ])),
+                    assignments: HashMap::new(),
+                    filter: Some(
+                        MeeValue::Path("order.date".into())
+                            .ge(MeeValue::String("2023-09-24".to_string())),
+                    ),
+                    offset: None,
+                    limit: None,
+                }],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -888,27 +923,28 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user".into())),
-                iterators: vec![IteratorStmt {
+                result: Some(MeeValue::Path("user".into())),
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
                     filter: Some(
-                        Value::Path("user.age".into())
+                        MeeValue::Path("user.age".into())
                             .ge(18)
-                            .or(Value::Path("user.age".into()).le(25))
+                            .or(MeeValue::Path("user.age".into()).le(25))
                             .and(
-                                Value::Path("user.gender".into())
-                                    .eq(Value::String("Male".to_string())),
+                                MeeValue::Path("user.gender".into())
+                                    .eq(MeeValue::String("Male".to_string())),
                             )
                             .and(
-                                Value::Path("user.country".into())
-                                    .eq(Value::String("USA".to_string())),
+                                MeeValue::Path("user.country".into())
+                                    .eq(MeeValue::String("USA".to_string())),
                             ),
                     ),
                     offset: None,
                     limit: Some(10),
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -934,16 +970,16 @@ mod tests {
             body: QueryBody {
                 result: Some(
                     HashMap::from([
-                        ("name".to_string(), Value::Path("user.name".into())),
+                        ("name".to_string(), MeeValue::Path("user.name".into())),
                         (
                             "family_name".to_string(),
-                            Value::Path("user.last_name".into()),
+                            MeeValue::Path("user.last_name".into()),
                         ),
-                        ("card_number".to_string(), Value::Path("number".into())),
+                        ("card_number".to_string(), MeeValue::Path("number".into())),
                     ])
                     .into(),
                 ),
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::from([
@@ -952,19 +988,20 @@ mod tests {
                             Expression::Query(Box::new(Query::ElementQuery {
                                 body: QueryBody {
                                     result: Some(1.into()),
-                                    iterators: vec![IteratorStmt {
+                                    main_iterator: IteratorStmt {
                                         item: "flight".to_string(),
                                         source: Source::PathSource("user.flights".into()),
                                         assignments: HashMap::new(),
                                         filter: Some(
-                                            Value::Path("flight.number".into()).eq("AS702").and(
-                                                Value::Path("flight.dt".into())
+                                            MeeValue::Path("flight.number".into()).eq("AS702").and(
+                                                MeeValue::Path("flight.dt".into())
                                                     .eq("2024.11.11T11:00:00"),
                                             ),
                                         ),
                                         offset: None,
                                         limit: None,
-                                    }],
+                                    },
+                                    embedded_iterators: vec![],
                                     updates: HashMap::new(),
                                     deletes: DeleteStmt::None,
                                 },
@@ -974,15 +1011,16 @@ mod tests {
                             "number".to_string(),
                             Expression::Query(Box::new(Query::ElementQuery {
                                 body: QueryBody {
-                                    result: Some(Value::Path("card.number".into())),
-                                    iterators: vec![IteratorStmt {
+                                    result: Some(MeeValue::Path("card.number".into())),
+                                    main_iterator: IteratorStmt {
                                         item: "card".to_string(),
                                         source: Source::PathSource("user.payment_cards".into()),
                                         assignments: HashMap::new(),
                                         filter: None,
                                         offset: None,
                                         limit: Some(1),
-                                    }],
+                                    },
+                                    embedded_iterators: vec![],
                                     updates: HashMap::new(),
                                     deletes: DeleteStmt::None,
                                 },
@@ -990,13 +1028,14 @@ mod tests {
                         ),
                     ]),
                     filter: Some(
-                        Value::Path("flight".into())
+                        MeeValue::Path("flight".into())
                             .exists()
-                            .and(Value::Path("number".into()).exists()),
+                            .and(MeeValue::Path("number".into()).exists()),
                     ),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::new(),
                 deletes: DeleteStmt::None,
             },
@@ -1011,35 +1050,30 @@ mod tests {
         let query = parser.parse().unwrap();
         let expected = Query::ArrayQuery {
             body: QueryBody {
-                result: Some(Value::Path("user.passport".into())),
-                iterators: vec![
-                    IteratorStmt {
-                        item: "user".to_string(),
-                        source: Source::PathSource(Path(vec!["users".to_string()])),
-                        assignments: HashMap::new(),
-                        filter: None,
-                        offset: None,
-                        limit: None,
-                    },
-                    IteratorStmt {
-                        item: "flight".to_string(),
-                        source: Source::PathSource(Path(vec![
-                            "user".to_string(),
-                            "flights".to_string(),
-                        ])),
-                        assignments: HashMap::new(),
-                        filter: Some(
-                            Value::Path("flight.number".into())
-                                .eq("AS702")
-                                .and(Value::Path("flight.dt".into()).eq("2024.11.11T11:00:00")),
-                        ),
-                        offset: None,
-                        limit: None,
-                    },
-                ],
+                result: Some(MeeValue::Path("user.passport".into())),
+                main_iterator: IteratorStmt {
+                    item: "user".to_string(),
+                    source: Source::PathSource(Path(vec!["users".to_string()])),
+                    assignments: HashMap::new(),
+                    filter: None,
+                    offset: None,
+                    limit: None,
+                },
+                embedded_iterators: vec![IteratorStmt {
+                    item: "flight".to_string(),
+                    source: Source::PathSource("user.flights".into()),
+                    assignments: HashMap::new(),
+                    filter: Some(
+                        MeeValue::Path("flight.number".into())
+                            .eq("AS702")
+                            .and(MeeValue::Path("flight.dt".into()).eq("2024.11.11T11:00:00")),
+                    ),
+                    offset: None,
+                    limit: None,
+                }],
                 updates: HashMap::from([(
                     Path(vec!["flight".to_string(), "dt".to_string()]),
-                    Expression::Value(Value::String("2024.11.11T12:00:00".to_string())),
+                    Expression::Value(MeeValue::String("2024.11.11T12:00:00".to_string())),
                 )]),
                 deletes: DeleteStmt::None,
             },
@@ -1057,24 +1091,25 @@ mod tests {
             ("expires", "08/30"),
             ("cvv", "111"),
         ]);
-        let card1: Value = card1.into();
+        let card1: MeeValue = card1.into();
         let card2 = HashMap::from([
             ("number", "5555 1234 1234 1234"),
             ("expires", "08/30"),
             ("cvv", "222"),
         ]);
-        let card2: Value = card2.into();
+        let card2: MeeValue = card2.into();
         let expected = Query::ArrayQuery {
             body: QueryBody {
                 result: None,
-                iterators: vec![IteratorStmt {
+                main_iterator: IteratorStmt {
                     item: "user".to_string(),
                     source: Source::PathSource("users".into()),
                     assignments: HashMap::new(),
-                    filter: Some(Value::Path("user.id".into()).eq("4435")),
+                    filter: Some(MeeValue::Path("user.id".into()).eq("4435")),
                     offset: None,
                     limit: None,
-                }],
+                },
+                embedded_iterators: vec![],
                 updates: HashMap::from([(
                     Path::from_dot_separated("user.payment_cards"),
                     Expression::Value(vec![card1, card2].into()),

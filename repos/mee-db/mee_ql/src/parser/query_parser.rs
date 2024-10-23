@@ -44,9 +44,14 @@ impl QueryParser {
             .delete_stmt
             .parse(source_text, node, parser_list)?;
 
+        if iterators.is_empty() {
+            return Err("Expected at least one iterator".to_string());
+        }
+
         Ok(QueryBody {
             result,
-            iterators,
+            main_iterator: iterators.remove(0),
+            embedded_iterators: iterators,
             updates,
             deletes,
         })

@@ -31,13 +31,13 @@ impl Parser<usize> for PosIntParser {
 }
 
 pub struct ArrayParser;
-impl Parser<Vec<Value>> for ArrayParser {
+impl Parser<Vec<MeeValue>> for ArrayParser {
     fn parse(
         &self,
         source_text: &str,
         node: Node,
         parser_list: &ParserList,
-    ) -> Result<Vec<Value>, String> {
+    ) -> Result<Vec<MeeValue>, String> {
         let mut values = Vec::new();
         for child in node.named_children(&mut node.walk()) {
             values.push(parser_list.value.parse(source_text, child, parser_list)?);
@@ -47,13 +47,13 @@ impl Parser<Vec<Value>> for ArrayParser {
 }
 
 pub struct ObjectParser;
-impl Parser<HashMap<String, Value>> for ObjectParser {
+impl Parser<HashMap<String, MeeValue>> for ObjectParser {
     fn parse(
         &self,
         source_text: &str,
         node: Node,
         parser_list: &ParserList,
-    ) -> Result<HashMap<String, Value>, String> {
+    ) -> Result<HashMap<String, MeeValue>, String> {
         let mut pairs = HashMap::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "pair" {
@@ -75,37 +75,37 @@ impl Parser<HashMap<String, Value>> for ObjectParser {
 }
 
 pub struct ValueParser;
-impl Parser<Value> for ValueParser {
+impl Parser<MeeValue> for ValueParser {
     fn parse(
         &self,
         source_text: &str,
         node: Node,
         parser_list: &ParserList,
-    ) -> Result<Value, String> {
+    ) -> Result<MeeValue, String> {
         match node.kind() {
             "path" => {
                 let path = parser_list.path.parse(source_text, node, parser_list)?;
-                Ok(Value::Path(path))
+                Ok(MeeValue::Path(path))
             }
             "object" => {
                 let object = parser_list.object.parse(source_text, node, parser_list)?;
-                Ok(Value::Object(object))
+                Ok(MeeValue::Object(object))
             }
             "array" => {
                 let array = parser_list.array.parse(source_text, node, parser_list)?;
-                Ok(Value::Array(array))
+                Ok(MeeValue::Array(array))
             }
             "number" => {
                 let number = parser_list.number.parse(source_text, node, parser_list)?;
-                Ok(Value::Number(number))
+                Ok(MeeValue::Number(number))
             }
             "string" => {
                 let string = parser_list.string.parse(source_text, node, parser_list)?;
-                Ok(Value::String(string))
+                Ok(MeeValue::String(string))
             }
-            "true" => Ok(Value::Bool(true)),
-            "false" => Ok(Value::Bool(false)),
-            "null" => Ok(Value::Null),
+            "true" => Ok(MeeValue::Bool(true)),
+            "false" => Ok(MeeValue::Bool(false)),
+            "null" => Ok(MeeValue::Null),
             _ => Err(format!("Unknown value kind: {}", node.kind())),
         }
     }

@@ -5,6 +5,8 @@ mod parser;
 mod visitable;
 mod visitor;
 // mod _visitor;
+mod evalator;
+mod logic;
 
 fn main() {
     let source_code = r#"
@@ -17,7 +19,13 @@ fn main() {
     let mut parser = ASTParserImpl::new(source_code.to_string());
     match parser.parse() {
         Ok(ast) => {
-            println!("Parsed AST: {:#?}", ast);
+            let mut evaluator = Evaluator::new(ast);
+
+            // Execute query
+            match evaluator.visit_query(&ast) {
+                Ok(result) => println!("Result: {:?}", result),
+                Err(e) => eprintln!("Error: {:?}", e),
+            }
         }
         Err(e) => {
             eprintln!("Error parsing source code: {}", e);
