@@ -31,11 +31,12 @@ export type ImportedCapability = {
 }
 
 export function createProviderAgentApiService(
-  port = import.meta.env.VITE_MDN_PROVIDER_API_PORT
+  port = import.meta.env.VITE_MDN_PROVIDER_API_PORT,
+  host = import.meta.env.VITE_MDN_PROVIDER_API_HOST
 ) {
   const ProviderAgentApiServiceFactory =
     axios.create({
-      baseURL: `http://127.0.0.1:${port}/api/v1/provider_agent`
+      baseURL: `https://${host}:${port}/api/v1/provider_agent`
     });
 
   const ProviderAgentCapsApiServiceFactory =
