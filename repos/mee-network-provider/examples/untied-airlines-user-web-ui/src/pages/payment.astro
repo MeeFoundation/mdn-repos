@@ -2,14 +2,25 @@
 import Button from "../components/Button.astro";
 import CardInput from "../components/CardInput.astro";
 import Input from "../components/Input.astro";
+import Loading from "../components/Loading.astro";
 import Radio from "../components/Radio.astro";
 import MobileLayout from "../layouts/MobileLayout.astro";
 ---
 
 <MobileLayout headerText="Payment options" backlink="/food" withFooter={false}>
-  <section class="flex flex-col w-full h-full bg-white p-4 text-text-primary max-w-screen-md mx-auto">
+  <section
+    class="flex flex-col w-full h-full bg-white p-4 text-text-primary max-w-screen-md mx-auto relative"
+  >
+    <div
+      id="load-bg"
+      class="hidden fixed h-screen w-screen bg-black/30 left-0 top-0 z-[99999] items-center justify-center"
+    >
+      <Loading />
+    </div>
     <div class="border border-dark-gr/20 rounded-[3px] flex flex-col">
-      <h2 class="p-4 border-b border-dark-gr/20 font-semibold tracking-wide">Choose payment method</h2>
+      <h2 class="p-4 border-b border-dark-gr/20 font-semibold tracking-wide">
+        Choose payment method
+      </h2>
       <div class="flex flex-col p-4 gap-4">
         <div class="mb-4">
           <Radio text="Credit card" />
@@ -24,12 +35,28 @@ import MobileLayout from "../layouts/MobileLayout.astro";
 </MobileLayout>
 
 <script>
+  const returnFromRedirect =
+    document.referrer &&
+    document.referrer.includes(import.meta.env.PUBLIC_REDIRECT_URL);
+  const loadBG = document.getElementById("load-bg");
+
+  const showLoader = () => {
+    loadBG?.classList.remove("hidden");
+    loadBG?.classList.add("flex");
+  };
+  const hideLoader = () => {
+    loadBG?.classList.remove("flex");
+    loadBG?.classList.add("hidden");
+  };
+
   let ccNumberInput = document.querySelector("#card-num") as HTMLInputElement,
     ccExpiryInput = document.querySelector("#card-exp") as HTMLInputElement,
     ccCVCInput = document.querySelector("#card-cvv") as HTMLInputElement;
   const OWN_BASE_URL = `${import.meta.env.PUBLIC_OWN_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_OWN_PROVIDER_PORT}/api/v1`;
   const ANOTHER_BASE_URL = `${import.meta.env.PUBLIC_ANOTHER_PROVIDER_BASE_URL}:${import.meta.env.PUBLIC_ANOTHER_PROVIDER_PORT}/api/v1`;
-  const dialog = document.querySelector("#consent-popover") as HTMLDialogElement;
+  const dialog = document.querySelector(
+    "#consent-popover"
+  ) as HTMLDialogElement;
   const dialogOkBtn = document.querySelector("#dialog-submit");
   const autofillBtn = document.querySelector("#autofillBtn");
   const PAYMENT_CARD_PATH = "alice/card/0";
@@ -80,49 +107,67 @@ import MobileLayout from "../layouts/MobileLayout.astro";
   }
 
   const getImportedCaps = async () => {
-    const res = await fetch(`${OWN_BASE_URL}/provider_agent/capabilities/imported_caps`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const res = await fetch(
+      `${OWN_BASE_URL}/provider_agent/capabilities/imported_caps`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
     const data = await res.json();
     return data as ImportedCapability[];
   };
 
   const fetchHandler = async () => {
-    const res = await fetch(`${OWN_BASE_URL}/provider_agent/persona/get_attributes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        key: PAYMENT_CARD_PATH,
-      }),
-    });
+    const res = await fetch(
+      `${OWN_BASE_URL}/provider_agent/persona/get_attributes`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          key: PAYMENT_CARD_PATH,
+        }),
+      }
+    );
     const data = await res.json();
 
     return data as PersonaAttribute[];
   };
 
-  const fillCard = async () => {
-    const timerId = setInterval(async () => {
-      try {
-        const data = await fetchHandler();
-
-        if (data.length) {
-          const card = parsePaymentCard(data);
-          ccNumberInput.value = card.card_num;
-          ccExpiryInput.value = card.card_exp;
-          ccCVCInput.value = card.card_cvv;
+  const fillCard = () => {
+    showLoader();
+    return new Promise((resolve, reject) => {
+      const timerId = setInterval(async () => {
+        try {
+          const data = await fetchHandler();
+          if (data.length) {
+            const card = parsePaymentCard(data);
+            ccNumberInput.value = card.card_num;
+            ccExpiryInput.value = card.card_exp;
+            ccCVCInput.value = card.card_cvv;
+            clearInterval(timerId);
+            (document.activeElement as HTMLElement)?.blur();
+            hideLoader();
+            resolve(true);
+          }
+        } catch (e) {
           clearInterval(timerId);
           (document.activeElement as HTMLElement)?.blur();
+          hideLoader();
+          reject(false);
         }
-      } catch (e) {
+      }, 1000);
+      setTimeout(() => {
         clearInterval(timerId);
         (document.activeElement as HTMLElement)?.blur();
-      }
-    }, 1000);
+        hideLoader();
+        reject(false);
+      }, 5000);
+    });
   };
 
   const getNodeId = async () => {
@@ -141,32 +186,39 @@ import MobileLayout from "../layouts/MobileLayout.astro";
     if (!ownNodeId) {
       return;
     }
-    const res = await fetch(`${ANOTHER_BASE_URL}/provider_agent/capabilities/delegate_read_access_to_provider`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        data_path: PAYMENT_CARD_PATH,
-        provider_id: ownNodeId,
-      }),
-    });
+    const res = await fetch(
+      `${ANOTHER_BASE_URL}/provider_agent/capabilities/delegate_read_access_to_provider`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          data_path: PAYMENT_CARD_PATH,
+          provider_id: ownNodeId,
+        }),
+      }
+    );
     const caps = await res.json();
 
-    await fetch(`${OWN_BASE_URL}/provider_agent/capabilities/import_capabilities_from_provider`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(caps),
-    });
+    await fetch(
+      `${OWN_BASE_URL}/provider_agent/capabilities/import_capabilities_from_provider`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(caps),
+      }
+    );
   };
 
   const autofillClickHandler = async () => {
     const caps = await getImportedCaps();
 
     if (!caps.some((cap) => cap.granted_data_path === PAYMENT_CARD_PATH)) {
-      dialog.showModal();
+      // dialog.showModal();
+      window.location = import.meta.env.PUBLIC_REDIRECT_URL;
     } else {
       await fillCard();
     }
@@ -187,5 +239,15 @@ import MobileLayout from "../layouts/MobileLayout.astro";
       dialog.close();
       await fillCard();
     });
+  }
+
+  async function fillData() {
+    await getConsentHandler();
+    await fillCard();
+  }
+
+  if (returnFromRedirect) {
+    showLoader();
+    fillData();
   }
 </script>
