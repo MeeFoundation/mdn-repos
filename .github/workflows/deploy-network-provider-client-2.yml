@@ -9,7 +9,7 @@ env:
   bucket_name: network-provider-client-2-bucket
   host: network-provider-client-2.mee.foundation
   url_map: dev-url-map
-  path_to_app: repos/mee-network-provider/untied-airlines-user-web-ui
+  path_to_app: repos/mee-network-provider/examples/untied-airlines-user-web-ui
 
 on:
   workflow_dispatch:
