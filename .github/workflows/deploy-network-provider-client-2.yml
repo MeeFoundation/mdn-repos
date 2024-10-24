@@ -1,4 +1,4 @@
-name: Deploy Mee Network Frontend Demo
+name: Deploy Mee Network Provider Client 2 Demo on Dev
 
 env:
   PUBLIC_OWN_PROVIDER_PORT: 443
