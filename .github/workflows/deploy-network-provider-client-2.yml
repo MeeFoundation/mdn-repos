@@ -9,7 +9,7 @@ env:
   bucket_name: network-provider-client-2-bucket
   host: network-provider-client-2.mee.foundation
   url_map: dev-url-map
-  path_to_app: repos/mee-network-provider/examples/untied-airlines-user-web-ui
+  path_to_app: ./repos/mee-network-provider/examples/untied-airlines-user-web-ui
 
 on:
   workflow_dispatch:
@@ -23,8 +23,6 @@ jobs:
     steps:
       - name: Checkout your repository using git
         uses: actions/checkout@v4
-        with:
-          path: ${{ env.path_to_app }}
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -49,5 +47,5 @@ jobs:
       - name: deploy to bucket
         if: ${{ github.ref == 'refs/heads/develop' }}
         run: |
-          gcloud storage rsync --recursive .${{ env.path_to_app }}/dist gs://${{ env.bucket_name }}
+          gcloud storage rsync --recursive ${{ env.path_to_app }}/dist gs://${{ env.bucket_name }}
           gcloud compute url-maps invalidate-cdn-cache ${{ env.url_map }} --project the-mee-foundation --path "/*" --host "${{ env.host }}" --async  
