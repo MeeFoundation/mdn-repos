@@ -1,0 +1,48 @@
+name: Deploy Mee Network Frontend Demo
+
+env:
+  PUBLIC_OWN_PROVIDER_PORT: 443
+  PUBLIC_OWN_PROVIDER_BASE_URL: https://network-provider-2-dev.mee.foundation
+  PUBLIC_ANOTHER_PROVIDER_PORT: 443
+  PUBLIC_ANOTHER_PROVIDER_BASE_URL: https://network-provider-1-dev.mee.foundation
+  PUBLIC_REDIRECT_URL: https://verification-demo.mee.foundation
+  bucket_name: network-provider-client-2-bucket
+  host: network-provider-client-2.mee.foundation
+  url_map: dev-url-map
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout your repository using git
+        uses: actions/checkout@v4
+        with:
+          path: repos/mee-network-provider/untied-airlines-user-web-ui
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build
+        run: pnpm run build
+
+      - name: configure gcp credentials
+        if: ${{ github.ref == 'refs/heads/develop' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/1043231896197/locations/global/workloadIdentityPools/github-actions-pool/providers/github"
+          service_account: "github-actions@the-mee-foundation.iam.gserviceaccount.com"
+
+      - name: deploy to bucket
+        if: ${{ github.ref == 'refs/heads/develop' }}
+        run: |
+          gcloud storage rsync --recursive ./dist gs://${{ env.bucket_name }}
+          gcloud compute url-maps invalidate-cdn-cache ${{ env.url_map }} --project the-mee-foundation --path "/*" --host "${{ env.host }}" --async  
