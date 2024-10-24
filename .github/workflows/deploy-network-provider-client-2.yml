@@ -37,13 +37,11 @@ jobs:
         run: pnpm run build
         working-directory: ${{ env.path_to_app }}
       - name: configure gcp credentials
-        if: ${{ github.ref == 'refs/heads/develop' }}
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: "projects/1043231896197/locations/global/workloadIdentityPools/github-actions-pool/providers/github"
           service_account: "github-actions@the-mee-foundation.iam.gserviceaccount.com"
       - name: deploy to bucket
-        if: ${{ github.ref == 'refs/heads/develop' }}
         run: |
           gcloud storage rsync --recursive ${{ env.path_to_app }}/dist gs://${{ env.bucket_name }}
           gcloud compute url-maps invalidate-cdn-cache ${{ env.url_map }} --project the-mee-foundation --path "/*" --host "${{ env.host }}" --async  
