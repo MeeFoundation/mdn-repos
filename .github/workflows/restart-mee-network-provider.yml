@@ -1,0 +1,27 @@
+name: "Restart Mee Network Provider on Dev"
+on:
+  workflow_dispatch: 
+
+jobs:
+  build:
+    name: restart service
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/1043231896197/locations/global/workloadIdentityPools/github-actions-pool/providers/github"
+          service_account: "github-actions@the-mee-foundation.iam.gserviceaccount.com"
+      - name: Get GKE credentials
+        uses: 'google-github-actions/get-gke-credentials@v2'
+        with:
+          cluster_name: 'dev-cluster'
+          location: 'us-west1-c'
+      - name: Restart service
+        run: |
+          kubectl rollout restart deployment/network-provider-mee-foundation-1 -n services
+          kubectl rollout restart deployment/network-provider-mee-foundation-2 -n services
