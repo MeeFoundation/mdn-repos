@@ -12,3 +12,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 serde_json = { workspace = true }
 regex = { workspace = true }
 mee_storage = { path = "../mee_storage" }
+async-stream = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }

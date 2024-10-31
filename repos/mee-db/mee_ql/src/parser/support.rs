@@ -1,5 +1,5 @@
+use crate::ast::MeeNode;
 use tree_sitter::Node;
-
 pub fn unescape(s: &str) -> String {
     match s {
         r#"\\"# => r#"\"#.to_string(),
@@ -19,6 +19,10 @@ pub fn unescape(s: &str) -> String {
     }
 }
 
-pub fn node_text(node: &Node, source_text: &str) -> Result<String, String> {
-    Ok(source_text[node.byte_range()].to_string())
+pub fn node_text(node: &Node, source_text: &str) -> Result<MeeNode<String>, String> {
+    Ok(mee_node(node, source_text[node.byte_range()].to_string()))
+}
+
+pub fn mee_node<T>(node: &Node, inner: T) -> MeeNode<T> {
+    MeeNode::new(inner, node.start_byte(), node.end_byte())
 }

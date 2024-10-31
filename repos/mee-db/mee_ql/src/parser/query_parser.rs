@@ -1,6 +1,6 @@
 use super::parser::{Parser, ParserList};
 use super::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tree_sitter::Node;
 
 pub struct QueryParser;
@@ -10,19 +10,24 @@ impl QueryParser {
         source_text: &str,
         node: Node,
         parser_list: &ParserList,
-    ) -> Result<QueryBody, String> {
-        let result = node
-            .child_by_field_name("result")
-            .map(|node| parser_list.value.parse(source_text, node, parser_list))
-            .transpose()?;
+        ctx: &mut Context,
+        source_code: &str,
+    ) -> Result<MeeNode<Query>, String> {
+        let query_type = match node.kind() {
+            "array_query" => QueryType::Stream,
+            "element_query" => QueryType::FirstOrNull,
+            _ => return Err(format!("Unknown query kind: {}", node.kind())),
+        };
 
         let mut iterators = Vec::new();
         for child in node.children_by_field_name("iterators", &mut node.walk()) {
-            iterators.push(
-                parser_list
-                    .iterator_stmt
-                    .parse(source_text, child, parser_list)?,
-            );
+            iterators.push(parser_list.iterator_stmt.parse(
+                source_text,
+                child,
+                parser_list,
+                ctx,
+                source_code,
+            )?);
         }
 
         let mut updates = HashMap::new();
@@ -31,77 +36,95 @@ impl QueryParser {
                 source_text,
                 child.child_by_field_name("field").ok_or("Expected path")?,
                 parser_list,
+                ctx,
+                source_code,
             )?;
+            path.check_type(&NodeTypes::AbsolutePath, source_code)?;
             let expr = parser_list.expression.parse(
                 source_text,
                 child.child_by_field_name("expr").ok_or("Expected expr")?,
                 parser_list,
+                ctx,
+                source_code,
             )?;
             updates.insert(path, expr);
         }
 
-        let deletes = parser_list
-            .delete_stmt
-            .parse(source_text, node, parser_list)?;
+        let deletes =
+            parser_list
+                .delete_stmt
+                .parse(source_text, node, parser_list, ctx, source_code)?;
 
         if iterators.is_empty() {
             return Err("Expected at least one iterator".to_string());
         }
 
-        Ok(QueryBody {
-            result,
-            main_iterator: iterators.remove(0),
-            embedded_iterators: iterators,
-            updates,
-            deletes,
-        })
+        let result = node
+            .child_by_field_name("result")
+            .map(|node| {
+                parser_list
+                    .value
+                    .parse(source_text, node, parser_list, ctx, source_code)
+            })
+            .transpose()?;
+
+        Ok(mee_node(
+            &node,
+            Query {
+                result,
+                main_iterator: iterators.remove(0),
+                embedded_iterators: iterators,
+                updates,
+                deletes,
+                query_type,
+            },
+        ))
     }
 }
 
-impl Parser<Query> for QueryParser {
+impl Parser<MeeNode<Query>> for QueryParser {
     fn parse(
         &self,
         source_text: &str,
         node: Node,
         parser_list: &ParserList,
-    ) -> Result<Query, String> {
-        match node.kind() {
-            "array_query" => {
-                let body = self.parse_query_body(source_text, node, parser_list)?;
-                Ok(Query::ArrayQuery { body })
-            }
-            "element_query" => {
-                let body = self.parse_query_body(source_text, node, parser_list)?;
-                Ok(Query::ElementQuery { body })
-            }
-            _ => Err(format!("Unknown query kind: {}", node.kind())),
-        }
+        ctx: &mut Context,
+        source_code: &str,
+    ) -> Result<MeeNode<Query>, String> {
+        self.parse_query_body(source_text, node, parser_list, ctx, source_code)
     }
 }
 
 pub struct DeleteStmtParser;
-impl Parser<DeleteStmt> for DeleteStmtParser {
+impl Parser<MeeNode<DeleteStmt>> for DeleteStmtParser {
     fn parse(
         &self,
         source_text: &str,
         node: Node,
         parser_list: &ParserList,
-    ) -> Result<DeleteStmt, String> {
-        let mut deletes = HashSet::new();
+        ctx: &mut Context,
+        source_code: &str,
+    ) -> Result<MeeNode<DeleteStmt>, String> {
+        let mut deletes = Vec::new();
         for child in node.children_by_field_name("deletes", &mut node.walk()) {
             if let Some(path_node) = child.child_by_field_name("field") {
-                let path = parser_list
-                    .path
-                    .parse(source_text, path_node, parser_list)?;
-                deletes.insert(path);
+                let path = parser_list.path.parse(
+                    source_text,
+                    path_node,
+                    parser_list,
+                    ctx,
+                    source_code,
+                )?;
+                path.check_type(&NodeTypes::AbsolutePath, source_code)?;
+                deletes.push(path);
             } else {
-                return Ok(DeleteStmt::All);
+                return Ok(mee_node(&node, DeleteStmt::All));
             }
         }
         if deletes.is_empty() {
-            Ok(DeleteStmt::None)
+            Ok(mee_node(&node, DeleteStmt::None))
         } else {
-            Ok(DeleteStmt::Paths(deletes))
+            Ok(mee_node(&node, DeleteStmt::Paths(deletes)))
         }
     }
 }

@@ -9,6 +9,8 @@ use storage::KVBasedJsonStoreImpl;
 
 pub use error::*;
 
+pub type Store = Arc<dyn JsonStore + Send + Sync>;
+
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
 use crate::query_el::FieldFilter;
 use core::fmt::Debug;
@@ -23,7 +25,7 @@ pub trait JsonStore: Debug {
 }
 
 #[allow(dead_code)]
-pub(crate) fn new_btree_map_based() -> Arc<dyn JsonStore + Send + Sync> {
+pub fn new_btree_map_based() -> Store {
     let store = binary_kv_store::new_btree_map_based();
     Arc::new(KVBasedJsonStoreImpl::new(store))
 }

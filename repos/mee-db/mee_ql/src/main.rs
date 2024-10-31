@@ -2,11 +2,12 @@ use parser::ASTParserImpl;
 mod ast;
 // mod error;
 mod parser;
-mod visitable;
-mod visitor;
-// mod _visitor;
-mod evalator;
-mod logic;
+
+use std::collections::HashMap;
+
+// mod execution;
+
+use mee_storage::json_kv_store;
 
 fn main() {
     let source_code = r#"
@@ -16,16 +17,18 @@ fn main() {
 ]
     "#;
 
+    let red_text = "This text is red";
+    println!("fdf\x1b[31m{}\x1b[0mfdfd", red_text);
+    let store = json_kv_store::new_btree_map_based();
+
     let mut parser = ASTParserImpl::new(source_code.to_string());
     match parser.parse() {
         Ok(ast) => {
-            let mut evaluator = Evaluator::new(ast);
+            // let validator = ValidatorImpl::new();
+            // let mut ctx = HashMap::new();
+            // let query = validator.validate_query(ast.value, &mut ctx).unwrap();
 
-            // Execute query
-            match evaluator.visit_query(&ast) {
-                Ok(result) => println!("Result: {:?}", result),
-                Err(e) => eprintln!("Error: {:?}", e),
-            }
+            println!("AST: {:?}", ast);
         }
         Err(e) => {
             eprintln!("Error parsing source code: {}", e);
