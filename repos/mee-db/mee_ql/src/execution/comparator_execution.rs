@@ -3,7 +3,21 @@ use crate::execution::support::*;
 use std::sync::Arc;
 
 pub struct ComparatorExecutorImpl {
-    pub ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+    _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+}
+
+impl ComparatorExecutorImpl {
+    pub fn new(ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>) -> Self {
+        Self { _ee: ee }
+    }
+
+    pub fn set_ee(&mut self, ee: Arc<dyn Executor<Expression, Value> + Send + Sync>) {
+        self._ee = Some(ee);
+    }
+
+    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
+        self._ee.as_ref().unwrap()
+    }
 }
 
 #[async_trait::async_trait]
@@ -17,18 +31,18 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
     ) -> Result<bool, String> {
         match &node.value {
             Comparator::Eq(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
                 Ok(left == right)
             }
             Comparator::Ne(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
                 Ok(left != right)
             }
             Comparator::Lt(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
 
                 Ok(left != Value::Null
                     && right != Value::Null
@@ -36,8 +50,8 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                         < right.cast_to_number(node, source_text)?)
             }
             Comparator::Gt(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
 
                 Ok(left != Value::Null
                     && right != Value::Null
@@ -45,8 +59,8 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                         > right.cast_to_number(node, source_text)?)
             }
             Comparator::Ge(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
 
                 Ok(left != Value::Null
                     && right != Value::Null
@@ -54,8 +68,8 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                         >= right.cast_to_number(node, source_text)?)
             }
             Comparator::Le(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
 
                 Ok(left != Value::Null
                     && right != Value::Null
@@ -63,8 +77,8 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                         <= right.cast_to_number(node, source_text)?)
             }
             Comparator::Matches(expr) => {
-                let left = self.ee.execute(source_text, left_node, ctx).await?;
-                let right = self.ee.execute(source_text, expr, ctx).await?;
+                let left = self.ee().execute(source_text, left_node, ctx).await?;
+                let right = self.ee().execute(source_text, expr, ctx).await?;
 
                 if left == Value::Null || right == Value::Null {
                     return Ok(false);
@@ -89,7 +103,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                 }
             }
             Comparator::Exists => Ok(!self
-                .ee
+                .ee()
                 .execute(source_text, left_node, ctx)
                 .await?
                 .is_null()),

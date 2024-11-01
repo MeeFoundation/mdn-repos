@@ -8,13 +8,51 @@ use serde_json::Value;
 use std::sync::Arc;
 
 pub struct IteratorExecutorImpl {
-    pub ee: Arc<dyn Executor<Expression, Value> + Send + Sync>,
-    pub pe: Arc<dyn Executor<Path, Value> + Send + Sync>,
-    pub ce: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>,
-    pub store: Store,
+    _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+    _pe: Option<Arc<dyn Executor<Path, Value> + Send + Sync>>,
+    _be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
+    store: Store,
 }
 
 impl IteratorExecutorImpl {
+    pub fn new(
+        ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+        pe: Option<Arc<dyn Executor<Path, Value> + Send + Sync>>,
+        ce: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
+        store: Store,
+    ) -> Self {
+        Self {
+            _ee: ee,
+            _pe: pe,
+            _be: ce,
+            store,
+        }
+    }
+
+    pub fn set_ee(&mut self, ee: Arc<dyn Executor<Expression, Value> + Send + Sync>) {
+        self._ee = Some(ee);
+    }
+
+    pub fn set_pe(&mut self, pe: Arc<dyn Executor<Path, Value> + Send + Sync>) {
+        self._pe = Some(pe);
+    }
+
+    pub fn set_be(&mut self, be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>) {
+        self._be = Some(be);
+    }
+
+    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
+        self._ee.as_ref().unwrap()
+    }
+
+    fn pe(&self) -> &Arc<dyn Executor<Path, Value> + Send + Sync> {
+        self._pe.as_ref().unwrap()
+    }
+
+    fn be(&self) -> &Arc<dyn Executor<BoolExpression, Value> + Send + Sync> {
+        self._be.as_ref().unwrap()
+    }
+
     async fn users(store: Store) -> Result<impl Stream<Item = Value> + Send, String> {
         store
             .range("".to_string(), FieldFilter::All)
@@ -29,7 +67,7 @@ impl IteratorExecutorImpl {
         ctx: &mut RuntimeContext,
     ) -> Result<bool, String> {
         if let Some(filter_node) = filter_node {
-            if self.ce.execute(source_text, &filter_node, ctx).await? != Value::Bool(true) {
+            if self.be().execute(source_text, &filter_node, ctx).await? != Value::Bool(true) {
                 return Ok(false);
             }
         }
@@ -57,7 +95,7 @@ impl IteratorExecutor for IteratorExecutorImpl {
                 for await ctx in input_ctx {
                     let mut ctx = ctx?;
                     for item in exprs.iter() {
-                        let v = self.ee.execute(source_text, item, &mut ctx).await?;
+                        let v = self.ee().execute(source_text, item, &mut ctx).await?;
                         let mut new_ctx = ctx.clone();
                         new_ctx.insert(item_name.clone(), v);
                         if self
@@ -94,7 +132,7 @@ impl IteratorExecutor for IteratorExecutorImpl {
                 pin_mut!(input_ctx);
                 for await ctx in input_ctx {
                     let mut ctx = ctx?;
-                    let path_value = self.pe.execute(source_text, path_node,  &mut ctx).await?;
+                    let path_value = self.pe().execute(source_text, path_node, &mut ctx).await?;
                     if !path_value.is_null() {
                         for item in path_value.cast_to_array(path_node, source_text)? {
                             let mut new_ctx = ctx.clone();

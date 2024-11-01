@@ -8,10 +8,38 @@ use std::result::Result as StdResult;
 use std::sync::Arc;
 
 pub struct QueryExecutorImpl {
-    pub ee: Arc<dyn Executor<Expression, Value> + Send + Sync>,
-    pub be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>,
-    pub ie: Arc<dyn IteratorExecutor + Send + Sync>,
+    pub _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+    pub _be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
+    pub _ie: Option<Arc<dyn IteratorExecutor + Send + Sync>>,
     pub store: Store,
+}
+
+impl QueryExecutorImpl {
+    pub fn new(
+        ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+        be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
+        ie: Option<Arc<dyn IteratorExecutor + Send + Sync>>,
+        store: Store,
+    ) -> Self {
+        Self {
+            _ee: ee,
+            _be: be,
+            _ie: ie,
+            store,
+        }
+    }
+
+    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
+        self._ee.as_ref().unwrap()
+    }
+
+    fn be(&self) -> &Arc<dyn Executor<BoolExpression, Value> + Send + Sync> {
+        self._be.as_ref().unwrap()
+    }
+
+    fn ie(&self) -> &Arc<dyn IteratorExecutor + Send + Sync> {
+        self._ie.as_ref().unwrap()
+    }
 }
 
 //Fix for case [user for a in [1,2,3]  for user in users]
@@ -52,7 +80,7 @@ impl QueryExecutorImpl {
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
                 for (path, expr) in node.value.updates.iter() {
-                    let v = self.ee.execute(source_text, expr, &mut ctx).await?;
+                    let v = self.ee().execute(source_text, expr, &mut ctx).await?;
                     let user_id = self.get_user_id(source_text, node, &mut ctx).await?;
                     let path_str = path.value.to_store_path(&user_id);
 
@@ -113,14 +141,14 @@ impl QueryExecutor for QueryExecutorImpl {
         let mut main_stream: ContextStream = Box::pin(input_ctx);
 
         main_stream = self
-            .ie
+            .ie()
             .stream(source_text, &node.value.main_iterator, main_stream)
             .await;
 
         let mut new_stream = main_stream;
 
         for iterator in node.value.embedded_iterators.iter() {
-            new_stream = self.ie.stream(source_text, iterator, new_stream).await;
+            new_stream = self.ie().stream(source_text, iterator, new_stream).await;
         }
 
         new_stream = self.execute_updates(source_text, node, new_stream).await;
@@ -132,7 +160,7 @@ impl QueryExecutor for QueryExecutorImpl {
             for await ctx in new_stream {
                 let mut ctx = ctx?;
                 if let Some(result) = &node.value.result {
-                    let value = self.ee.execute(source_text, result, &mut ctx).await?;
+                    let value = self.ee().execute(source_text, result, &mut ctx).await?;
                     yield value;
                 } else {
                     yield Value::Null;

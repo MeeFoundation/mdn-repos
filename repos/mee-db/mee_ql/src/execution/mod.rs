@@ -41,16 +41,30 @@ pub type ContextStream = futures::stream::BoxStream<'static, Result<RuntimeConte
 pub type JsonResultStream = Pin<Box<dyn Stream<Item = Result<Value, String>> + Send>>;
 
 pub fn query_executor(store: Store) -> Arc<dyn QueryExecutor + Send + Sync + 'static> {
-    let path_executor = PathExecutorImpl::new();
-    let bool_executor = BoolExpressionExecutorImpl::new(path_executor);
-    let comparator_executor = ComparatorExecutorImpl::new(path_executor);
-    let expression_executor = ExpressionExecutorImpl::new(path_executor);
-    let iterator_executor = IteratorExecutorImpl::new(path_executor);
-    QueryExecutorImpl::new(
+    let pe = Arc::new(PathExecutorImpl::new());
+
+    let mut ee = Arc::new(ExpressionExecutorImpl::new(None, Some(pe), None));
+
+    let ce = Arc::new(ComparatorExecutorImpl::new(Some(ee)));
+
+    let be = Arc::new(BoolExpressionExecutorImpl::new(Some(ee), Some(ce)));
+
+    let ie = Arc::new(IteratorExecutorImpl::new(
+        Some(ee.clone()),
+        Some(pe.clone()),
+        Some(be.clone()),
         store,
-        bool_executor,
-        comparator_executor,
-        expression_executor,
-        iterator_executor,
-    )
+    ));
+
+    let qe = Arc::new(QueryExecutorImpl::new(
+        Some(ee.clone()),
+        Some(be.clone()),
+        Some(ie.clone()),
+        store,
+    ));
+
+    ee.set_be(be);
+    ee.set_qe(qe);
+
+    qe
 }

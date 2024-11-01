@@ -2,10 +2,47 @@ use super::*;
 use std::sync::Arc;
 
 pub struct ExpressionExecutorImpl {
-    pub ee: Arc<dyn Executor<Expression, Value> + Send + Sync>,
-    pub be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>,
-    pub pe: Arc<dyn Executor<Path, Value> + Send + Sync>,
-    pub qe: Arc<dyn Executor<Query, Value> + Send + Sync>,
+    _be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
+    _pe: Option<Arc<dyn Executor<Path, Value> + Send + Sync>>,
+    _qe: Option<Arc<dyn Executor<Query, Value> + Send + Sync>>,
+}
+
+impl ExpressionExecutorImpl {
+    pub fn new(
+        be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
+        pe: Option<Arc<dyn Executor<Path, Value> + Send + Sync>>,
+        qe: Option<Arc<dyn Executor<Query, Value> + Send + Sync>>,
+    ) -> Self {
+        Self {
+            _be: be,
+            _pe: pe,
+            _qe: qe,
+        }
+    }
+
+    pub fn set_be(&mut self, be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>) {
+        self._be = Some(be);
+    }
+
+    pub fn set_pe(&mut self, pe: Arc<dyn Executor<Path, Value> + Send + Sync>) {
+        self._pe = Some(pe);
+    }
+
+    pub fn set_qe(&mut self, qe: Arc<dyn Executor<Query, Value> + Send + Sync>) {
+        self._qe = Some(qe);
+    }
+
+    fn be(&self) -> &Arc<dyn Executor<BoolExpression, Value> + Send + Sync> {
+        self._be.as_ref().unwrap()
+    }
+
+    fn pe(&self) -> &Arc<dyn Executor<Path, Value> + Send + Sync> {
+        self._pe.as_ref().unwrap()
+    }
+
+    fn qe(&self) -> &Arc<dyn Executor<Query, Value> + Send + Sync> {
+        self._qe.as_ref().unwrap()
+    }
 }
 
 #[async_trait::async_trait]
@@ -17,13 +54,13 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
         ctx: &mut RuntimeContext,
     ) -> Result<Value, String> {
         match &node.value {
-            Expression::Query(query) => self.qe.execute(source_text, query, ctx).await,
-            Expression::BoolExpression(expr) => self.be.execute(source_text, expr, ctx).await,
-            Expression::Link(path) => self.pe.execute(source_text, path, ctx).await,
+            Expression::Query(query) => self.qe().execute(source_text, query, ctx).await,
+            Expression::BoolExpression(expr) => self.be().execute(source_text, expr, ctx).await,
+            Expression::Link(path) => self.pe().execute(source_text, path, ctx).await,
             Expression::Object(map) => {
                 let mut values = Map::new();
                 for (k, v) in map {
-                    let v = self.ee.execute(source_text, v, ctx).await?;
+                    let v = self.execute(source_text, v, ctx).await?;
                     values.insert(k.clone(), v);
                 }
                 Ok(Value::Object(values))
@@ -31,7 +68,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
             Expression::Array(arr) => {
                 let mut values = Vec::new();
                 for item in arr {
-                    values.push(self.ee.execute(source_text, item, ctx).await?);
+                    values.push(self.execute(source_text, item, ctx).await?);
                 }
                 Ok(Value::Array(values))
             }

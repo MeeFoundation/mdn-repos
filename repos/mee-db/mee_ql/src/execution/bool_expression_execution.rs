@@ -2,9 +2,33 @@ use super::*;
 use crate::execution::support::*;
 use std::sync::Arc;
 pub struct BoolExpressionExecutorImpl {
-    pub ee: Arc<dyn Executor<Expression, Value> + Send + Sync>,
-    pub ce: Arc<dyn ComparatorExecutor + Send + Sync>,
-    pub be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>,
+    _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+    _ce: Option<Arc<dyn ComparatorExecutor + Send + Sync>>,
+}
+
+impl BoolExpressionExecutorImpl {
+    pub fn new(
+        ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+        ce: Option<Arc<dyn ComparatorExecutor + Send + Sync>>,
+    ) -> Self {
+        Self { _ee: ee, _ce: ce }
+    }
+
+    pub fn set_ee(&mut self, ee: Arc<dyn Executor<Expression, Value> + Send + Sync>) {
+        self._ee = Some(ee);
+    }
+
+    pub fn set_ce(&mut self, ce: Arc<dyn ComparatorExecutor + Send + Sync>) {
+        self._ce = Some(ce);
+    }
+
+    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
+        self._ee.as_ref().unwrap()
+    }
+
+    fn ce(&self) -> &Arc<dyn ComparatorExecutor + Send + Sync> {
+        self._ce.as_ref().unwrap()
+    }
 }
 
 #[async_trait::async_trait]
@@ -19,7 +43,6 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
             BoolExpression::And(exprs) => {
                 for expr in exprs {
                     if !self
-                        .be
                         .execute(source_text, &expr, ctx)
                         .await?
                         .cast_to_bool(&expr, source_text)?
@@ -32,7 +55,6 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
             BoolExpression::Or(exprs) => {
                 for expr in exprs {
                     if self
-                        .be
                         .execute(source_text, &expr, ctx)
                         .await?
                         .cast_to_bool(&expr, source_text)?
@@ -44,7 +66,6 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
             }
             BoolExpression::Not(expr) => {
                 if self
-                    .be
                     .execute(source_text, &expr, ctx)
                     .await?
                     .cast_to_bool(&expr, source_text)?
@@ -55,11 +76,11 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                 }
             }
             BoolExpression::Comparison { val, comparator } => {
-                let left = self.ce.check(&val, source_text, comparator, ctx).await?;
+                let left = self.ce().check(&val, source_text, comparator, ctx).await?;
                 Ok(Value::Bool(left))
             }
             BoolExpression::Expression(path) => {
-                let left = self.ee.execute(source_text, path, ctx).await?;
+                let left = self.ee().execute(source_text, path, ctx).await?;
                 Ok(Value::Bool(left == Value::Bool(true)))
             }
             BoolExpression::True => Ok(Value::Bool(true)),
