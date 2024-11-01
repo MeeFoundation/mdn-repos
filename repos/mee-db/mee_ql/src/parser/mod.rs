@@ -52,13 +52,9 @@ impl ASTParser for ASTParserImpl {
             "start" => {
                 let parser_list = ParserList::default();
                 let query_node = root_node.named_child(0).ok_or("Expected query node")?;
-                parser_list.query.parse(
-                    &self.source_code,
-                    query_node,
-                    &parser_list,
-                    &mut ctx,
-                    &self.source_code,
-                )
+                parser_list
+                    .query
+                    .parse(&self.source_code, query_node, &parser_list, &mut ctx)
             }
             _ => Err(format!(
                 "Unknown node kind: {}, text: {}",

@@ -1,60 +1,98 @@
 use super::*;
 use crate::execution::support::*;
+use std::sync::Arc;
 
-impl Comparator {
-    // pub fn using_paths(&self) -> HashSet<Path> {
-    //     match self {
-    //         Comparator::Eq(expr)
-    //         | Comparator::Ne(expr)
-    //         | Comparator::Gt(expr)
-    //         | Comparator::Lt(expr)
-    //         | Comparator::Ge(expr)
-    //         | Comparator::Le(expr)
-    //         | Comparator::Matches(expr) => expr.using_paths(),
-    //         Comparator::Exists => HashSet::new(),
-    //     }
-    // }
+pub struct ComparatorExecutorImpl {
+    pub ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
+}
 
-    pub fn value(&self, val: &Expression, ctx: &HashMap<String, Value>) -> Result<Value, String> {
-        match self {
+#[async_trait::async_trait]
+impl ComparatorExecutor for ComparatorExecutorImpl {
+    async fn check(
+        &'static self,
+        left_node: &'static MeeNode<Expression>,
+        source_text: &'static str,
+        node: &'static MeeNode<Comparator>,
+        ctx: &mut RuntimeContext,
+    ) -> Result<bool, String> {
+        match &node.value {
             Comparator::Eq(expr) => {
-                let left = expr.value(ctx)?;
-                let right = val.value(ctx)?;
-                Ok(Value::Bool(left == right))
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
+                Ok(left == right)
             }
             Comparator::Ne(expr) => {
-                let left = expr.value(ctx)?;
-                let right = val.value(ctx)?;
-                Ok(Value::Bool(left != right))
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
+                Ok(left != right)
             }
             Comparator::Lt(expr) => {
-                let right = expr.value(ctx).cast_to_number()?;
-                let left = val.value(ctx).cast_to_number()?;
-                Ok(Value::Bool(left < right))
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
+
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left.cast_to_number(left_node, source_text)?
+                        < right.cast_to_number(node, source_text)?)
             }
             Comparator::Gt(expr) => {
-                let right = expr.value(ctx).cast_to_number()?;
-                let left = val.value(ctx).cast_to_number()?;
-                Ok(Value::Bool(left > right))
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
+
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left.cast_to_number(left_node, source_text)?
+                        > right.cast_to_number(node, source_text)?)
             }
             Comparator::Ge(expr) => {
-                let right = expr.value(ctx).cast_to_number()?;
-                let left = val.value(ctx).cast_to_number()?;
-                Ok(Value::Bool(left >= right))
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
+
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left.cast_to_number(left_node, source_text)?
+                        >= right.cast_to_number(node, source_text)?)
             }
             Comparator::Le(expr) => {
-                let right = expr.value(ctx).cast_to_number()?;
-                let left = val.value(ctx).cast_to_number()?;
-                Ok(Value::Bool(left <= right))
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
+
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left.cast_to_number(left_node, source_text)?
+                        <= right.cast_to_number(node, source_text)?)
             }
             Comparator::Matches(expr) => {
-                let left = val.value(ctx).cast_to_string()?;
-                let pattern = regex::Regex::new(&expr.value(ctx).cast_to_string()?)
-                    .map_err(|e| e.to_string())?;
+                let left = self.ee.execute(source_text, left_node, ctx).await?;
+                let right = self.ee.execute(source_text, expr, ctx).await?;
 
-                Ok(Value::Bool(pattern.is_match(&left)))
+                if left == Value::Null || right == Value::Null {
+                    return Ok(false);
+                } else {
+                    let left = left.cast_to_string(left_node, source_text)?;
+                    let right = right.cast_to_string(node, source_text)?;
+
+                    let pattern = regex::Regex::new(&right).map_err(|_| {
+                    let error_place = format!("<!{}!>", &source_text[node.start..node.end]);
+                    format!(
+                        "Runtime error at position ({}, {}) (wrapped in '<!_!>') {}{}{} -  Invalid RegExp pattern '{}'",
+                        node.start,
+                        node.end,
+                        &source_text[..node.start],
+                        error_place,
+                        &source_text[node.end..],
+                        &right
+                        )
+                    })?;
+
+                    Ok(pattern.is_match(&left))
+                }
             }
-            Comparator::Exists => Ok(Value::Bool(!val.value(ctx)?.is_null())),
+            Comparator::Exists => Ok(!self
+                .ee
+                .execute(source_text, left_node, ctx)
+                .await?
+                .is_null()),
         }
     }
 }

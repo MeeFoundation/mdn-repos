@@ -8,7 +8,7 @@ pub const TARGET_PATH_SEPARATOR: char = mee_storage::PATH_SEPARATOR;
 #[derive(Debug, Clone, PartialEq)]
 pub enum QueryType {
     FirstOrNull,
-    Stream,
+    All,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -20,6 +20,7 @@ pub enum NodeTypes {
     Object,
     Users,
     AbsolutePath,
+    Null,
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
@@ -161,7 +162,7 @@ pub enum Comparator {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Source {
-    PathSource(Path),
+    PathSource(MeeNode<Path>),
     ArraySource(Vec<MeeNode<Expression>>),
 }
 
@@ -170,7 +171,7 @@ pub enum Expression {
     //complex
     Query(Box<MeeNode<Query>>),
     BoolExpression(Box<MeeNode<BoolExpression>>),
-    Link(Path),
+    Link(MeeNode<Path>),
     //simple
     Object(HashMap<String, MeeNode<Expression>>),
     Array(Vec<MeeNode<Expression>>),

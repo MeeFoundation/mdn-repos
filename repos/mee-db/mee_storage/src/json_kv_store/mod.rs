@@ -9,7 +9,7 @@ use storage::KVBasedJsonStoreImpl;
 
 pub use error::*;
 
-pub type Store = Arc<dyn JsonStore + Send + Sync>;
+pub type Store = Arc<dyn JsonStore + Send + Sync + 'static>;
 
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
 use crate::query_el::FieldFilter;

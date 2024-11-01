@@ -11,31 +11,23 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<MeeNode<BoolExpression>, String> {
         match node.kind() {
             "comparison" => {
                 let val_node = node.child_by_field_name("val").ok_or("Expected val")?;
-                let val = parser_list.value.parse(
-                    source_text,
-                    val_node,
-                    parser_list,
-                    ctx,
-                    source_code,
-                )?;
+                let val = parser_list
+                    .value
+                    .parse(source_text, val_node, parser_list, ctx)?;
 
                 let comparator_node = node
                     .child_by_field_name("comparator")
                     .ok_or("Expected comparator")?;
-                let comparator = parser_list.comparator.parse(
-                    source_text,
-                    comparator_node,
-                    parser_list,
-                    ctx,
-                    source_code,
-                )?;
+                let comparator =
+                    parser_list
+                        .comparator
+                        .parse(source_text, comparator_node, parser_list, ctx)?;
 
-                val.check_optional_type(&comparator.expected_type, source_code)?;
+                val.check_optional_type(&comparator.expected_type, source_text)?;
 
                 Ok(
                     mee_node(&node, BoolExpression::Comparison { val, comparator })
@@ -45,13 +37,10 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
             "and_expression" => {
                 let mut expressions = Vec::new();
                 for child in node.named_children(&mut node.walk()) {
-                    let expr = parser_list.bool_expression.parse(
-                        source_text,
-                        child,
-                        parser_list,
-                        ctx,
-                        source_code,
-                    )?;
+                    let expr =
+                        parser_list
+                            .bool_expression
+                            .parse(source_text, child, parser_list, ctx)?;
                     expressions.push(expr);
                 }
                 Ok(mee_node(&node, BoolExpression::And(expressions)).with_type(NodeTypes::Bool))
@@ -59,13 +48,10 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
             "or_expression" => {
                 let mut expressions = Vec::new();
                 for child in node.named_children(&mut node.walk()) {
-                    let expr = parser_list.bool_expression.parse(
-                        source_text,
-                        child,
-                        parser_list,
-                        ctx,
-                        source_code,
-                    )?;
+                    let expr =
+                        parser_list
+                            .bool_expression
+                            .parse(source_text, child, parser_list, ctx)?;
                     expressions.push(expr);
                 }
                 Ok(mee_node(&node, BoolExpression::Or(expressions)).with_type(NodeTypes::Bool))
@@ -77,30 +63,24 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
                     operand_node,
                     parser_list,
                     ctx,
-                    source_code,
                 )?;
                 Ok(mee_node(&node, BoolExpression::Not(Box::new(expr))).with_type(NodeTypes::Bool))
             }
             "true" => Ok(mee_node(&node, BoolExpression::True).with_type(NodeTypes::Bool)),
             "false" => Ok(mee_node(&node, BoolExpression::False).with_type(NodeTypes::Bool)),
             "path" => {
-                let path =
-                    parser_list
-                        .path
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
-                path.check_type(&NodeTypes::Bool, source_code)?;
-                let expr = path.map(|p| Expression::Link(p.clone()));
+                let path = parser_list
+                    .path
+                    .parse(source_text, node, parser_list, ctx)?;
+                path.check_type(&NodeTypes::Bool, source_text)?;
+                let expr = path.map(|p| Expression::Link(mee_node(&node, p.clone())));
                 Ok(mee_node(&node, BoolExpression::Expression(expr)).with_type(NodeTypes::Bool))
             }
             "(" => {
                 let next_sibling = node.next_sibling().ok_or("Expected next sibling")?;
-                parser_list.bool_expression.parse(
-                    source_text,
-                    next_sibling,
-                    parser_list,
-                    ctx,
-                    source_code,
-                )
+                parser_list
+                    .bool_expression
+                    .parse(source_text, next_sibling, parser_list, ctx)
             }
             _ => Err(format!(
                 "Unknown bool expression kind: {}. next: {}, text: {}",

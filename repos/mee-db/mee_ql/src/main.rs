@@ -5,11 +5,13 @@ mod parser;
 
 use std::collections::HashMap;
 
-// mod execution;
+mod execution;
 
+use execution::query_execution::QueryExecutorImpl;
 use mee_storage::json_kv_store;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let source_code = r#"
        [
   user
@@ -24,6 +26,10 @@ fn main() {
     let mut parser = ASTParserImpl::new(source_code.to_string());
     match parser.parse() {
         Ok(ast) => {
+            let executor = QueryExecutorImpl::new(store);
+            let res = executor
+                .execute(source_code, &ast.value, Box::pin(futures::stream::empty()))
+                .await;
             // let validator = ValidatorImpl::new();
             // let mut ctx = HashMap::new();
             // let query = validator.validate_query(ast.value, &mut ctx).unwrap();

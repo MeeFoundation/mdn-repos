@@ -11,14 +11,12 @@ impl Parser<MeeNode<Expression>> for ExpressionParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<MeeNode<Expression>, String> {
         match node.kind() {
             "element_query" | "array_query" => {
-                let query =
-                    parser_list
-                        .query
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
+                let query = parser_list
+                    .query
+                    .parse(source_text, node, parser_list, ctx)?;
 
                 let expected_type = query
                     .value
@@ -34,13 +32,10 @@ impl Parser<MeeNode<Expression>> for ExpressionParser {
                 .with_optional_type(expected_type))
             }
             "bool_expression" => {
-                let bool_expr = parser_list.bool_expression.parse(
-                    source_text,
-                    node,
-                    parser_list,
-                    ctx,
-                    source_code,
-                )?;
+                let bool_expr =
+                    parser_list
+                        .bool_expression
+                        .parse(source_text, node, parser_list, ctx)?;
                 Ok(MeeNode::new(
                     Expression::BoolExpression(Box::new(bool_expr)),
                     node.start_byte(),
@@ -50,11 +45,11 @@ impl Parser<MeeNode<Expression>> for ExpressionParser {
             }
             _ => parser_list
                 .value
-                .parse(source_text, node, parser_list, ctx, source_code)
+                .parse(source_text, node, parser_list, ctx)
                 .or_else(|_| {
                     parser_list
                         .bool_expression
-                        .parse(source_text, node, parser_list, ctx, source_code)
+                        .parse(source_text, node, parser_list, ctx)
                         .map(|b| {
                             MeeNode::new(
                                 Expression::BoolExpression(Box::new(b)),
@@ -76,18 +71,15 @@ impl Parser<MeeNode<Path>> for PathParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<MeeNode<Path>, String> {
         let mut segments = Vec::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "ident" {
-                segments.push(parser_list.ident.parse(
-                    source_text,
-                    child,
-                    parser_list,
-                    ctx,
-                    source_code,
-                )?);
+                segments.push(
+                    parser_list
+                        .ident
+                        .parse(source_text, child, parser_list, ctx)?,
+                );
             }
         }
 
@@ -119,7 +111,6 @@ impl Parser<usize> for PosIntParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-        _: &str,
     ) -> Result<usize, String> {
         let text = node_text(&node, source_text)?.value;
         let number = text.parse::<usize>().map_err(|e| e.to_string())?;
@@ -135,17 +126,14 @@ impl Parser<Vec<MeeNode<Expression>>> for ArrayParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<Vec<MeeNode<Expression>>, String> {
         let mut values = Vec::new();
         for child in node.named_children(&mut node.walk()) {
-            values.push(parser_list.value.parse(
-                source_text,
-                child,
-                parser_list,
-                ctx,
-                source_code,
-            )?);
+            values.push(
+                parser_list
+                    .value
+                    .parse(source_text, child, parser_list, ctx)?,
+            );
         }
         Ok(values)
     }
@@ -159,7 +147,6 @@ impl Parser<HashMap<String, MeeNode<Expression>>> for ObjectParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<HashMap<String, MeeNode<Expression>>, String> {
         let mut pairs = HashMap::new();
         for child in node.named_children(&mut node.walk()) {
@@ -169,14 +156,12 @@ impl Parser<HashMap<String, MeeNode<Expression>>> for ObjectParser {
                     child.child_by_field_name("key").ok_or("Expected key")?,
                     parser_list,
                     ctx,
-                    source_code,
                 )?;
                 let value = parser_list.value.parse(
                     source_text,
                     child.child_by_field_name("value").ok_or("Expected value")?,
                     parser_list,
                     ctx,
-                    source_code,
                 )?;
                 pairs.insert(key, value);
             }
@@ -193,29 +178,24 @@ impl Parser<MeeNode<Expression>> for ValueParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<MeeNode<Expression>, String> {
         match node.kind() {
             "path" => {
-                let path =
-                    parser_list
-                        .path
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
+                let path = parser_list
+                    .path
+                    .parse(source_text, node, parser_list, ctx)?;
 
                 let inner_value_type = path.expected_type.clone();
 
-                Ok(MeeNode::new(
-                    Expression::Link(path.value),
-                    node.start_byte(),
-                    node.end_byte(),
+                Ok(
+                    MeeNode::new(Expression::Link(path), node.start_byte(), node.end_byte())
+                        .with_optional_type(inner_value_type),
                 )
-                .with_optional_type(inner_value_type))
             }
             "object" => {
-                let object =
-                    parser_list
-                        .object
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
+                let object = parser_list
+                    .object
+                    .parse(source_text, node, parser_list, ctx)?;
                 Ok(MeeNode::new(
                     Expression::Object(object),
                     node.start_byte(),
@@ -224,20 +204,18 @@ impl Parser<MeeNode<Expression>> for ValueParser {
                 .with_type(NodeTypes::Object))
             }
             "array" => {
-                let array =
-                    parser_list
-                        .array
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
+                let array = parser_list
+                    .array
+                    .parse(source_text, node, parser_list, ctx)?;
                 Ok(
                     MeeNode::new(Expression::Array(array), node.start_byte(), node.end_byte())
                         .with_type(NodeTypes::Array),
                 )
             }
             "number" => {
-                let number =
-                    parser_list
-                        .number
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
+                let number = parser_list
+                    .number
+                    .parse(source_text, node, parser_list, ctx)?;
                 Ok(MeeNode::new(
                     Expression::Number(number),
                     node.start_byte(),
@@ -246,10 +224,9 @@ impl Parser<MeeNode<Expression>> for ValueParser {
                 .with_type(NodeTypes::Number))
             }
             "string" => {
-                let string =
-                    parser_list
-                        .string
-                        .parse(source_text, node, parser_list, ctx, source_code)?;
+                let string = parser_list
+                    .string
+                    .parse(source_text, node, parser_list, ctx)?;
                 Ok(MeeNode::new(
                     Expression::String(string),
                     node.start_byte(),
@@ -285,7 +262,6 @@ impl Parser<String> for IdentParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-        _: &str,
     ) -> Result<String, String> {
         let text = node_text(&node, source_text)?.value;
         Ok(text)
@@ -300,7 +276,6 @@ impl Parser<String> for StringParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-        _: &str,
     ) -> Result<String, String> {
         let mut string_content = String::new();
         for child in node.named_children(&mut node.walk()) {
@@ -322,7 +297,6 @@ impl Parser<f64> for NumberParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-        _: &str,
     ) -> Result<f64, String> {
         let text = node_text(&node, source_text)?.value;
         let number = text.parse::<f64>().map_err(|e| e.to_string())?;

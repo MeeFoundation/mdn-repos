@@ -9,7 +9,6 @@ pub trait Parser<T> {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-        source_code: &str,
     ) -> Result<T, String>;
 }
 
