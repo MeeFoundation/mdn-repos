@@ -1,53 +1,25 @@
 use super::*;
 use async_stream::{stream, try_stream};
 use futures::pin_mut;
-use futures::stream::{Stream, StreamExt};
-use mee_storage::json_kv_store::{JsonStream, Store};
-use mee_storage::query_el::FieldFilter;
-use std::result::Result as StdResult;
+use futures::stream::StreamExt;
+use mee_storage::json_kv_store::Store;
 use std::sync::Arc;
 
 pub struct QueryExecutorImpl {
-    pub _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
-    pub _be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
-    pub _ie: Option<Arc<dyn IteratorExecutor + Send + Sync>>,
     pub store: Store,
 }
 
 impl QueryExecutorImpl {
-    pub fn new(
-        ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
-        be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
-        ie: Option<Arc<dyn IteratorExecutor + Send + Sync>>,
-        store: Store,
-    ) -> Self {
-        Self {
-            _ee: ee,
-            _be: be,
-            _ie: ie,
-            store,
-        }
-    }
-
-    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
-        self._ee.as_ref().unwrap()
-    }
-
-    fn be(&self) -> &Arc<dyn Executor<BoolExpression, Value> + Send + Sync> {
-        self._be.as_ref().unwrap()
-    }
-
-    fn ie(&self) -> &Arc<dyn IteratorExecutor + Send + Sync> {
-        self._ie.as_ref().unwrap()
+    pub fn new(store: Store) -> Self {
+        Self { store }
     }
 }
 
 //Fix for case [user for a in [1,2,3]  for user in users]
 impl QueryExecutorImpl {
     async fn get_user_id(
-        &'static self,
-        source_text: &str,
-        node: &MeeNode<Query>,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Query>>,
         ctx: &mut RuntimeContext,
     ) -> Result<String, String> {
         let user_item = &node.value.main_iterator.value.item.value;
@@ -70,21 +42,37 @@ impl QueryExecutorImpl {
     }
 
     async fn execute_updates(
-        &'static self,
-        source_text: &'static str,
-        node: &'static MeeNode<Query>,
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
+        executor_list: Arc<ExecutorList>,
     ) -> ContextStream {
+        let store = self.store.clone();
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
-                for (path, expr) in node.value.updates.iter() {
-                    let v = self.ee().execute(source_text, expr, &mut ctx).await?;
-                    let user_id = self.get_user_id(source_text, node, &mut ctx).await?;
+                for (path, expr) in node.clone().value.updates.iter() {
+                    let expr = Arc::new(expr.clone());
+                    let v = executor_list
+                        .ee
+                        .execute(
+                            source_text.clone(),
+                            expr.clone(),
+                            ctx.clone(),
+                            executor_list.clone(),
+                        )
+                        .await?;
+                    let user_id = QueryExecutorImpl::get_user_id(
+                            source_text.clone(),
+                        node.clone(),
+                        &mut ctx,
+                    )
+                    .await?;
                     let path_str = path.value.to_store_path(&user_id);
 
-                    self.store.set(path_str, v).await.map_err(|e| e.to_string())?;
+                    store.set(path_str, v).await.map_err(|e| e.to_string())?;
                 }
                 yield ctx;
             }
@@ -93,33 +81,45 @@ impl QueryExecutorImpl {
     }
 
     async fn execute_deletes(
-        &'static self,
-        source_text: &'static str,
-        node: &'static MeeNode<Query>,
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
     ) -> ContextStream {
+        let store = self.store.clone();
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
-                match &node.value.deletes.value {
-                    DeleteStmt::Paths(path_nodes) => {
+                match node.clone().value.deletes.value {
+                    DeleteStmt::Paths(ref path_nodes) => {
                         for path_node in path_nodes.iter() {
-                            let user_id = self.get_user_id(source_text, node, &mut ctx).await?;
+                            let path_node = Arc::new(path_node.clone());
+                            let user_id = QueryExecutorImpl::get_user_id(
+                                source_text.clone(),
+                                node.clone(),
+                                &mut ctx,
+                            )
+                            .await?;
                             let path_str = path_node.value.to_store_path(&user_id);
-                            self.store.delete(path_str).await.map_err(|e| e.to_string())?;
+                            store.delete(path_str).await.map_err(|e| e.to_string())?;
                         }
                     }
                     DeleteStmt::All => {
-                        let user_id = self.get_user_id(source_text, node, &mut ctx).await?;
-                        let user_item = &node.value.main_iterator.value.item.value;
+                        let user_id = QueryExecutorImpl::get_user_id(
+                            source_text.clone(),
+                            node.clone(),
+                            &mut ctx,
+                        )
+                        .await?;
+                        let user_item = &node.clone().value.main_iterator.value.item.value;
                         let path_str = Path {
                             root: user_item.clone(),
                             field: None,
                         }
                         .to_store_path(&user_id);
 
-                        self.store.delete(path_str).await.map_err(|e| e.to_string())?;
+                        store.delete(path_str).await.map_err(|e| e.to_string())?;
                     }
                     _ => {}
                 }
@@ -133,34 +133,69 @@ impl QueryExecutorImpl {
 #[async_trait::async_trait]
 impl QueryExecutor for QueryExecutorImpl {
     async fn stream(
-        &'static self,
-        source_text: &'static str,
-        node: &'static MeeNode<Query>,
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
+        executor_list: Arc<ExecutorList>,
     ) -> JsonResultStream {
-        let mut main_stream: ContextStream = Box::pin(input_ctx);
+        let main_stream: ContextStream = Box::pin(input_ctx);
+        let main_iterator = Arc::new(node.value.main_iterator.clone());
 
-        main_stream = self
-            .ie()
-            .stream(source_text, &node.value.main_iterator, main_stream)
+        let main_stream = executor_list
+            .ie
+            .stream(
+                source_text.clone(),
+                main_iterator.clone(),
+                main_stream,
+                executor_list.clone(),
+            )
             .await;
 
         let mut new_stream = main_stream;
 
         for iterator in node.value.embedded_iterators.iter() {
-            new_stream = self.ie().stream(source_text, iterator, new_stream).await;
+            let iterator = Arc::new(iterator.clone());
+            new_stream = executor_list
+                .ie
+                .stream(
+                    source_text.clone(),
+                    iterator.clone(),
+                    new_stream,
+                    executor_list.clone(),
+                )
+                .await;
         }
 
-        new_stream = self.execute_updates(source_text, node, new_stream).await;
+        new_stream = self
+            .execute_updates(
+                source_text.clone(),
+                node.clone(),
+                new_stream,
+                executor_list.clone(),
+            )
+            .await;
 
-        new_stream = self.execute_deletes(source_text, node, new_stream).await;
+        new_stream = self
+            .execute_deletes(source_text.clone(), node.clone(), new_stream)
+            .await;
 
         let stream = try_stream! {
 
             for await ctx in new_stream {
-                let mut ctx = ctx?;
-                if let Some(result) = &node.value.result {
-                    let value = self.ee().execute(source_text, result, &mut ctx).await?;
+                let ctx = ctx?;
+
+                if let Some(result) = &node.clone().value.result {
+                    let result = Arc::new(result.clone());
+                    let value = executor_list
+                        .ee
+                        .execute(
+                            source_text.clone(),
+                            result.clone(),
+                            ctx.clone(),
+                            executor_list.clone(),
+                        )
+                        .await?;
                     yield value;
                 } else {
                     yield Value::Null;
@@ -175,10 +210,11 @@ impl QueryExecutor for QueryExecutorImpl {
 #[async_trait::async_trait]
 impl Executor<Query, Value> for QueryExecutorImpl {
     async fn execute(
-        &'static self,
-        source_text: &'static str,
-        node: &'static MeeNode<Query>,
-        ctx: &mut RuntimeContext,
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Query>>,
+        ctx: RuntimeContext,
+        executor_list: Arc<ExecutorList>,
     ) -> Result<Value, String> {
         let ctx = ctx.clone();
         let initial_stream = stream! {
@@ -186,10 +222,17 @@ impl Executor<Query, Value> for QueryExecutorImpl {
         };
         let initial_stream = Box::pin(initial_stream);
 
-        let mut stream = self.stream(source_text, node, initial_stream).await;
+        let mut stream = self
+            .stream(
+                source_text.clone(),
+                node.clone(),
+                initial_stream,
+                executor_list,
+            )
+            .await;
 
         //TODO: handle errors
-        match node.value.query_type {
+        match node.value.query_type.clone() {
             QueryType::FirstOrNull => stream.next().await.unwrap(),
             QueryType::All => {
                 let arr = stream.collect::<Vec<_>>().await;

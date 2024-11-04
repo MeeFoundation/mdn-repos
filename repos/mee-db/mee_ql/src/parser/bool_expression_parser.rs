@@ -85,7 +85,7 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
             _ => Err(format!(
                 "Unknown bool expression kind: {}. next: {}, text: {}",
                 node.kind(),
-                node_text(&node.next_sibling().unwrap(), source_text)?.value,
+                node_text(&node.next_sibling().unwrap_or(node), source_text)?.value,
                 node_text(&node, source_text)?.value
             )),
         }

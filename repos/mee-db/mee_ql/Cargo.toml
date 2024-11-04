@@ -16,3 +16,5 @@ async-stream = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+assert-json-diff = { workspace = true }
+uuid = { workspace = true }

@@ -8,49 +8,12 @@ use serde_json::Value;
 use std::sync::Arc;
 
 pub struct IteratorExecutorImpl {
-    _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
-    _pe: Option<Arc<dyn Executor<Path, Value> + Send + Sync>>,
-    _be: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
     store: Store,
 }
 
 impl IteratorExecutorImpl {
-    pub fn new(
-        ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
-        pe: Option<Arc<dyn Executor<Path, Value> + Send + Sync>>,
-        ce: Option<Arc<dyn Executor<BoolExpression, Value> + Send + Sync>>,
-        store: Store,
-    ) -> Self {
-        Self {
-            _ee: ee,
-            _pe: pe,
-            _be: ce,
-            store,
-        }
-    }
-
-    pub fn set_ee(&mut self, ee: Arc<dyn Executor<Expression, Value> + Send + Sync>) {
-        self._ee = Some(ee);
-    }
-
-    pub fn set_pe(&mut self, pe: Arc<dyn Executor<Path, Value> + Send + Sync>) {
-        self._pe = Some(pe);
-    }
-
-    pub fn set_be(&mut self, be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>) {
-        self._be = Some(be);
-    }
-
-    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
-        self._ee.as_ref().unwrap()
-    }
-
-    fn pe(&self) -> &Arc<dyn Executor<Path, Value> + Send + Sync> {
-        self._pe.as_ref().unwrap()
-    }
-
-    fn be(&self) -> &Arc<dyn Executor<BoolExpression, Value> + Send + Sync> {
-        self._be.as_ref().unwrap()
+    pub fn new(store: Store) -> Self {
+        Self { store }
     }
 
     async fn users(store: Store) -> Result<impl Stream<Item = Value> + Send, String> {
@@ -60,14 +23,46 @@ impl IteratorExecutorImpl {
             .map_err(|e| e.to_string())
     }
 
-    async fn filter_value(
-        &'static self,
-        filter_node: &'static Option<MeeNode<BoolExpression>>,
-        source_text: &'static str,
+    async fn apply_assignments(
+        source_text: Arc<String>,
         ctx: &mut RuntimeContext,
+        executor_list: Arc<ExecutorList>,
+        assignments: &HashMap<MeeNode<String>, MeeNode<Expression>>,
+    ) -> Result<(), String> {
+        for (key, expr) in assignments.iter() {
+            let expr = Arc::new(expr.clone());
+            let value = executor_list
+                .ee
+                .execute(
+                    source_text.clone(),
+                    expr.clone(),
+                    ctx.clone(),
+                    executor_list.clone(),
+                )
+                .await?;
+            ctx.insert(key.value.clone(), value);
+        }
+        Ok(())
+    }
+
+    async fn filter_value(
+        filter_node: &Option<MeeNode<BoolExpression>>,
+        source_text: Arc<String>,
+        ctx: RuntimeContext,
+        executor_list: Arc<ExecutorList>,
     ) -> Result<bool, String> {
         if let Some(filter_node) = filter_node {
-            if self.be().execute(source_text, &filter_node, ctx).await? != Value::Bool(true) {
+            if executor_list
+                .be
+                .execute(
+                    source_text.clone(),
+                    Arc::new(filter_node.clone()),
+                    ctx,
+                    executor_list.clone(),
+                )
+                .await?
+                != Value::Bool(true)
+            {
                 return Ok(false);
             }
         }
@@ -78,31 +73,49 @@ impl IteratorExecutorImpl {
 #[async_trait::async_trait]
 impl IteratorExecutor for IteratorExecutorImpl {
     async fn stream(
-        &'static self,
-        source_text: &'static str,
-        node: &'static MeeNode<IteratorStmt>,
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<IteratorStmt>>,
         input_ctx: ContextStream,
+        executor_list: Arc<ExecutorList>,
     ) -> ContextStream {
-        let source_node = &node.value.source;
-        let filter_node = &node.value.filter;
+        let source_node = node.value.source.clone();
+        let filter_node = node.value.filter.clone();
+
+        let store = self.store.clone();
         let item_name = node.value.item.value.clone();
         let limit = node.value.limit.unwrap_or(usize::MAX);
         let offset = node.value.offset.unwrap_or(0);
 
-        let stream: ContextStream = match &source_node.value {
+        let stream: ContextStream = match source_node.value.clone() {
             Source::ArraySource(exprs) => Box::pin(try_stream! {
                 pin_mut!(input_ctx);
                 for await ctx in input_ctx {
-                    let mut ctx = ctx?;
+                    let ctx = ctx?;
                     for item in exprs.iter() {
-                        let v = self.ee().execute(source_text, item, &mut ctx).await?;
-                        let mut new_ctx = ctx.clone();
+                        let item = Arc::new(item.clone());
+                        let v = executor_list
+                            .ee
+                            .execute(
+                                source_text.clone(),
+                                item.clone(),
+                                ctx.clone(),
+                                executor_list.clone(),
+                            )
+                            .await?;
+                        let mut new_ctx: RuntimeContext = ctx.clone();
                         new_ctx.insert(item_name.clone(), v);
-                        if self
-                            .filter_value(filter_node, source_text, &mut new_ctx)
+                        IteratorExecutorImpl::apply_assignments(
+                            source_text.clone(),
+                            &mut new_ctx,
+                            executor_list.clone(),
+                            &node.value.assignments,
+                        )
+                        .await?;
+                        if IteratorExecutorImpl::filter_value(&filter_node.clone(), source_text.clone(), new_ctx.clone(), executor_list.clone())
                             .await?
                         {
-                            yield new_ctx;
+                            yield new_ctx.clone();
                         }
                     }
                 }
@@ -114,16 +127,23 @@ impl IteratorExecutor for IteratorExecutorImpl {
                 pin_mut!(input_ctx);
                 for await ctx in input_ctx {
                     let ctx = ctx?;
-                    let users = Self::users(self.store.clone()).await?;
+
+                    let users = Self::users(store.clone()).await?;
                     pin_mut!(users);
                     for await user in users {
-                        let mut new_ctx = ctx.clone();
+                        let mut new_ctx: RuntimeContext = ctx.clone();
                         new_ctx.insert(item_name.clone(), user);
-                        if self
-                            .filter_value(filter_node, source_text, &mut new_ctx)
+                        IteratorExecutorImpl::apply_assignments(
+                            source_text.clone(),
+                            &mut new_ctx,
+                            executor_list.clone(),
+                            &node.value.assignments,
+                        )
+                        .await?;
+                        if IteratorExecutorImpl::filter_value(&filter_node.clone(), source_text.clone(), new_ctx.clone(), executor_list.clone())
                             .await?
                         {
-                            yield new_ctx;
+                            yield new_ctx.clone();
                         }
                     }
                 }
@@ -131,18 +151,29 @@ impl IteratorExecutor for IteratorExecutorImpl {
             Source::PathSource(path_node) => Box::pin(try_stream! {
                 pin_mut!(input_ctx);
                 for await ctx in input_ctx {
-                    let mut ctx = ctx?;
-                    let path_value = self.pe().execute(source_text, path_node, &mut ctx).await?;
+                  let ctx = ctx?;
+
+                    let path_node = Arc::new(path_node.clone());
+                    let path_value = executor_list
+                            .pe
+                        .execute(source_text.clone(), path_node.clone(), ctx.clone(), executor_list.clone())
+                        .await?;
                     if !path_value.is_null() {
-                        for item in path_value.cast_to_array(path_node, source_text)? {
-                            let mut new_ctx = ctx.clone();
-                            new_ctx.insert(item_name.clone(), item);
-                            if self
-                            .filter_value(filter_node, source_text, &mut new_ctx)
-                            .await?
-                        {
-                            yield new_ctx;
-                        }
+                        for item in path_value.cast_to_array(path_node.clone(), source_text.clone())? {
+                            let mut new_ctx: RuntimeContext = ctx.clone();
+                            new_ctx.insert(item_name.clone(), item.clone());
+                            IteratorExecutorImpl::apply_assignments(
+                                source_text.clone(),
+                                &mut new_ctx,
+                                executor_list.clone(),
+                                &node.value.assignments,
+                            )
+                            .await?;
+                            if IteratorExecutorImpl::filter_value(&filter_node.clone(), source_text.clone(), new_ctx.clone(), executor_list.clone())
+                                .await?
+                            {
+                                yield new_ctx.clone();
+                            }
                         }
                     }
                 }

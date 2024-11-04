@@ -845,6 +845,7 @@ checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 name = "mee_ql"
 version = "0.1.0"
 dependencies = [
+ "assert-json-diff",
  "async-stream",
  "async-trait",
  "futures",
@@ -857,6 +858,7 @@ dependencies = [
  "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-mee-ql",
+ "uuid",
 ]
 
 [[package]]

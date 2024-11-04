@@ -1,51 +1,42 @@
 use super::*;
 use crate::execution::support::*;
 use std::sync::Arc;
-pub struct BoolExpressionExecutorImpl {
-    _ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
-    _ce: Option<Arc<dyn ComparatorExecutor + Send + Sync>>,
-}
+
+pub struct BoolExpressionExecutorImpl;
 
 impl BoolExpressionExecutorImpl {
-    pub fn new(
-        ee: Option<Arc<dyn Executor<Expression, Value> + Send + Sync>>,
-        ce: Option<Arc<dyn ComparatorExecutor + Send + Sync>>,
-    ) -> Self {
-        Self { _ee: ee, _ce: ce }
-    }
-
-    pub fn set_ee(&mut self, ee: Arc<dyn Executor<Expression, Value> + Send + Sync>) {
-        self._ee = Some(ee);
-    }
-
-    pub fn set_ce(&mut self, ce: Arc<dyn ComparatorExecutor + Send + Sync>) {
-        self._ce = Some(ce);
-    }
-
-    fn ee(&self) -> &Arc<dyn Executor<Expression, Value> + Send + Sync> {
-        self._ee.as_ref().unwrap()
-    }
-
-    fn ce(&self) -> &Arc<dyn ComparatorExecutor + Send + Sync> {
-        self._ce.as_ref().unwrap()
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
 #[async_trait::async_trait]
 impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
     async fn execute(
-        &'static self,
-        source_text: &'static str,
-        node: &'static MeeNode<BoolExpression>,
-        ctx: &mut RuntimeContext,
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<BoolExpression>>,
+        ctx: RuntimeContext,
+        executor_list: Arc<ExecutorList>,
     ) -> Result<Value, String> {
+        let be = executor_list.be.clone();
+        let ce = executor_list.ce.clone();
+        let ee = executor_list.ee.clone();
+
         match &node.value {
             BoolExpression::And(exprs) => {
                 for expr in exprs {
-                    if !self
-                        .execute(source_text, &expr, ctx)
+                    let expr = Arc::new(expr.clone());
+                    if !be
+                        .clone()
+                        .execute(
+                            source_text.clone(),
+                            expr.clone(),
+                            ctx.clone(),
+                            executor_list.clone(),
+                        )
                         .await?
-                        .cast_to_bool(&expr, source_text)?
+                        .cast_to_bool(expr.clone(), source_text.clone())?
                     {
                         return Ok(Value::Bool(false));
                     }
@@ -54,21 +45,35 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
             }
             BoolExpression::Or(exprs) => {
                 for expr in exprs {
-                    if self
-                        .execute(source_text, &expr, ctx)
+                    let expr = Arc::new(expr.clone());
+                    if be
+                        .clone()
+                        .execute(
+                            source_text.clone(),
+                            expr.clone(),
+                            ctx.clone(),
+                            executor_list.clone(),
+                        )
                         .await?
-                        .cast_to_bool(&expr, source_text)?
+                        .cast_to_bool(expr.clone(), source_text.clone())?
                     {
                         return Ok(Value::Bool(true));
                     }
                 }
                 Ok(Value::Bool(false))
             }
-            BoolExpression::Not(expr) => {
-                if self
-                    .execute(source_text, &expr, ctx)
+            BoolExpression::Not(ref expr) => {
+                let expr = Arc::new(*expr.clone());
+                if be
+                    .clone()
+                    .execute(
+                        source_text.clone(),
+                        expr.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
                     .await?
-                    .cast_to_bool(&expr, source_text)?
+                    .cast_to_bool(expr.clone(), source_text.clone())?
                 {
                     Ok(Value::Bool(false))
                 } else {
@@ -76,11 +81,31 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                 }
             }
             BoolExpression::Comparison { val, comparator } => {
-                let left = self.ce().check(&val, source_text, comparator, ctx).await?;
+                let val = Arc::new(val.clone());
+                let comparator = Arc::new(comparator.clone());
+                let left = ce
+                    .clone()
+                    .check(
+                        val.clone(),
+                        source_text.clone(),
+                        comparator.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
                 Ok(Value::Bool(left))
             }
             BoolExpression::Expression(path) => {
-                let left = self.ee().execute(source_text, path, ctx).await?;
+                let path = Arc::new(path.clone());
+                let left = ee
+                    .clone()
+                    .execute(
+                        source_text.clone(),
+                        path.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
                 Ok(Value::Bool(left == Value::Bool(true)))
             }
             BoolExpression::True => Ok(Value::Bool(true)),

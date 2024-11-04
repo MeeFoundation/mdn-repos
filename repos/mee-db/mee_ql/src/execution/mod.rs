@@ -10,8 +10,6 @@ mod path_execution;
 mod query_execution;
 mod support;
 pub(crate) use crate::ast::*;
-pub(crate) use crate::parser::TARGET_PATH_SEPARATOR as PATH_SEPARATOR;
-use async_stream::{stream, try_stream};
 
 pub(crate) use path_execution::*;
 pub(crate) use serde_json::Value;
@@ -29,7 +27,6 @@ pub(crate) use executor::*;
 pub(crate) use serde_json::Map;
 pub(crate) use serde_json::Number;
 
-pub(crate) use crate::parser::Context;
 pub(crate) use std::collections::HashMap;
 
 use futures::stream::Stream;
@@ -40,31 +37,27 @@ pub type RuntimeContext = HashMap<String, Value>;
 pub type ContextStream = futures::stream::BoxStream<'static, Result<RuntimeContext, String>>;
 pub type JsonResultStream = Pin<Box<dyn Stream<Item = Result<Value, String>> + Send>>;
 
-pub fn query_executor(store: Store) -> Arc<dyn QueryExecutor + Send + Sync + 'static> {
+pub fn query_executor(store: Store) -> Arc<ExecutorList> {
     let pe = Arc::new(PathExecutorImpl::new());
 
-    let mut ee = Arc::new(ExpressionExecutorImpl::new(None, Some(pe), None));
+    let ee = Arc::new(ExpressionExecutorImpl::new());
 
-    let ce = Arc::new(ComparatorExecutorImpl::new(Some(ee)));
+    let ce = Arc::new(ComparatorExecutorImpl::new());
 
-    let be = Arc::new(BoolExpressionExecutorImpl::new(Some(ee), Some(ce)));
+    let be = Arc::new(BoolExpressionExecutorImpl::new());
 
-    let ie = Arc::new(IteratorExecutorImpl::new(
-        Some(ee.clone()),
-        Some(pe.clone()),
-        Some(be.clone()),
-        store,
-    ));
+    let ie = Arc::new(IteratorExecutorImpl::new(store.clone()));
 
-    let qe = Arc::new(QueryExecutorImpl::new(
-        Some(ee.clone()),
-        Some(be.clone()),
-        Some(ie.clone()),
-        store,
-    ));
+    let qe = Arc::new(QueryExecutorImpl::new(store.clone()));
 
-    ee.set_be(be);
-    ee.set_qe(qe);
+    let executor_list = Arc::new(ExecutorList {
+        pe,
+        ee,
+        ce,
+        be,
+        ie,
+        qe,
+    });
 
-    qe
+    executor_list
 }
