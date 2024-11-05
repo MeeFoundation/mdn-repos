@@ -18,4 +18,5 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 sled = { workspace = true }
 mee_storage = { path = "../mee_storage" }
+mee_ql = { path = "../mee_ql" }
 futures = { workspace = true }

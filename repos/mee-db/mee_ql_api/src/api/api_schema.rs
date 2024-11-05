@@ -1,32 +1,22 @@
 use super::api_methods::*;
-use mee_storage::query_el::{
-    CheckOperator, ConstOrField, DeriveClause, Expr, NamedField, Operation, SelectClause,
-    SelectClauseItem, SelectQuery, WhereClause,
-};
+
+// use serde_json::Value;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
       paths(
-        select
+        execute,
+        insert_many,
       ),
       // security(
       //     ("authorization" = []),
       // ),
-      components(
-          schemas(
-            SelectQuery,
-            WhereClause,
-            SelectClause,
-            DeriveClause,
-            CheckOperator,
-            Operation,
-            Expr,
-            ConstOrField,
-            SelectClauseItem,
-            NamedField,
-          ),
-      ),
+      // components(
+      //     schemas(
+      //       Value,
+      //     ),
+      // ),
       // modifiers(&SecurityAddon),
       tags(
           (name = "Mee query language", description = "MeeQl REST API"),

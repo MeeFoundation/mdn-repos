@@ -285,118 +285,105 @@ pub fn mock_user_data() -> Vec<Value> {
     vec![alice(), bob(), carol(), dan()]
 }
 
-fn de_select_query(serialized: &str) -> SelectQuery {
-    serde_json::from_str(serialized).unwrap()
+fn trim_start(s: &str) -> String {
+    s.lines()
+        .map(|line| line.trim_start())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
-pub fn select_all() -> SelectQuery {
-    de_select_query("{}")
-}
-
-pub fn get_all_payment_cards_of_user() -> SelectQuery {
-    de_select_query(
-        r#"{
-                    "@name": "Alice",
-                    "$select": [
-                        { "my_name": "@name" },
-                        { "my_upper_name": { "@name": "$upper" } },
-                        "@payment_cards"
-                    ]
-                  }"#,
+pub fn get_all_payment_cards_of_user() -> String {
+    trim_start(
+        r#"[
+    card
+    for user in users
+    if user.name == "Alice"
+    for card in user.payment_cards
+    ]"#,
     )
 }
 
-pub fn get_alice_payment_card_by_number() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "$derive" : {
-                    "my_card" : {
-                        "@payment_cards" : {
-                            "$find": {
-                                    "@number": "9999 5678 9012 3456"
-                                }
-                            }
-                    }
-                },
-                "@name": "Alice",
-                "@my_card": "$exists",
-                "$select": [
-                    "@name",
-                    "@my_card"
-                ]
-            }"#,
+pub fn get_alice_payment_card_by_number() -> String {
+    trim_start(
+        r#"(
+    {"name" : name, "card" : card}
+    for user in users
+    name = user.name
+    if name == "Alice"
+    for card in user.payment_cards
+    if card.number == "9999 5678 9012 3456"
+    )"#,
     )
 }
 
-pub fn get_user_with_lastname_in_email() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "$derive" : {
-                    "upper_last_name" : {"@last_name" : "$upper" },
-                    "upper_email" : {"@email" : "$upper" }
-                },
-                "@upper_email" : {"$contains": "@upper_last_name" }
-            }"#,
+pub fn get_all_users_over_30() -> String {
+    trim_start(
+        r#"[
+            user.name
+            for user in users if user.age > 30
+        ]"#,
     )
 }
 
-pub fn get_all_users_over_30() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "@age": {"$gt": 30}
-            }"#,
+pub fn get_users_over_25_offset_1_limit_1() -> String {
+    trim_start(
+        r#"[
+            user.name
+            for user in users if user.age > 25 offset 1 limit 1
+        ]"#,
     )
 }
 
-pub fn get_all_card_numbers() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "$select" : [
-                    {"": "@payment_cards/*/number"}
-                ]
-            }"#,
+pub fn get_visa_cards() -> String {
+    trim_start(
+        r#"[
+            card.number
+            for user in users
+            for card in user.payment_cards
+            if card.isssuer == "Visa"
+        ]"#,
     )
 }
 
-pub fn get_all_card_numbers_non_flatten() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "$select" : [
-                    {"": "@payment_cards/*/number"}
-                ],
-                "$flatten": false
-            }"#,
+pub fn get_users_who_is_older_then_current() -> String {
+    trim_start(
+        r#"[
+            {"name": name, "age": age, "older": older }
+            for user in users
+            age = user.age
+            older = [ user1.name for user1 in users if user1.age > user.age ]
+            name = user.name
+        ]"#,
     )
 }
 
-pub fn get_all_visa_card_numbers() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "$derive":{
-                    "cards" : {
-                        "@payment_cards": {
-                            "$filter": { "@isssuer": "Visa" } 
-                        }
-                    }
-                },
-                "$select" : [
-                    {"":"@cards/*/number"}
-                ]
-            }"#,
+pub fn update_name_and_card_issuer() -> String {
+    trim_start(
+        r#"[
+            user
+            for user in users if user.name == "Bob"
+            for card in user.payment_cards if card.number == "9999 5678 9014 3456"
+            set user.name = "Updated Bob"
+            set card.isssuer = "Updated Mastercard"
+        ]"#,
     )
 }
 
-pub fn get_as_new_struct() -> SelectQuery {
-    de_select_query(
-        r#"{
-                "@name": "Alice",
-                "$select" : [
-                    {"user/name":"@name"},
-                    {"user/last_name":"@last_name"},
-                    {"user/age":"@age"},
-                    {"user/email":"@email"},
-                    {"payment_cards_numbers":"@payment_cards/*/number"}
-                ]
-            }"#,
+pub fn delete_card() -> String {
+    trim_start(
+        r#"[
+            user for user in users if user.name == "Bob"
+            for card in user.payment_cards if card.number == "9999 5678 9014 3456"
+            delete card
+        ]"#,
+    )
+}
+
+pub fn delete_user() -> String {
+    trim_start(
+        r#"[
+            user for user in users if user.name == "Bob"
+            delete user
+        ]"#,
     )
 }

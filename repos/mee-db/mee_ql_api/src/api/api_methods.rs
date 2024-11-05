@@ -1,8 +1,8 @@
 use super::examples::*;
 use crate::error::Result;
-use futures::stream::StreamExt;
-use mee_storage::json_db::DB;
-use mee_storage::query_el::SelectQuery;
+
+use mee_ql::query_executor::DB;
+
 use serde_json::Value;
 
 use axum::extract::State;
@@ -10,33 +10,49 @@ use axum::Json;
 
 #[utoipa::path(
     post,
-    path = "/api/v1/select",
-    request_body(content = SelectQuery,
+    path = "/api/v1/execute",
+    request_body(content = String,
     examples(
-        ("Select all" = (value = json!(select_all()))),
         ("Get all payment cards of user" = (value = json!(get_all_payment_cards_of_user()))),
         ("Get Alice's payment card by number" = (value = json!(get_alice_payment_card_by_number()))),
-        ("Get user with lastname in email" = (value = json!(get_user_with_lastname_in_email()))),
-        ("Get all user over 30" = (value = json!(get_all_users_over_30()))),
-        ("Get all card numbers" = (value = json!(get_all_card_numbers()))),
-        ("Get all card numbers non flatten" = (value = json!(get_all_card_numbers_non_flatten()))),
-        ("Get all visa card numbers" = (value = json!(get_all_visa_card_numbers()))),
-        ("Get as new struct" = (value = json!(get_as_new_struct()))),
+        ("Get all users over 25 offset 1 limit 1" = (value = json!(get_users_over_25_offset_1_limit_1()))),
+        ("Get all users over 30" = (value = json!(get_all_users_over_30()))),
+        ("Get all visa card numbers" = (value = json!(get_visa_cards()))),
+        ("Get users who is older then current" = (value = json!(get_users_who_is_older_then_current()))),
+        ("Update name and card issuer" = (value = json!(update_name_and_card_issuer()))),
+        ("Delete card" = (value = json!(delete_card()))),
+        ("Delete user" = (value = json!(delete_user()))),
     )),
     responses(
       (status = 200, description = "Ok", body = Json<Vec<Value>>),
       (status = 500, description = "Something went wrong", body = String),
   ),
 )]
-pub async fn select(
+pub async fn execute(State(storage): State<DB>, query: String) -> Result<Json<Value>> {
+    let res = storage.execute(query).await.unwrap();
+    Ok(Json(res))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/insert_many",
+    request_body(content = Vec<Value>,
+    examples(
+        ("Default set" = (value = json!(mock_user_data()))),
+    )),
+    responses(
+      (status = 200, description = "Ok", body = Vec<String>),
+      (status = 500, description = "Something went wrong", body = String),
+  ),
+)]
+pub async fn insert_many(
     State(storage): State<DB>,
-    Json(query): Json<SelectQuery>,
-) -> Result<Json<Vec<Value>>> {
-    let res = storage
-        .stream("", query)
-        .await
-        .unwrap()
-        .collect::<Vec<_>>()
-        .await;
+    Json(data): Json<Vec<Value>>,
+) -> Result<Json<Vec<String>>> {
+    // let data = data
+    //     .iter()
+    //     .map(|v| serde_json::from_str(v).unwrap())
+    //     .collect();
+    let res = storage.insert_many(data).await.unwrap();
     Ok(Json(res))
 }

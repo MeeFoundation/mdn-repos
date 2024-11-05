@@ -33,12 +33,12 @@ pub struct QueryExecutorImpl {
 }
 
 impl QueryExecutorImpl {
-    pub fn new_btree_map_based() -> Self {
+    pub fn new_btree_map_based() -> DB {
         let store = json_kv_store::new_btree_map_based();
-        Self {
+        Arc::new( Self {
             store: store.clone(),
             executor_list: query_executor(store),
-        }
+        })
     }
 }
 
@@ -199,7 +199,7 @@ mod tests {
         qe.insert_many(vec![alice(), bob(), carol(), dan()])
             .await
             .unwrap();
-        Arc::new(qe)
+        qe
     }
 
     #[tokio::test]

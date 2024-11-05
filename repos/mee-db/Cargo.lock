@@ -869,6 +869,7 @@ dependencies = [
  "chrono",
  "clap",
  "futures",
+ "mee_ql",
  "mee_storage",
  "serde",
  "serde_json",

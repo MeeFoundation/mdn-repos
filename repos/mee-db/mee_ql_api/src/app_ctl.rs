@@ -9,7 +9,7 @@ pub const API_V1_PATH: &str = "/api/v1";
 const SWAGGER_PATH: &str = "/swagger-ui";
 use crate::api::examples;
 use clap::Parser;
-use mee_storage::json_db::{self, DB};
+use mee_ql::query_executor::*;
 
 #[derive(Clone, FromRef)]
 pub struct AppCtl {
@@ -21,16 +21,14 @@ pub struct AppCtl {
 impl AppCtl {
     pub async fn try_new() -> Result<Self> {
         let app_config = AppConfig::parse();
-        let db = json_db::new_btree_map_based();
+        let db = QueryExecutorImpl::new_btree_map_based();
 
         Ok(Self { app_config, db })
     }
 
     pub async fn run(self) -> Result<()> {
         let data = examples::mock_user_data();
-        for value in data {
-            self.db.insert(value).await.unwrap();
-        }
+        self.db.insert_many(data).await.unwrap();
 
         let app = Router::new()
             .nest(API_V1_PATH, Router::new().merge(api::router()))
