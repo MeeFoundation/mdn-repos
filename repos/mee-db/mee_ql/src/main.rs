@@ -231,8 +231,6 @@ mod test {
         .await
         .unwrap();
 
-        dbg!(&res);
-
         assert_json_eq!(res, json!(["Alice", "Bob", "Carol", "Dan"]));
     }
 }

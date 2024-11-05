@@ -16,6 +16,10 @@ use serde_json::json;
 
 pub type DB = Arc<dyn QueryExecutor + Send + Sync>;
 
+fn object_key(id: &str) -> String {
+    format!("{ID_PREFIX}{id}")
+}
+
 #[async_trait::async_trait]
 pub trait QueryExecutor {
     async fn execute(&self, source_code: String) -> Result<Value, String>;
@@ -42,31 +46,22 @@ fn generate_id() -> String {
     uuid::Uuid::now_v7().to_string()
 }
 
-fn object_key(id: &str) -> String {
-    format!("{ID_PREFIX}{id}")
-}
-
-fn property_key(object_key: &str, property: &str) -> String {
-    format!("{object_key}{PATH_SEPARATOR}{property}")
-}
-
 #[async_trait::async_trait]
 impl QueryExecutor for QueryExecutorImpl {
     async fn execute(&self, source_code: String) -> Result<Value, String> {
         let ast = {
-            let mut parser = ASTParserImpl::new(source_code.to_string());
+            let mut parser = ASTParserImpl::new(source_code.clone());
             parser.parse()?
         };
 
         let ctx = HashMap::new();
 
-        let source_code = Arc::new(source_code.to_string());
         let executor_list = self.executor_list.clone();
-        let qe = executor_list.qe.clone();
 
-        let res = qe
+        let res = executor_list
+            .qe
             .execute(
-                Arc::new(source_code.to_string()),
+                Arc::new(source_code),
                 Arc::new(ast.clone()),
                 ctx,
                 executor_list.clone(),
@@ -337,5 +332,124 @@ mod tests {
               ]
             )
         );
+    }
+
+    #[tokio::test]
+    async fn test_find_last_name_by_email_and_name() {
+        let qe = setup().await;
+        let res = qe
+            .execute(r#"[user.last_name for user in users() if user.email == "sbob@gmail.com" and user.name == "Bob"]"#.to_string())
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["Smith"]));
+    }
+
+    #[tokio::test]
+    async fn test_user_by_card_number() {
+        let qe = setup().await;
+        let res = qe
+            .execute(
+                r#"[
+                {"name" : user.name, "card" : card}
+                for user in users()
+                for card in user.payment_cards
+                if card.number == "9999 5678 9014 3456"
+                ]"#
+                .to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            res,
+            json!([
+                {
+                    "name": "Bob",
+                    "card": {
+                        "cvv": "321",
+                        "expire": "2028-12-01",
+                        "holder": "Bob Smith",
+                        "isssuer": "Mastercard",
+                        "number": "9999 5678 9014 3456"
+                    }
+                }
+            ])
+        );
+    }
+
+    //TODO add date type
+    #[tokio::test]
+    async fn test_update_name_and_card_issuer() {
+        let qe = setup().await;
+        qe.execute(
+            r#"[
+            user
+            for user in users if user.name == "Bob"
+            for card in user.payment_cards if card.number == "9999 5678 9014 3456"
+            set user.name = "Updated Bob"
+            set card.isssuer = "Updated Mastercard"
+            ]"#
+            .to_string(),
+        )
+        .await
+        .unwrap();
+        let res = qe
+            .execute(
+                r#"(
+            {"name": name, "cards_issuers": card_issuers}
+            for user in users
+            name = user.name
+            card_issuers = [card.isssuer for card in user.payment_cards]
+            if name == "Updated Bob"
+            )"#
+                .to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            res,
+            json!({"cards_issuers": ["Mastercard", "Updated Mastercard"], "name": "Updated Bob"})
+        );
+    }
+
+    #[tokio::test]
+    async fn test_delete_card() {
+        let qe = setup().await;
+        let res = qe
+            .execute(
+                r#"[
+            user for user in users if user.name == "Bob"
+            for card in user.payment_cards if card.number == "9999 5678 9014 3456"
+            delete card
+            ]"#
+                .to_string(),
+            )
+            .await
+            .unwrap();
+        let res = qe
+            .execute(
+                r#"[
+            card.number
+            for user in users
+            if user.name == "Bob"
+            for card in user.payment_cards
+            ]"#
+                .to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["1234 5678 9013 3456"]));
+    }
+
+    #[tokio::test]
+    async fn test_delete_user() {
+        let qe = setup().await;
+        qe.execute(r#"[user for user in users if user.name == "Bob" delete user]"#.to_string())
+            .await
+            .unwrap();
+        let res = qe
+            .execute(r#"[user.name for user in users]"#.to_string())
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["Alice", "Carol", "Dan"]));
     }
 }

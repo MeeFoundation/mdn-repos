@@ -206,10 +206,15 @@ impl Path {
     }
 
     pub fn to_store_path(&self, id: &str) -> String {
-        if let Some(field) = &self.field {
-            format!("{ID_PREFIX}{id}{TARGET_PATH_SEPARATOR}{field}")
+        let root = if &self.root == "users" {
+            "".to_string()
         } else {
-            format!("{ID_PREFIX}{id}")
+            format!("{TARGET_PATH_SEPARATOR}{}", self.root)
+        };
+        if let Some(field) = &self.field {
+            format!("{ID_PREFIX}{id}{root}{TARGET_PATH_SEPARATOR}{field}")
+        } else {
+            format!("{ID_PREFIX}{id}{root}{TARGET_PATH_SEPARATOR}{root}")
         }
     }
 

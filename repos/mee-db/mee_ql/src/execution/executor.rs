@@ -1,4 +1,6 @@
 use super::*;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 #[async_trait::async_trait]
 pub trait Executor<T, U> {
@@ -41,6 +43,8 @@ pub trait QueryExecutor: Executor<Query, Value> {
         node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
+        updates: Arc<Mutex<HashMap<String, Value>>>,
+        deletes: Arc<Mutex<HashSet<String>>>,
     ) -> JsonResultStream;
 }
 

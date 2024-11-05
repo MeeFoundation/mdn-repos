@@ -2,10 +2,21 @@ use super::*;
 use async_stream::try_stream;
 use futures::pin_mut;
 use futures::stream::{Stream, StreamExt};
+use mee_storage::binary_kv_store::PATH_SEPARATOR;
 use mee_storage::json_kv_store::Store;
 use mee_storage::query_el::FieldFilter;
 use serde_json::Value;
 use std::sync::Arc;
+
+use mee_storage::json_utils::ID_PREFIX;
+
+fn object_key(id: &str) -> String {
+    format!("{ID_PREFIX}{id}")
+}
+
+fn property_key(object_key: &str, property: &str) -> String {
+    format!("{object_key}{PATH_SEPARATOR}{property}")
+}
 
 pub struct IteratorExecutorImpl {
     store: Store,
@@ -132,7 +143,12 @@ impl IteratorExecutor for IteratorExecutorImpl {
                     pin_mut!(users);
                     for await user in users {
                         let mut new_ctx: RuntimeContext = ctx.clone();
+                        new_ctx.insert(
+                            format!("{item_name}.$path"),
+                            Value::String(object_key(&user.x_get_id().unwrap())),
+                        );
                         new_ctx.insert(item_name.clone(), user);
+
                         IteratorExecutorImpl::apply_assignments(
                             source_text.clone(),
                             &mut new_ctx,
@@ -159,8 +175,25 @@ impl IteratorExecutor for IteratorExecutorImpl {
                         .execute(source_text.clone(), path_node.clone(), ctx.clone(), executor_list.clone())
                         .await?;
                     if !path_value.is_null() {
-                        for item in path_value.cast_to_array(path_node.clone(), source_text.clone())? {
+                        let prefix = path_node.value.root.clone();
+                        let prefix = ctx
+                            .get(&format!("{prefix}.$path"))
+                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
+                            .unwrap_or("".to_string());
+                        let prefix = format!("{prefix}{}{PATH_SEPARATOR}", path_node.value.field.as_ref().unwrap_or(&"".to_string()));
+
+                        for (i, item) in path_value
+                            .cast_to_array(path_node.clone(), source_text.clone())?
+                            .iter()
+                            .enumerate()
+                        {
                             let mut new_ctx: RuntimeContext = ctx.clone();
+
+                            new_ctx.insert(
+                                format!("{item_name}.$path"),
+                                Value::String(format!("{prefix}{i}")),
+                            );
+
                             new_ctx.insert(item_name.clone(), item.clone());
                             IteratorExecutorImpl::apply_assignments(
                                 source_text.clone(),

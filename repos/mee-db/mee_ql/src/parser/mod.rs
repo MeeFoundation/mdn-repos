@@ -33,7 +33,6 @@ pub trait ASTParser {
 
 impl ASTParser for ASTParserImpl {
     fn parse(&mut self) -> Result<MeeNode<Query>, String> {
-        println!("Starting parse with source code: {}", self.source_code);
         let mut parser = Parser::new();
 
         let language = tree_sitter_mee_ql::LANGUAGE;

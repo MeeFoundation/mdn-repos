@@ -2,8 +2,10 @@ use super::*;
 use async_stream::{stream, try_stream};
 use futures::pin_mut;
 use futures::stream::StreamExt;
+use mee_storage::binary_kv_store::PATH_SEPARATOR;
 use mee_storage::json_kv_store::Store;
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 pub struct QueryExecutorImpl {
     pub store: Store,
@@ -13,6 +15,10 @@ impl QueryExecutorImpl {
     pub fn new(store: Store) -> Self {
         Self { store }
     }
+}
+
+fn object_key(id: &str) -> String {
+    format!("{ID_PREFIX}{id}")
 }
 
 //Fix for case [user for a in [1,2,3]  for user in users]
@@ -47,13 +53,14 @@ impl QueryExecutorImpl {
         node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
+        updates: Arc<Mutex<HashMap<String, Value>>>,
     ) -> ContextStream {
-        let store = self.store.clone();
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
-                let mut ctx = ctx?;
+                let  ctx = ctx?;
                 for (path, expr) in node.clone().value.updates.iter() {
+                    dbg!(&path);
                     let expr = Arc::new(expr.clone());
                     let v = executor_list
                         .ee
@@ -64,15 +71,14 @@ impl QueryExecutorImpl {
                             executor_list.clone(),
                         )
                         .await?;
-                    let user_id = QueryExecutorImpl::get_user_id(
-                            source_text.clone(),
-                        node.clone(),
-                        &mut ctx,
-                    )
-                    .await?;
-                    let path_str = path.value.to_store_path(&user_id);
 
-                    store.set(path_str, v).await.map_err(|e| e.to_string())?;
+                let prefix = ctx
+                            .get(&format!("{}.$path", path.value.root))
+                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
+                            .unwrap_or("".to_string());
+                    let prefix = format!("{prefix}{}", path.value.field.as_ref().unwrap_or(&"".to_string()));
+
+                    updates.lock().unwrap().insert(prefix, v);
                 }
                 yield ctx;
             }
@@ -85,8 +91,8 @@ impl QueryExecutorImpl {
         source_text: Arc<String>,
         node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
+        deletes: Arc<Mutex<HashSet<String>>>,
     ) -> ContextStream {
-        let store = self.store.clone();
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
@@ -95,14 +101,14 @@ impl QueryExecutorImpl {
                     DeleteStmt::Paths(ref path_nodes) => {
                         for path_node in path_nodes.iter() {
                             let path_node = Arc::new(path_node.clone());
-                            let user_id = QueryExecutorImpl::get_user_id(
-                                source_text.clone(),
-                                node.clone(),
-                                &mut ctx,
-                            )
-                            .await?;
-                            let path_str = path_node.value.to_store_path(&user_id);
-                            store.delete(path_str).await.map_err(|e| e.to_string())?;
+
+                        let prefix = ctx
+                            .get(&format!("{}.$path", path_node.value.root))
+                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
+                            .unwrap_or("".to_string());
+                        let prefix = format!("{prefix}{}", path_node.value.field.as_ref().unwrap_or(&"".to_string()));
+
+                        deletes.lock().unwrap().insert(prefix);
                         }
                     }
                     DeleteStmt::All => {
@@ -119,7 +125,7 @@ impl QueryExecutorImpl {
                         }
                         .to_store_path(&user_id);
 
-                        store.delete(path_str).await.map_err(|e| e.to_string())?;
+                        deletes.lock().unwrap().insert(path_str);
                     }
                     _ => {}
                 }
@@ -138,6 +144,8 @@ impl QueryExecutor for QueryExecutorImpl {
         node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
+        updates: Arc<Mutex<HashMap<String, Value>>>,
+        deletes: Arc<Mutex<HashSet<String>>>,
     ) -> JsonResultStream {
         let main_stream: ContextStream = Box::pin(input_ctx);
         let main_iterator = Arc::new(node.value.main_iterator.clone());
@@ -173,11 +181,17 @@ impl QueryExecutor for QueryExecutorImpl {
                 node.clone(),
                 new_stream,
                 executor_list.clone(),
+                updates.clone(),
             )
             .await;
 
         new_stream = self
-            .execute_deletes(source_text.clone(), node.clone(), new_stream)
+            .execute_deletes(
+                source_text.clone(),
+                node.clone(),
+                new_stream,
+                deletes.clone(),
+            )
             .await;
 
         let stream = try_stream! {
@@ -222,22 +236,58 @@ impl Executor<Query, Value> for QueryExecutorImpl {
         };
         let initial_stream = Box::pin(initial_stream);
 
+        let updates = Arc::new(Mutex::new(HashMap::new()));
+        let deletes = Arc::new(Mutex::new(HashSet::new()));
+
         let mut stream = self
             .stream(
                 source_text.clone(),
                 node.clone(),
                 initial_stream,
                 executor_list,
+                updates.clone(),
+                deletes.clone(),
             )
             .await;
 
         //TODO: handle errors
-        match node.value.query_type.clone() {
+        let result = match node.value.query_type.clone() {
             QueryType::FirstOrNull => stream.next().await.unwrap(),
             QueryType::All => {
                 let arr = stream.collect::<Vec<_>>().await;
                 Ok(Value::Array(arr.into_iter().map(|v| v.unwrap()).collect()))
             }
+        };
+
+        let updates = updates
+            .lock()
+            .unwrap()
+            .clone()
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+        let deletes = deletes
+            .lock()
+            .unwrap()
+            .clone()
+            .into_iter()
+            .collect::<HashSet<_>>();
+
+        for (path, value) in updates.into_iter() {
+            let path = path.clone();
+            let value = value.clone();
+            self.store
+                .clone()
+                .set(path, value)
+                .await
+                .map_err(|e| e.to_string())?;
         }
+
+        for path in deletes.into_iter() {
+            let path = path.clone();
+
+            self.store.delete(path).await.map_err(|e| e.to_string())?;
+        }
+
+        result
     }
 }
