@@ -306,10 +306,9 @@ pub fn get_all_payment_cards_of_user() -> String {
 pub fn get_alice_payment_card_by_number() -> String {
     trim_start(
         r#"(
-    {"name" : name, "card" : card}
+    {"name" : user.name, "card" : card}
     for user in users
-    name = user.name
-    if name == "Alice"
+    if user.name == "Alice"
     for card in user.payment_cards
     if card.number == "9999 5678 9012 3456"
     )"#,
@@ -348,11 +347,9 @@ pub fn get_visa_cards() -> String {
 pub fn get_users_who_is_older_then_current() -> String {
     trim_start(
         r#"[
-            {"name": name, "age": age, "older": older }
+            {"name": user.name, "age": user.age, "older": older }
             for user in users
-            age = user.age
             older = [ user1.name for user1 in users if user1.age > user.age ]
-            name = user.name
         ]"#,
     )
 }

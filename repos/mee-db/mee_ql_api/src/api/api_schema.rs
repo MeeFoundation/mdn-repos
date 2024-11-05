@@ -1,6 +1,7 @@
 use super::api_methods::*;
 
 // use serde_json::Value;
+
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -12,9 +13,9 @@ use utoipa::OpenApi;
       // security(
       //     ("authorization" = []),
       // ),
-      // components(
-      //     schemas(
-      //       Value,
+      //   components(
+      //       schemas(
+      //         JsonValue,
       //     ),
       // ),
       // modifiers(&SecurityAddon),

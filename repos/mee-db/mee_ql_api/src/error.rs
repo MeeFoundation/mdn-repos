@@ -1,3 +1,4 @@
+use anyhow;
 use axum::{http::StatusCode, response::IntoResponse};
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
@@ -20,8 +21,11 @@ pub enum Error {
 
     #[error("DB error: {0}")]
     DbError(#[from] sled::Error),
-    // #[error("Anyhow error: {0}")]
-    // AnyhowError(#[from] anyhow::Error),
+
+    // #[error("MeeQL error: {0}")]
+    // MeeQlError(#[from] String),
+    #[error("Anyhow error: {0}")]
+    AnyhowError(#[from] anyhow::Error),
 }
 
 impl IntoResponse for Error {

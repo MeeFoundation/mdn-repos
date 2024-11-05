@@ -1,9 +1,8 @@
 use super::examples::*;
 use crate::error::Result;
+use serde_json::Value;
 
 use mee_ql::query_executor::DB;
-
-use serde_json::Value;
 
 use axum::extract::State;
 use axum::Json;
@@ -24,10 +23,11 @@ use axum::Json;
         ("Delete user" = (value = json!(delete_user()))),
     )),
     responses(
-      (status = 200, description = "Ok", body = Json<Vec<Value>>),
+      (status = 200, description = "Ok", body = Value),
       (status = 500, description = "Something went wrong", body = String),
   ),
 )]
+#[axum::debug_handler]
 pub async fn execute(State(storage): State<DB>, query: String) -> Result<Json<Value>> {
     let res = storage.execute(query).await.unwrap();
     Ok(Json(res))
@@ -45,14 +45,11 @@ pub async fn execute(State(storage): State<DB>, query: String) -> Result<Json<Va
       (status = 500, description = "Something went wrong", body = String),
   ),
 )]
+#[axum::debug_handler]
 pub async fn insert_many(
     State(storage): State<DB>,
     Json(data): Json<Vec<Value>>,
 ) -> Result<Json<Vec<String>>> {
-    // let data = data
-    //     .iter()
-    //     .map(|v| serde_json::from_str(v).unwrap())
-    //     .collect();
     let res = storage.insert_many(data).await.unwrap();
     Ok(Json(res))
 }

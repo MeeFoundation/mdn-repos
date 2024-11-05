@@ -865,6 +865,7 @@ dependencies = [
 name = "mee_ql_api"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
  "chrono",
  "clap",

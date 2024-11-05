@@ -211,8 +211,6 @@ impl QueryExecutor for QueryExecutorImpl {
                         )
                         .await?;
                     yield value;
-                } else {
-                    yield Value::Null;
                 }
             }
         };

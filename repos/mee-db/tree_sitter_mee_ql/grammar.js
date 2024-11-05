@@ -38,7 +38,7 @@ module.exports = grammar({
         element_query: $ => prec.left(PREC.instruction, seq('(', field('body', $._query_body), ')')),
 
         _query_body: $ => prec.left(PREC.instruction, seq(
-            optional(field('result', $._value)),
+            optional(field('result', $._expression)),
             field('iterators', repeat1($.iterator_stmt)),
             field('updates', repeat($.update_stmt)),
             field('deletes', repeat($.delete_stmt)),
@@ -61,10 +61,19 @@ module.exports = grammar({
         )),
 
         delete_stmt: $ => prec.left(PREC.instruction, seq(
-            $._delete, optional(field('field', $.path))
+            $._delete, field('field', $.path)
         )),
 
-        _expression: $ => prec.left(PREC.expression, choice($._value, $._query, $._bool_expression)),
+        _expression: $ => prec.left(PREC.expression, choice($._query, $._bool_expression,
+            $.path,
+            $.object,
+            $.array,
+            $.number,
+            $.string,
+            $.true,
+            $.false,
+            $.null,
+        )),
 
         path: $ => seq(
             $.ident,
@@ -79,24 +88,24 @@ module.exports = grammar({
 
         not_expression: $ => prec.right(PREC.not, seq(
             $._not,
-            choice($._bool_value, $._parenthesized_bool_expression)
+            choice($._bool_expression, $._parenthesized_bool_expression)
         )),
 
         and_expression: $ => prec.left(PREC.and, seq(
-            choice($._bool_value),
-            repeat1(seq($._and, $._bool_value))
+            choice($._bool_expression),
+            repeat1(seq($._and, $._bool_expression))
         )),
 
         or_expression: $ => prec.left(PREC.or, seq(
-            choice($._bool_value, $.and_expression),
-            repeat1(seq('or', choice($._bool_value, $.and_expression)))
+            choice($._bool_expression, $.and_expression),
+            repeat1(seq('or', choice($._bool_expression, $.and_expression)))
         )),
 
         _bool_value: $ => choice($.true, $.false, $.path, $._parenthesized_bool_expression, $.not_expression, $.comparison),
         _bool_expression: $ => prec.left(PREC.bool_expression, choice($.and_expression, $.or_expression, $._bool_value)),
 
         comparison: $ => prec.right(PREC.compare, seq(
-            field('val', $._value),
+            field('val', $._expression),
             field('comparator', $.comparator)
         )),
 
@@ -113,17 +122,6 @@ module.exports = grammar({
 
         pos_int: $ => /\d+/,
 
-        _value: $ => prec.left(PREC.value, choice(
-            $.path,
-            $.object,
-            $.array,
-            $.number,
-            $.string,
-            $.null,
-            $.true,
-            $.false,
-        )),
-
         object: $ => seq(
             '{', $.pair, repeat(seq(',', $.pair)), '}'
         ),
@@ -131,11 +129,11 @@ module.exports = grammar({
         pair: $ => seq(
             field('key', $.string),
             ':',
-            field('value', $._value),
+            field('value', $._expression),
         ),
 
         array: $ => seq(
-            '[', $._value, repeat(seq(',', $._value)), ']'
+            '[', $._expression, repeat(seq(',', $._expression)), ']'
         ),
 
         string: $ => choice(

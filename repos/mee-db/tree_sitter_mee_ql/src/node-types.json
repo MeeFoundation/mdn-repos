@@ -44,14 +44,34 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
+        {
+          "type": "and_expression",
+          "named": true
+        },
         {
           "type": "array",
           "named": true
         },
         {
+          "type": "array_query",
+          "named": true
+        },
+        {
+          "type": "comparison",
+          "named": true
+        },
+        {
+          "type": "element_query",
+          "named": true
+        },
+        {
           "type": "false",
+          "named": true
+        },
+        {
+          "type": "not_expression",
           "named": true
         },
         {
@@ -64,6 +84,10 @@
         },
         {
           "type": "object",
+          "named": true
+        },
+        {
+          "type": "or_expression",
           "named": true
         },
         {
@@ -90,11 +114,35 @@
         "required": true,
         "types": [
           {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "and_expression",
+            "named": true
+          },
+          {
             "type": "array",
             "named": true
           },
           {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
             "type": "delete_stmt",
+            "named": true
+          },
+          {
+            "type": "element_query",
             "named": true
           },
           {
@@ -103,6 +151,10 @@
           },
           {
             "type": "iterator_stmt",
+            "named": true
+          },
+          {
+            "type": "not_expression",
             "named": true
           },
           {
@@ -115,6 +167,10 @@
           },
           {
             "type": "object",
+            "named": true
+          },
+          {
+            "type": "or_expression",
             "named": true
           },
           {
@@ -156,15 +212,43 @@
         ]
       },
       "result": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "and_expression",
+            "named": true
+          },
           {
             "type": "array",
             "named": true
           },
           {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
+            "type": "element_query",
+            "named": true
+          },
+          {
             "type": "false",
+            "named": true
+          },
+          {
+            "type": "not_expression",
             "named": true
           },
           {
@@ -177,6 +261,10 @@
           },
           {
             "type": "object",
+            "named": true
+          },
+          {
+            "type": "or_expression",
             "named": true
           },
           {
@@ -382,15 +470,43 @@
         ]
       },
       "val": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "and_expression",
+            "named": true
+          },
           {
             "type": "array",
             "named": true
           },
           {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
+            "type": "element_query",
+            "named": true
+          },
+          {
             "type": "false",
+            "named": true
+          },
+          {
+            "type": "not_expression",
             "named": true
           },
           {
@@ -403,6 +519,10 @@
           },
           {
             "type": "object",
+            "named": true
+          },
+          {
+            "type": "or_expression",
             "named": true
           },
           {
@@ -427,7 +547,7 @@
     "fields": {
       "field": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "path",
@@ -446,11 +566,35 @@
         "required": true,
         "types": [
           {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "and_expression",
+            "named": true
+          },
+          {
             "type": "array",
             "named": true
           },
           {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
             "type": "delete_stmt",
+            "named": true
+          },
+          {
+            "type": "element_query",
             "named": true
           },
           {
@@ -459,6 +603,10 @@
           },
           {
             "type": "iterator_stmt",
+            "named": true
+          },
+          {
+            "type": "not_expression",
             "named": true
           },
           {
@@ -471,6 +619,10 @@
           },
           {
             "type": "object",
+            "named": true
+          },
+          {
+            "type": "or_expression",
             "named": true
           },
           {
@@ -512,15 +664,43 @@
         ]
       },
       "result": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "and_expression",
+            "named": true
+          },
           {
             "type": "array",
             "named": true
           },
           {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
+            "type": "element_query",
+            "named": true
+          },
+          {
             "type": "false",
+            "named": true
+          },
+          {
+            "type": "not_expression",
             "named": true
           },
           {
@@ -533,6 +713,10 @@
           },
           {
             "type": "object",
+            "named": true
+          },
+          {
+            "type": "or_expression",
             "named": true
           },
           {
@@ -785,15 +969,43 @@
         ]
       },
       "value": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "and_expression",
+            "named": true
+          },
           {
             "type": "array",
             "named": true
           },
           {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "comparison",
+            "named": true
+          },
+          {
+            "type": "element_query",
+            "named": true
+          },
+          {
             "type": "false",
+            "named": true
+          },
+          {
+            "type": "not_expression",
             "named": true
           },
           {
@@ -806,6 +1018,10 @@
           },
           {
             "type": "object",
+            "named": true
+          },
+          {
+            "type": "or_expression",
             "named": true
           },
           {
