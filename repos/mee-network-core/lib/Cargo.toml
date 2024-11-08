@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["mee_crypto", "mee_secrets_manager", "mee_did", "mee_data_sync"]
+members = [
+  "mee_crypto",
+  "mee_secrets_manager",
+  "mee_did",
+  "mee_data_sync",
+  "mdn_identity_agent",
+]
 
 [workspace.package]
 edition = "2021"

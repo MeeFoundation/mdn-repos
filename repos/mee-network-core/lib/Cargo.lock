@@ -3165,7 +3165,6 @@ dependencies = [
 [[package]]
 name = "iroh-base"
 version = "0.24.0"
-source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "aead",
  "anyhow",
@@ -3206,7 +3205,6 @@ dependencies = [
 [[package]]
 name = "iroh-blobs"
 version = "0.24.0"
-source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "async-channel 2.3.1",
@@ -3259,7 +3257,6 @@ dependencies = [
 [[package]]
 name = "iroh-metrics"
 version = "0.24.0"
-source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "erased_set",
@@ -3279,7 +3276,6 @@ dependencies = [
 [[package]]
 name = "iroh-net"
 version = "0.24.0"
-source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "backoff",
@@ -3414,7 +3410,6 @@ dependencies = [
 [[package]]
 name = "iroh-willow"
 version = "0.24.0"
-source = "git+https://github.com/Voronar/iroh?branch=willow-experiments#254eff6791bf1e5b10386f624b3340aa2f98fbc9"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3506,6 +3501,23 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "josekit"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a603084e34e151e215d232e401df0d9299bdced264b8054e4888ea614e59bb06"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "flate2",
+ "openssl",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+]
 
 [[package]]
 name = "js-sys"
@@ -4060,6 +4072,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 
 [[package]]
+name = "mdn_identity_agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "futures-util",
+ "log",
+ "mee_crypto",
+ "mee_data_sync",
+ "mee_macro_utils",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "meadowcap"
 version = "0.1.0"
 source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
@@ -4082,6 +4114,7 @@ dependencies = [
  "ed25519",
  "ed25519-dalek",
  "identity_jose",
+ "josekit",
  "mee_macro_utils",
  "p256",
  "password-hash",
@@ -4089,6 +4122,8 @@ dependencies = [
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "rsa 0.9.6",
+ "serde",
+ "serde_json",
  "thiserror",
  "uuid",
 ]
@@ -4581,9 +4616,9 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "openssl"
-version = "0.10.64"
+version = "0.10.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95a0481286a310808298130d22dd1fef0fa571e05a8f44ec801801e84b216b1f"
+checksum = "6174bc48f102d208783c2c84bf931bb75927a617866870de8a4ea85597f871f5"
 dependencies = [
  "bitflags 2.5.0",
  "cfg-if",
@@ -4622,9 +4657,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.102"
+version = "0.9.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c597637d56fbc83893a35eb0dd04b2b8e7a50c91e64e9493e398b5df4fb45fa2"
+checksum = "45abf306cbf99debc8195b66b7346498d7b10c210de50418b5ccd7ceba08c741"
 dependencies = [
  "cc",
  "libc",
@@ -6230,6 +6265,7 @@ version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e17db7126d17feb94eb3fad46bf1a96b034e8aacbc2e775fe81505f8b0b2813"
 dependencies = [
+ "indexmap 2.2.6",
  "itoa",
  "ryu",
  "serde",
