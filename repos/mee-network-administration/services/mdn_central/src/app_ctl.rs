@@ -3,6 +3,7 @@ use crate::{
     domain::mdn_user::{
         router::mdn_users_router,
         user_account::controller::MdnUserAccountController,
+        user_devices::controller::MdnUserDevicesController,
     },
     error::MdnCentralResult,
 };
@@ -27,6 +28,7 @@ const SWAGGER_PATH: &str = "/swagger-ui";
 pub struct AppCtl {
     pub(crate) app_config: AppConfig,
     pub(crate) mdn_user_account_controller: MdnUserAccountController,
+    pub(crate) mdn_user_devices_controller: MdnUserDevicesController,
 }
 
 impl AppCtl {
@@ -54,8 +56,12 @@ impl AppCtl {
 
         Ok(Self {
             mdn_user_account_controller: MdnUserAccountController::new(
-                Arc::new(rdb_storage),
-                mdn_central_authority_signature,
+                rdb_storage.clone(),
+                mdn_central_authority_signature.clone(),
+            ),
+            mdn_user_devices_controller: MdnUserDevicesController::new(
+                rdb_storage.clone(),
+                mdn_central_authority_signature.clone(),
             ),
             app_config,
         })

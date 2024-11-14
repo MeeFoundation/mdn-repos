@@ -1,13 +1,11 @@
 use crate::{
     domain::mdn_user::user_account::{
-        api_middlewares::LoggedInMdnUser,
-        api_types::{
+        api::account::middlewares::LoggedInMdnUser,
+        api::account::types::{
             AuthorizeUserResponse, CreateUserAccountRequest,
             UserAccountLoginRequest, UserAccountLoginResponse,
         },
-        repositories::mdn_users::{
-            dto::CreateUserAccountDto, MdnUsersRepository,
-        },
+        repositories::mdn_users::{CreateUserAccountDto, MdnUsersRepository},
     },
     error::{MdnCentralErr, MdnCentralResult},
 };
@@ -15,27 +13,24 @@ use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
-use service_models::{MdnUserAccountRole, UserAccountDomainModel};
-use mdn_identity_agent::mdn_cloud::auth::{
-    decode_mdn_user_id_token, encode_mdn_user_id_token,
+use mdn_identity_agent::mdn_cloud::user_auth::{
+    decode_mdn_cloud_user_id_token, encode_mdn_cloud_user_id_token,
 };
 use mee_crypto::jwk::Jwk;
 use mee_secrets_manager::signatures_service::SignaturesService;
+use service_models::{MdnUserAccountRole, UserAccountDomainModel};
 use std::sync::Arc;
 
 pub mod service_models;
 
-pub struct MdnUserAuthService<'a> {
-    user_account_repository:
-        Box<dyn MdnUsersRepository + Send + Sync + 'a>,
+pub struct MdnUserAccountService<'a> {
+    user_account_repository: Box<dyn MdnUsersRepository + Send + Sync + 'a>,
     mdn_central_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
 }
 
-impl<'a> MdnUserAuthService<'a> {
+impl<'a> MdnUserAccountService<'a> {
     pub fn new(
-        user_account_repository: Box<
-            dyn MdnUsersRepository + Send + Sync + 'a,
-        >,
+        user_account_repository: Box<dyn MdnUsersRepository + Send + Sync + 'a>,
         mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
     ) -> Self {
         Self {
@@ -55,7 +50,7 @@ impl<'a> MdnUserAuthService<'a> {
         &self,
         user: UserAccountDomainModel,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
-        let auth_token = encode_mdn_user_id_token(
+        let auth_token = encode_mdn_cloud_user_id_token(
             "TODO: url backed by OIDC config or DID".to_string(),
             user.mdn_user_uid.clone(),
             user.mdn_user_role.to_string(),
@@ -157,7 +152,7 @@ impl<'a> MdnUserAuthService<'a> {
     ) -> MdnCentralResult<LoggedInMdnUser> {
         let mee_sig = self.mee_sig().await?;
 
-        let mdn_user_id_token = decode_mdn_user_id_token(token, mee_sig)?;
+        let mdn_user_id_token = decode_mdn_cloud_user_id_token(token, mee_sig)?;
 
         let user = LoggedInMdnUser {
             mdn_user_uid: mdn_user_id_token.sub,
@@ -165,5 +160,21 @@ impl<'a> MdnUserAuthService<'a> {
         };
 
         Ok(user)
+    }
+
+    pub async fn get_account_by_uid(
+        &self,
+        uid: &str,
+    ) -> MdnCentralResult<Option<crate::db_models::mdn_users::Model>> {
+        self.user_account_repository.get_account_by_uid(uid).await
+    }
+
+    pub async fn get_account_by_uid_required(
+        &self,
+        uid: &str,
+    ) -> MdnCentralResult<crate::db_models::mdn_users::Model> {
+        self.get_account_by_uid(uid).await?.ok_or_else(|| {
+            MdnCentralErr::MissingDbEntity(format!("user with uid={uid}"))
+        })
     }
 }

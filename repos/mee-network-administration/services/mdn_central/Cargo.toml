@@ -18,6 +18,7 @@ mee_db_utils = { path = "../../../mee-utils/lib/mee_db_utils" }
 mee_http_utils = { path = "../../../mee-utils/lib/mee_http_utils" }
 mee_secrets_manager = { path = "../../../mee-network-core/lib/mee_secrets_manager" }
 mee_crypto = { path = "../../../mee-network-core/lib/mee_crypto" }
+mee_did = { path = "../../../mee-network-core/lib/mee_did" }
 mdn_identity_agent = { path = "../../../mee-network-core/lib/mdn_identity_agent" }
 
 clap = { workspace = true, features = ["derive", "env"] }

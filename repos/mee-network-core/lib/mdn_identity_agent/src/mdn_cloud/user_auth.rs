@@ -8,7 +8,7 @@ use mee_crypto::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MdnUserIdToken {
+pub struct MdnCloudUserIdToken {
     pub iss: String,
     pub sub: String,
     pub aud: String,
@@ -18,10 +18,10 @@ pub struct MdnUserIdToken {
     pub mdn_user_role: String,
 }
 
-pub fn decode_mdn_user_id_token(
+pub fn decode_mdn_cloud_user_id_token(
     encoded_token: &str,
     sign_key: Jwk,
-) -> anyhow::Result<MdnUserIdToken> {
+) -> anyhow::Result<MdnCloudUserIdToken> {
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
 
@@ -29,12 +29,12 @@ pub fn decode_mdn_user_id_token(
         .verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)
         .unwrap();
 
-    let (claims, _header) = decode_token::<MdnUserIdToken>(&verifier, &encoded_token)?;
+    let (claims, _header) = decode_token::<MdnCloudUserIdToken>(&verifier, &encoded_token)?;
 
     Ok(claims)
 }
 
-pub fn encode_mdn_user_id_token(
+pub fn encode_mdn_cloud_user_id_token(
     iss: String,
     sub: String,
     mdn_user_role: String,
@@ -47,7 +47,7 @@ pub fn encode_mdn_user_id_token(
         .context("chrono time manipulation issue")?
         .timestamp();
 
-    let claims = MdnUserIdToken {
+    let claims = MdnCloudUserIdToken {
         iss,
         aud: sub.clone(),
         sub,

@@ -1,8 +1,12 @@
-use super::api_types::{
+use super::types::{
     ApproveUserDeviceLinkageRequest, RegisterUserDeviceRequest,
-    LinkUserDeviceRequest, UserDeviceLinkageRequest,
+    UserDeviceLinkageRequest,
 };
-use crate::{app_ctl::AppCtl, error::MdnCentralResult};
+use crate::{
+    app_ctl::AppCtl,
+    domain::mdn_user::user_account::api::account::middlewares::LoggedInMdnUser,
+    error::MdnCentralResult,
+};
 use axum::{extract::State, Json};
 
 #[utoipa::path(
@@ -14,25 +18,14 @@ use axum::{extract::State, Json};
     ),
 )]
 pub async fn register_user_device(
+    logged_in_mdn_user: LoggedInMdnUser,
     State(app_ctl): State<AppCtl>,
     Json(payload): Json<RegisterUserDeviceRequest>,
-) -> MdnCentralResult<Json<()>> {
-    todo!()
-}
-
-#[utoipa::path(
-    post,
-    path = "/api/v1/mdn_users/devices/link",
-    responses(
-        (status = 200, description = "User device has been successfully linked", body = ()),
-        (status = 500, description = "Something went wrong", body = String),
-    ),
-)]
-pub async fn link_user_device(
-    State(app_ctl): State<AppCtl>,
-    Json(payload): Json<LinkUserDeviceRequest>,
-) -> MdnCentralResult<Json<()>> {
-    todo!()
+) -> MdnCentralResult<()> {
+    Ok(app_ctl
+        .mdn_user_devices_controller
+        .register_user_device(payload, logged_in_mdn_user)
+        .await?)
 }
 
 #[utoipa::path(
@@ -44,9 +37,15 @@ pub async fn link_user_device(
     ),
 )]
 pub async fn list_user_device_linkage_requests(
+    logged_in_mdn_user: LoggedInMdnUser,
     State(app_ctl): State<AppCtl>,
 ) -> MdnCentralResult<Json<Vec<UserDeviceLinkageRequest>>> {
-    todo!()
+    Ok(Json(
+        app_ctl
+            .mdn_user_devices_controller
+            .list_user_device_linkage_requests(logged_in_mdn_user)
+            .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -58,8 +57,12 @@ pub async fn list_user_device_linkage_requests(
   ),
 )]
 pub async fn approve_user_device_linkage(
+    logged_in_mdn_user: LoggedInMdnUser,
     State(app_ctl): State<AppCtl>,
     Json(payload): Json<ApproveUserDeviceLinkageRequest>,
-) -> MdnCentralResult<Json<()>> {
-    todo!()
+) -> MdnCentralResult<()> {
+    Ok(app_ctl
+        .mdn_user_devices_controller
+        .approve_user_device_linkage(logged_in_mdn_user, payload)
+        .await?)
 }

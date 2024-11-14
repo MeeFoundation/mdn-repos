@@ -7,11 +7,11 @@ use serde::Serialize;
 #[sea_orm(table_name = "mdn_user_device_requests_for_linkage")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_user_device_request_for_linkage_id: i32,
-    pub mdn_user_id: i32,
-    pub from_device_id: i32,
-    #[sea_orm(column_type = "Text")]
-    pub from_device_signature: String,
+    pub mdn_user_device_request_for_linkage_id: i64,
+    #[sea_orm(unique)]
+    pub mdn_user_device_request_for_linkage_uid: String,
+    pub mdn_user_id: i64,
+    pub from_device_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

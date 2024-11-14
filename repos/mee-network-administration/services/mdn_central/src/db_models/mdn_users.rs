@@ -7,21 +7,18 @@ use serde::Serialize;
 #[sea_orm(table_name = "mdn_users")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_user_id: i32,
-    #[sea_orm(column_type = "Text", unique)]
+    pub mdn_user_id: i64,
+    #[sea_orm(unique)]
     pub mdn_user_uid: String,
-    #[sea_orm(column_type = "Text", unique)]
+    #[sea_orm(unique)]
     pub mdn_user_email: String,
-    #[sea_orm(column_type = "Text", nullable, unique)]
+    #[sea_orm(unique)]
     pub mdn_user_phone: Option<String>,
-    #[sea_orm(column_type = "Text", nullable, unique)]
     pub mdn_user_name: Option<String>,
     pub mdn_user_role: String,
     pub is_user_active: bool,
     pub is_user_verified: bool,
-    #[sea_orm(column_type = "Text")]
     pub salt: String,
-    #[sea_orm(column_type = "Text")]
     pub password: String,
 }
 

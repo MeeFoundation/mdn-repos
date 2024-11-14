@@ -14,6 +14,7 @@ thiserror = { workspace = true }
 identity_jose = { workspace = true }
 biscuit-auth = { workspace = true }
 serde_json = { workspace = true }
+didkit = { workspace = true, features = ["w3c"] }
 serde = { workspace = true, features = ["derive"] }
 
 josekit = "0.10"

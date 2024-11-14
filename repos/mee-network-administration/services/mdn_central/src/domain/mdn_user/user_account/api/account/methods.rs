@@ -1,4 +1,4 @@
-use super::api_types::{
+use super::types::{
     CreateUserAccountRequest, UserAccountLoginRequest, UserAccountLoginResponse,
 };
 use crate::{app_ctl::AppCtl, error::MdnCentralResult};
@@ -20,7 +20,10 @@ pub async fn register_user(
     Json(payload): Json<CreateUserAccountRequest>,
 ) -> MdnCentralResult<Json<UserAccountLoginResponse>> {
     Ok(Json(
-        app_ctl.mdn_user_account_controller.register_user(payload).await?,
+        app_ctl
+            .mdn_user_account_controller
+            .register_user(payload)
+            .await?,
     ))
 }
 
@@ -37,7 +40,10 @@ pub async fn login_user(
     State(app_ctl): State<AppCtl>,
     Json(payload): Json<UserAccountLoginRequest>,
 ) -> MdnCentralResult<(CookieJar, Json<UserAccountLoginResponse>)> {
-    let res = app_ctl.mdn_user_account_controller.login_user(payload).await?;
+    let res = app_ctl
+        .mdn_user_account_controller
+        .login_user(payload)
+        .await?;
 
     // TODO: check the cookie security
     // The cookie is required by OIDC provider

@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use mee_crypto::error::MeeCryptoErr;
+use mee_did::error::MeeDidErr;
 use sea_orm::TransactionError;
 
 pub type MdnCentralResult<T = ()> = Result<T, MdnCentralErr>;
@@ -34,6 +35,9 @@ pub enum MdnCentralErr {
     PasswordHashing(argon2::password_hash::Error),
 
     // domain errors
+    #[error("Missing database entity: {0}")]
+    MissingDbEntity(String),
+
     #[error("User management error: user {0} is not found")]
     MdnUserAccountNotFound(String),
 
@@ -49,11 +53,24 @@ pub enum MdnCentralErr {
     #[error("Mee crypto utils error: {0}")]
     MeeCryptoUtils(#[from] MeeCryptoErr),
 
-    #[error("User management error: user authorization token is missing")]
+    #[error("Mee DID utils error: {0}")]
+    MeeDidUtils(#[from] MeeDidErr),
+
+    #[error(
+        "User management error: cloud user authorization token is missing"
+    )]
     MissingMdnUserAuthToken,
 
-    #[error("User management error: user authorization token is invalid")]
-    InvalidMdnUserAuthToken,
+    #[error(
+        "User management error: cloud user authorization token is invalid"
+    )]
+    InvalidMdnCloudUserAuthToken,
+
+    #[error("User management error: device user authorization token is invalid: {0}")]
+    InvalidMdnDeviceUserAuthToken(String),
+
+    #[error("User device management error: {0}")]
+    MdnUserDeviceManagement(String),
 }
 
 impl From<TransactionError<MdnCentralErr>> for MdnCentralErr {

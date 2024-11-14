@@ -4111,6 +4111,7 @@ dependencies = [
  "base64 0.21.7",
  "biscuit-auth",
  "chacha20poly1305",
+ "didkit",
  "ed25519",
  "ed25519-dalek",
  "identity_jose",
@@ -4163,10 +4164,10 @@ dependencies = [
  "async-trait",
  "didkit",
  "lazy_static",
+ "mee_crypto",
  "mee_macro_utils",
  "serde",
  "serde_json",
- "ssi",
  "thiserror",
 ]
 
@@ -6695,9 +6696,9 @@ dependencies = [
 
 [[package]]
 name = "ssi-contexts"
-version = "0.1.5"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3009b82cbae3d88a76f15460fb5fb3f30a1673eb0359ac6917ffaa3c57f7164"
+checksum = "34aa53d986ca89a0bc7774d0004e5f94ef1fc553c90161facec4029fcdd3e2bf"
 
 [[package]]
 name = "ssi-core"

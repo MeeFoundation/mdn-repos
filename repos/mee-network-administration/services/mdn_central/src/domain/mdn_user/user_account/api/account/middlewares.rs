@@ -1,5 +1,8 @@
-use super::services::auth::service_models::MdnUserAccountRole;
-use crate::{app_ctl::AppCtl, error::MdnCentralErr};
+use crate::{
+    app_ctl::AppCtl,
+    domain::mdn_user::user_account::services::account::service_models::MdnUserAccountRole,
+    error::MdnCentralErr,
+};
 use axum::{
     extract::FromRequestParts,
     http::{header::AUTHORIZATION, request::Parts},

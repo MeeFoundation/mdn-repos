@@ -7,11 +7,11 @@ export DATABASE_URL=postgres://${PG_DATABASE_USER}:${PG_DATABASE_PSWD}@${PG_DATA
 
 DB_CONT_NAME=local-dev-mee-pgsql
 DOCKER_DB=docker exec -ti ${DB_CONT_NAME} psql
-USE_DOCKER_DB:=$(USE_DOCKER_DB)
-PGSQL_BIN=psql
+USE_LOCAL_DEV_DB:=$(USE_LOCAL_DEV_DB)
+PGSQL_BIN=${DOCKER_DB}
 
-ifeq (${USE_DOCKER_DB},1)
-	PGSQL_BIN=${DOCKER_DB}
+ifeq (${USE_LOCAL_DEV_DB},1)
+	PGSQL_BIN=psql
 endif
 
 RUST_LOG=info

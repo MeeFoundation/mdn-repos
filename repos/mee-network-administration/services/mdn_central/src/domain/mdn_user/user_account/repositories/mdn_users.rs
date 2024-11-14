@@ -1,13 +1,25 @@
 use crate::{
     db_models::{mdn_users, prelude::*},
+    domain::mdn_user::user_account::services::account::service_models::MdnUserAccountRole,
     error::MdnCentralResult,
 };
-use dto::CreateUserAccountDto;
+use async_trait::async_trait;
 use sea_orm::{entity::*, query::*};
 
-pub mod dto;
+#[derive(Debug)]
+pub struct CreateUserAccountDto {
+    pub mdn_user_uid: String,
+    pub mdn_user_email: String,
+    pub mdn_user_phone: Option<String>,
+    pub mdn_user_name: Option<String>,
+    pub mdn_user_role: MdnUserAccountRole,
+    pub is_user_active: bool,
+    pub is_user_verified: bool,
+    pub salt: String,
+    pub password: String,
+}
 
-#[async_trait::async_trait]
+#[async_trait]
 pub trait MdnUsersRepository {
     async fn create_account(
         &self,
@@ -33,7 +45,7 @@ impl<'a, C: ConnectionTrait> MdnUserAccountRepositoryImpl<'a, C> {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl<'a, C: ConnectionTrait> MdnUsersRepository
     for MdnUserAccountRepositoryImpl<'a, C>
 {

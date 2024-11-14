@@ -1,13 +1,13 @@
 use super::{
-    api_middlewares::LoggedInMdnUser,
-    api_types::{
+    api::account::middlewares::LoggedInMdnUser,
+    api::account::types::{
         AuthorizeUserRequest, AuthorizeUserResponse, CreateUserAccountRequest,
         UserAccountLoginRequest, UserAccountLoginResponse,
     },
     repositories::mdn_users::{
-        MdnUsersRepository, MdnUserAccountRepositoryImpl,
+        MdnUserAccountRepositoryImpl, MdnUsersRepository,
     },
-    services::auth::MdnUserAuthService,
+    services::account::MdnUserAccountService,
 };
 use crate::error::MdnCentralResult;
 use mee_db_utils::sql_storage::RbdStorage;
@@ -17,13 +17,13 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MdnUserAccountController {
-    rdb_storage: Arc<RbdStorage>,
+    rdb_storage: RbdStorage,
     mdn_central_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
 }
 
 impl MdnUserAccountController {
     pub fn new(
-        rdb_storage: Arc<RbdStorage>,
+        rdb_storage: RbdStorage,
         mdn_central_authority_signature: Arc<
             dyn SignaturesService + Send + Sync,
         >,
@@ -34,16 +34,17 @@ impl MdnUserAccountController {
         }
     }
     pub fn user_account_service<'a, C: ConnectionTrait>(
-        &self,
         tx: &'a C,
-    ) -> MdnUserAuthService<'a> {
-        MdnUserAuthService::new(
-            Box::new(self.user_account_repository(tx)),
-            self.mdn_central_authority_signature.clone(),
+        mdn_central_authority_signature: Arc<
+            dyn SignaturesService + Send + Sync,
+        >,
+    ) -> MdnUserAccountService<'a> {
+        MdnUserAccountService::new(
+            Box::new(Self::user_account_repository(tx)),
+            mdn_central_authority_signature.clone(),
         )
     }
     pub fn user_account_repository<'a, C: ConnectionTrait>(
-        &self,
         tx: &'a C,
     ) -> impl MdnUsersRepository + 'a {
         MdnUserAccountRepositoryImpl::new(tx)
@@ -53,10 +54,12 @@ impl MdnUserAccountController {
         &self,
         payload: CreateUserAccountRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
-        let res = self
-            .user_account_service(&*self.rdb_storage.connection())
-            .create_customer_account(payload)
-            .await?;
+        let res = Self::user_account_service(
+            &*self.rdb_storage.connection(),
+            self.mdn_central_authority_signature.clone(),
+        )
+        .create_customer_account(payload)
+        .await?;
 
         Ok(res)
     }
@@ -65,10 +68,12 @@ impl MdnUserAccountController {
         &self,
         payload: UserAccountLoginRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
-        let res = self
-            .user_account_service(&*self.rdb_storage.connection())
-            .user_login(payload)
-            .await?;
+        let res = Self::user_account_service(
+            &*self.rdb_storage.connection(),
+            self.mdn_central_authority_signature.clone(),
+        )
+        .user_login(payload)
+        .await?;
 
         Ok(res)
     }
@@ -77,10 +82,12 @@ impl MdnUserAccountController {
         &self,
         payload: AuthorizeUserRequest,
     ) -> MdnCentralResult<AuthorizeUserResponse> {
-        let res = self
-            .user_account_service(&*self.rdb_storage.connection())
-            .authorize_user_account(&payload.auth_token)
-            .await?;
+        let res = Self::user_account_service(
+            &*self.rdb_storage.connection(),
+            self.mdn_central_authority_signature.clone(),
+        )
+        .authorize_user_account(&payload.auth_token)
+        .await?;
 
         Ok(res)
     }
@@ -89,10 +96,12 @@ impl MdnUserAccountController {
         &self,
         token: String,
     ) -> MdnCentralResult<LoggedInMdnUser> {
-        let res = self
-            .user_account_service(&*self.rdb_storage.connection())
-            .authorize_user_token(&token)
-            .await?;
+        let res = Self::user_account_service(
+            &*self.rdb_storage.connection(),
+            self.mdn_central_authority_signature.clone(),
+        )
+        .authorize_user_token(&token)
+        .await?;
 
         Ok(res)
     }

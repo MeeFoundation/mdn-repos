@@ -96,6 +96,9 @@ impl_try_from_jwk_ref!(josekit::jwk::Jwk, Jwk);
 impl_try_from_jwk!(identity_jose::jwk::Jwk, Jwk);
 impl_try_from_jwk_ref!(identity_jose::jwk::Jwk, Jwk);
 
+impl_try_from_jwk!(didkit::JWK, Jwk);
+impl_try_from_jwk_ref!(didkit::JWK, Jwk);
+
 /// Operations that the key is intended to be used for. This enum is serialized `untagged`
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 #[serde(rename_all = "camelCase")]

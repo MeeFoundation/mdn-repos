@@ -1,6 +1,6 @@
 use super::{
-    user_account::{api_methods::*, api_types::*},
-    user_devices::{api_methods::*, api_types::*},
+    user_account::api::account::{methods::*, types::*},
+    user_devices::api::devices::{methods::*, types::*},
 };
 use utoipa::OpenApi;
 
@@ -10,7 +10,6 @@ use utoipa::OpenApi;
           register_user,
           login_user,
           register_user_device,
-          link_user_device,
           approve_user_device_linkage,
           list_user_device_linkage_requests,
       ),
@@ -20,7 +19,6 @@ use utoipa::OpenApi;
               UserAccountLoginRequest,
               UserAccountLoginResponse,
               RegisterUserDeviceRequest,
-              LinkUserDeviceRequest,
               ApproveUserDeviceLinkageRequest,
               UserDeviceLinkageRequest,
           ),

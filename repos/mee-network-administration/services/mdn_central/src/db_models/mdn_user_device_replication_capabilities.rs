@@ -7,13 +7,12 @@ use serde::Serialize;
 #[sea_orm(table_name = "mdn_user_device_replication_capabilities")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_user_device_replication_capability_id: i32,
-    pub mdn_user_id: i32,
-    pub from_device_id: i32,
-    pub to_device_id: i32,
-    #[sea_orm(column_type = "Text")]
+    pub mdn_user_device_replication_capability_id: i64,
+    pub mdn_user_id: i64,
+    pub from_device_id: i64,
+    pub to_device_id: i64,
     pub willow_capabilities: String,
-    pub expires: DateTime,
+    pub expires: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
