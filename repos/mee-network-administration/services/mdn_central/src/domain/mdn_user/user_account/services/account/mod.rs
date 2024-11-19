@@ -13,7 +13,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
-use mdn_identity_agent::mdn_cloud::user_auth::{
+use mdn_identity_agent::mdn_cloud::user_account::auth_utils::{
     decode_mdn_cloud_user_id_token, encode_mdn_cloud_user_id_token,
 };
 use mee_crypto::jwk::Jwk;
@@ -132,7 +132,7 @@ impl<'a> MdnUserAccountService<'a> {
 
         self.make_login_response(res.try_into()?).await
     }
-    pub async fn authorize_user_account(
+    pub async fn _authorize_user_account(
         &self,
         token: &str,
     ) -> MdnCentralResult<AuthorizeUserResponse> {
@@ -156,7 +156,7 @@ impl<'a> MdnUserAccountService<'a> {
 
         let user = LoggedInMdnUser {
             mdn_user_uid: mdn_user_id_token.sub,
-            mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
+            _mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
         };
 
         Ok(user)

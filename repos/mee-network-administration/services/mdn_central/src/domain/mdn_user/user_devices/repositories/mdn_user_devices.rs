@@ -35,6 +35,11 @@ pub trait MdnUserDevicesRepository {
         user_id: i64,
         dev_id: i64,
     ) -> MdnCentralResult<Option<mdn_user_devices::Model>>;
+    async fn get_device_by_did(
+        &self,
+        user_id: i64,
+        dev_did: &str,
+    ) -> MdnCentralResult<Option<mdn_user_devices::Model>>;
 }
 
 pub struct MdnUserDevicesRepositoryImpl<'a, C: ConnectionTrait> {
@@ -96,6 +101,19 @@ impl<'a, C: ConnectionTrait> MdnUserDevicesRepository
     ) -> MdnCentralResult<Option<mdn_user_devices::Model>> {
         let dev = MdnUserDevices::find()
             .filter(mdn_user_devices::Column::MdnUserDeviceId.eq(dev_id))
+            .filter(mdn_user_devices::Column::MdnUserId.eq(user_id))
+            .one(self.db_conn)
+            .await?;
+
+        Ok(dev)
+    }
+    async fn get_device_by_did(
+        &self,
+        user_id: i64,
+        dev_did: &str,
+    ) -> MdnCentralResult<Option<mdn_user_devices::Model>> {
+        let dev = MdnUserDevices::find()
+            .filter(mdn_user_devices::Column::DeviceDid.eq(dev_did))
             .filter(mdn_user_devices::Column::MdnUserId.eq(user_id))
             .one(self.db_conn)
             .await?;

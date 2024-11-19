@@ -1,5 +1,5 @@
 use crate::error::MdnCentralResult;
-use mdn_identity_agent::mdn_device::user_auth::{
+use mdn_identity_agent::mdn_device::idm::device_auth::{
     decode_mdn_device_user_id_token, MdnDeviceUserIdToken,
 };
 use mee_did::universal_resolver::{

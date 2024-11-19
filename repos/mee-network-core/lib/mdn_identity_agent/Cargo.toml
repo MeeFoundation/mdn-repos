@@ -6,7 +6,9 @@ license.workspace = true
 
 [dependencies]
 mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils" }
+mee_http_utils = { path = "../../../mee-utils/lib/mee_http_utils" }
 mee_crypto = { path = "../mee_crypto" }
+mee_did = { path = "../mee_did" }
 mee_data_sync = { path = "../mee_data_sync" }
 
 async-trait = { workspace = true }
@@ -18,5 +20,17 @@ futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+utoipa = { workspace = true, features = ["url"] }
 chrono = { workspace = true }
+url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
+reqwest = { workspace = true, default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+
+redb = { version = "2.2" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }
+mee_test_utils = { path = "../../../mee-utils/lib/mee_test_utils" }

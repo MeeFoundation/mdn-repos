@@ -2,15 +2,8 @@ use crate::{
     error::{MeeDidErr, MeeDidResult},
     universal_resolver::{DIDResolverExt, UniversalDidResolver},
 };
-use didkit::ssi::did::{DIDMethodError, VerificationMethod};
+use didkit::ssi::did::VerificationMethod;
 use mee_crypto::jwk::Jwk;
-
-pub fn did_method_error_from_str(err: impl core::fmt::Display) -> DIDMethodError {
-    DIDMethodError::Other(anyhow::anyhow!("{err}"))
-}
-pub fn did_method_error_from_dbg(err: impl core::fmt::Debug) -> DIDMethodError {
-    DIDMethodError::Other(anyhow::anyhow!("{err:?}"))
-}
 
 fn did_verification_method_error() -> MeeDidErr {
     MeeDidErr::other("DID embedded verification method must exists")

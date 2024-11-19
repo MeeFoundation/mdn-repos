@@ -45,7 +45,6 @@ openid = { default-features = false, version = "0.12" }
 
 ### crypto
 didkit = { version = "0.6", default-features = false }
-did-method-key = "0.2"
 argon2 = "0.5"
 identity_jose = "1"
 ed25519 = { version = "2", features = ["pem", "alloc"] }

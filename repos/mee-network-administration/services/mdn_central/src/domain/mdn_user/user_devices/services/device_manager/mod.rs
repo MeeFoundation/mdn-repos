@@ -11,6 +11,7 @@ use crate::{
             },
             repositories::{
                 device_requests_for_linkage::{
+                    into_user_device_linkage_request,
                     CreateRequestForLinkageDto,
                     MdnUserDeviceRequestsForLinkageRepository,
                 },
@@ -63,7 +64,7 @@ impl<'a> MdnUserDeviceManagerService<'a> {
             .list_requests(acc.mdn_user_id)
             .await?
             .into_iter()
-            .map(Into::into)
+            .map(into_user_device_linkage_request)
             .collect())
     }
     pub async fn register_user_device(
@@ -156,6 +157,24 @@ impl<'a> MdnUserDeviceManagerService<'a> {
             .mdn_user_auth_service
             .get_account_by_uid_required(&user.mdn_user_uid)
             .await?;
+
+        let dev_approver = self
+            .mdn_user_devices_repository
+            .get_device_by_did(acc.mdn_user_id, &device_approver_did)
+            .await?
+            .ok_or_else(|| {
+                MdnCentralErr::MissingDbEntity(format!(
+                    "Device approver with DID={device_approver_did}"
+                ))
+            })?;
+
+        if !dev_approver.is_device_linked {
+            Err(
+                MdnCentralErr::MdnUserDeviceManagement(
+                    format!("Device approver with DID={device_approver_did} has not approved (linked) itself.")
+                )
+            )?
+        }
 
         let (_req, dev) = self
             .mdn_user_device_requests_for_linkage_repository

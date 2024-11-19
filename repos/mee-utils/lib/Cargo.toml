@@ -4,6 +4,7 @@ members = [
     "mee_macro_utils",
     "mee_http_utils",
     "mee_db_utils",
+    "mee_test_utils",
 ]
 
 [workspace.package]

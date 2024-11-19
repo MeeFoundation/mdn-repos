@@ -7890,7 +7890,6 @@ dependencies = [
  "iref",
  "json-syntax",
  "k256 0.13.3",
- "keccak-hash",
  "lazy_static",
  "locspan",
  "multibase 0.8.0",
@@ -7900,7 +7899,6 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "sha2 0.10.8",
- "sha3",
  "ssi-caips",
  "ssi-contexts",
  "ssi-core",
@@ -7909,7 +7907,6 @@ dependencies = [
  "ssi-json-ld",
  "ssi-jwk",
  "ssi-jws",
- "ssi-tzkey",
  "static-iref",
  "thiserror",
 ]

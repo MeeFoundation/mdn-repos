@@ -1,10 +1,6 @@
 use super::client::{SecretsManagerClient, SimpleFileSecretsManagerClient};
-use biscuit_auth::KeyPair;
 use clap::Parser;
-use identity_jose::{
-    jwk::{EdCurve, Jwk, JwkParamsOkp, JwkType, JwkUse},
-    jws::JwsAlgorithm,
-};
+use mee_crypto::jwt::ToJwk;
 use mee_data_sync::iroh::utils::create_iroh_secret_key;
 
 #[derive(Debug, Clone, Parser)]
@@ -36,24 +32,10 @@ pub async fn keygen_init(params: KeyGenInitParams) -> anyhow::Result<()> {
             .await?;
 
         if jwk.is_none() {
-            let ed25519_keypair = KeyPair::new();
+            let jwk: mee_crypto::jwk::Jwk =
+                mee_crypto::asymm::ed25519::Ed25519Keypair::new().to_jwk_public()?;
 
-            let mut keypair_jwk = Jwk::new(JwkType::Okp);
-
-            keypair_jwk.set_kid(uuid::Uuid::new_v4().to_string());
-            keypair_jwk.set_use(JwkUse::Signature);
-
-            keypair_jwk.set_params(JwkParamsOkp {
-                crv: EdCurve::Ed25519.name().to_owned(),
-                x: identity_jose::jwu::encode_b64(ed25519_keypair.public().to_bytes()),
-                d: Some(identity_jose::jwu::encode_b64(
-                    ed25519_keypair.private().to_bytes(),
-                )),
-            })?;
-
-            keypair_jwk.set_alg(JwsAlgorithm::EdDSA.to_string());
-
-            let jwk = serde_json::to_vec(&keypair_jwk)?;
+            let jwk = serde_json::to_vec(&jwk)?;
 
             secret_mng_client
                 .set_secret(&jwk_auth_signature_secret_path, jwk)

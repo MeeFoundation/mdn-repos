@@ -28,10 +28,10 @@ pub enum MdnUserAccountRole {
 #[derive(Debug)]
 pub struct UserAccountDomainModel {
     pub mdn_user_uid: String,
-    pub mdn_user_email: String,
     pub mdn_user_role: MdnUserAccountRole,
-    pub mdn_user_phone: Option<String>,
-    pub mdn_user_name: Option<String>,
+    pub _mdn_user_email: String,
+    pub _mdn_user_phone: Option<String>,
+    pub _mdn_user_name: Option<String>,
 }
 
 impl TryFrom<db_models::mdn_users::Model> for UserAccountDomainModel {
@@ -49,10 +49,10 @@ impl TryFrom<db_models::mdn_users::Model> for UserAccountDomainModel {
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             mdn_user_uid,
-            mdn_user_email,
+            _mdn_user_email: mdn_user_email,
             mdn_user_role: mdn_user_role.parse()?,
-            mdn_user_phone,
-            mdn_user_name,
+            _mdn_user_phone: mdn_user_phone,
+            _mdn_user_name: mdn_user_name,
         })
     }
 }

@@ -7,6 +7,8 @@ use mee_crypto::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::error::MdnIdentityAgentResult;
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MdnCloudUserIdToken {
     pub iss: String,
@@ -21,7 +23,7 @@ pub struct MdnCloudUserIdToken {
 pub fn decode_mdn_cloud_user_id_token(
     encoded_token: &str,
     sign_key: Jwk,
-) -> anyhow::Result<MdnCloudUserIdToken> {
+) -> MdnIdentityAgentResult<MdnCloudUserIdToken> {
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
 
@@ -39,7 +41,7 @@ pub fn encode_mdn_cloud_user_id_token(
     sub: String,
     mdn_user_role: String,
     sign_key: Jwk,
-) -> anyhow::Result<String> {
+) -> MdnIdentityAgentResult<String> {
     let now = Utc::now();
     let iat = now.timestamp();
     let exp = now

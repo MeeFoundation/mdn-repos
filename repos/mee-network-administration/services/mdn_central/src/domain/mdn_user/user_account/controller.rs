@@ -78,7 +78,7 @@ impl MdnUserAccountController {
         Ok(res)
     }
 
-    pub async fn authorize_user_login_request(
+    pub async fn _authorize_user_login_request(
         &self,
         payload: AuthorizeUserRequest,
     ) -> MdnCentralResult<AuthorizeUserResponse> {
@@ -86,7 +86,7 @@ impl MdnUserAccountController {
             &*self.rdb_storage.connection(),
             self.mdn_central_authority_signature.clone(),
         )
-        .authorize_user_account(&payload.auth_token)
+        ._authorize_user_account(&payload.auth_token)
         .await?;
 
         Ok(res)

@@ -12,7 +12,7 @@ use axum_extra::headers::authorization::{Bearer, Credentials};
 #[derive(Debug, Clone)]
 pub struct LoggedInMdnUser {
     pub mdn_user_uid: String,
-    pub mdn_user_account_role: MdnUserAccountRole,
+    pub _mdn_user_account_role: MdnUserAccountRole,
 }
 
 #[async_trait::async_trait]

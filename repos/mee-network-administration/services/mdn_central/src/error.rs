@@ -1,4 +1,5 @@
 use axum::{http::StatusCode, response::IntoResponse};
+use mdn_identity_agent::error::MdnIdentityAgentErr;
 use mee_crypto::error::MeeCryptoErr;
 use mee_did::error::MeeDidErr;
 use sea_orm::TransactionError;
@@ -56,16 +57,18 @@ pub enum MdnCentralErr {
     #[error("Mee DID utils error: {0}")]
     MeeDidUtils(#[from] MeeDidErr),
 
+    #[error("MDN identity agent module error: {0}")]
+    MdnIdentityAgent(#[from] MdnIdentityAgentErr),
+
     #[error(
         "User management error: cloud user authorization token is missing"
     )]
     MissingMdnUserAuthToken,
 
-    #[error(
-        "User management error: cloud user authorization token is invalid"
-    )]
-    InvalidMdnCloudUserAuthToken,
-
+    // #[error(
+    //     "User management error: cloud user authorization token is invalid"
+    // )]
+    // InvalidMdnCloudUserAuthToken,
     #[error("User management error: device user authorization token is invalid: {0}")]
     InvalidMdnDeviceUserAuthToken(String),
 

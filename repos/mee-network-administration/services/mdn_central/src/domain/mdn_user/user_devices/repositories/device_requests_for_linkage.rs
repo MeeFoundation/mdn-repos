@@ -2,6 +2,7 @@ use crate::{
     db_models::{
         mdn_user_device_requests_for_linkage, mdn_user_devices, prelude::*,
     },
+    domain::mdn_user::user_devices::api::devices::types::UserDeviceLinkageRequest,
     error::MdnCentralResult,
 };
 use async_trait::async_trait;
@@ -17,6 +18,18 @@ pub type DeviceLinkageRequestWithDevice = (
     mdn_user_device_requests_for_linkage::Model,
     mdn_user_devices::Model,
 );
+
+pub fn into_user_device_linkage_request(
+    (req, dev): DeviceLinkageRequestWithDevice,
+) -> UserDeviceLinkageRequest {
+    UserDeviceLinkageRequest {
+        device_description: dev.device_description,
+        device_did: dev.device_did,
+        mdn_user_device_uid: dev.mdn_user_device_uid,
+        mdn_user_device_request_for_linkage_uid: req
+            .mdn_user_device_request_for_linkage_uid,
+    }
+}
 
 #[async_trait]
 pub trait MdnUserDeviceRequestsForLinkageRepository {
