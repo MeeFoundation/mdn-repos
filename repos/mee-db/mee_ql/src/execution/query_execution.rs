@@ -78,7 +78,7 @@ impl QueryExecutorImpl {
                             .unwrap_or("".to_string());
                         let prefix = format!("{prefix}{}", path_node.value.field.as_ref().unwrap_or(&"".to_string()));
 
-                        deletes.lock().unwrap().insert(prefix);
+                deletes.lock().unwrap().insert(prefix);
                 yield ctx.clone();
             }
         };
@@ -299,10 +299,12 @@ impl Executor<Query, Value> for QueryExecutorImpl {
 
         //TODO: handle errors
         let result = match node.value.query_type.clone() {
-            QueryType::FirstOrNull => stream.next().await.unwrap(),
+            QueryType::FirstOrNull => stream.next().await.ok_or(Error::UnexpectedStateError(
+                "Failed to get first or null value".to_string(),
+            ))?,
             QueryType::All => {
                 let arr = stream.collect::<Vec<_>>().await;
-                Ok(Value::Array(arr.into_iter().map(|v| v.unwrap()).collect()))
+                Ok(Value::Array(arr.into_iter().collect::<Result<Vec<_>>>()?))
             }
         };
 

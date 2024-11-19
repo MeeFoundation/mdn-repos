@@ -34,22 +34,6 @@ pub fn mee_node<T>(node: &Node, inner: T) -> MeeNode<T> {
     MeeNode::new(inner, node.start_byte(), node.end_byte())
 }
 
-pub fn check_node_type(node: &Node, expected_type: &str, source_text: &str) -> Result<()> {
-    if node.kind() != expected_type {
-        Err(Error::syntax_error(
-            Position(node.byte_range().start, node.byte_range().end),
-            source_text,
-            format!(
-                "Expected type: {:?}, found: {:?}",
-                expected_type,
-                node.kind()
-            ),
-        ))
-    } else {
-        Ok(())
-    }
-}
-
 pub fn get_child_by_field_name<'a>(
     node: Node<'a>,
     field_name: &'a str,

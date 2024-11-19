@@ -5,12 +5,20 @@ use tree_sitter::LanguageError;
 
 #[derive(Error, Debug)]
 pub enum Error {
+    //server
     #[error("Language error: {0}")]
     LanguageError(#[from] LanguageError),
 
     #[error("Wrong query: {0}")]
     WrongQuery(String),
 
+    #[error("Storage error: {0}")]
+    StorageError(#[from] StorageError),
+
+    #[error("Unexpected state error: {0}")]
+    UnexpectedStateError(String),
+
+    //user
     #[error("Syntax error: {1}")]
     SyntaxError(Position, String),
 
@@ -19,9 +27,6 @@ pub enum Error {
 
     #[error("Runtime error: {1}")]
     RuntimeError(Position, String),
-
-    #[error("Storage error: {0}")]
-    StorageError(#[from] StorageError),
 }
 
 fn make_error_msg(

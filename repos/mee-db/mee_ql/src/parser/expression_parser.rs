@@ -96,13 +96,7 @@ impl Parser<MeeNode<Path>> for PathParser {
             Err(Error::validation_error(
                 Position(node.byte_range().start, node.byte_range().end),
                 source_text,
-                format!(
-                    "Path not found: {:?}, node: {}, text: {}, context: {:?}",
-                    path,
-                    node.kind(),
-                    node_text(&node, source_text)?.value,
-                    ctx
-                ),
+                format!("Path not found: {}", path.root),
             ))
         }
     }
@@ -187,7 +181,6 @@ impl Parser<MeeNode<Expression>> for ValueParser {
         parser_list: &ParserList,
         ctx: &mut Context,
     ) -> Result<MeeNode<Expression>> {
-        dbg!(&node);
         match node.kind() {
             "path" => {
                 let path = parser_list
@@ -306,7 +299,6 @@ pub struct NumberParser;
 impl Parser<f64> for NumberParser {
     fn parse(&self, source_text: &str, node: Node, _: &ParserList, _: &mut Context) -> Result<f64> {
         let text = node_text(&node, source_text)?.value;
-        dbg!(&text);
         let number = text.parse::<f64>().map_err(|_| {
             Error::validation_error(
                 Position(node.byte_range().start, node.byte_range().end),

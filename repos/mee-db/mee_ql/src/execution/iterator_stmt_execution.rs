@@ -79,9 +79,12 @@ impl IteratorExecutor for IteratorExecutorImpl {
                     pin_mut!(users);
                     for await user in users {
                         let mut new_ctx: RuntimeContext = ctx.clone();
+                        let id = user.x_get_id().ok_or(Error::UnexpectedStateError(
+                            "User id is not set".to_string(),
+                        ))?;
                         new_ctx.insert(
                             format!("{item_name}.$path"),
-                            Value::String(object_key(user.x_get_id().unwrap())),
+                            Value::String(object_key(id)),
                         );
                         new_ctx.insert(item_name.clone(), user);
 

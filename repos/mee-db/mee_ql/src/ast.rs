@@ -217,7 +217,7 @@ impl Path {
         let parts = str.split(".").collect::<Vec<_>>();
         if parts.len() == 1 {
             Path {
-                root: parts.first().unwrap().to_string(),
+                root: parts.first().unwrap_or(&"").to_string(),
                 field: None,
             }
         } else if parts.is_empty() {

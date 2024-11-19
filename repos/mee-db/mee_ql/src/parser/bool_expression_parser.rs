@@ -20,7 +20,6 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
                     source_text,
                     "Expected val",
                 ))?;
-                dbg!(&val_node);
                 let val = parser_list
                     .value
                     .parse(source_text, val_node, parser_list, ctx)?;

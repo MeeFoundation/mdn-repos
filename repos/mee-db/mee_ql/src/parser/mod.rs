@@ -45,7 +45,6 @@ impl ASTParser for ASTParserImpl {
             .ok_or(Error::WrongQuery(self.source_code.clone()))?;
 
         let root_node = tree.root_node();
-        dbg!(&root_node);
 
         //TODO: collect all errors and return them???
         Self::find_errors(root_node, &self.source_code)?;
@@ -75,6 +74,7 @@ impl ASTParserImpl {
     }
 
     fn find_errors(node: tree_sitter::Node, source_code: &str) -> Result<()> {
+        dbg!(&node);
         if node.is_error() {
             Err(Error::syntax_error(
                 Position(node.byte_range().start, node.byte_range().end),

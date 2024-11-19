@@ -25,11 +25,12 @@ use axum::Json;
     responses(
       (status = 200, description = "Ok", body = Value),
       (status = 500, description = "Something went wrong", body = String),
+      (status = 400, description = "Bad request", body = String),
   ),
 )]
 #[axum::debug_handler]
 pub async fn execute(State(storage): State<DB>, query: String) -> Result<Json<Value>> {
-    let res = storage.execute(query).await.unwrap();
+    let res = storage.execute(query).await?;
     Ok(Json(res))
 }
 
@@ -43,6 +44,7 @@ pub async fn execute(State(storage): State<DB>, query: String) -> Result<Json<Va
     responses(
       (status = 200, description = "Ok", body = Vec<String>),
       (status = 500, description = "Something went wrong", body = String),
+      (status = 400, description = "Bad request", body = String),
   ),
 )]
 #[axum::debug_handler]
@@ -50,6 +52,6 @@ pub async fn insert_many(
     State(storage): State<DB>,
     Json(data): Json<Vec<Value>>,
 ) -> Result<Json<Vec<String>>> {
-    let res = storage.insert_many(data).await.unwrap();
+    let res = storage.insert_many(data).await?;
     Ok(Json(res))
 }
