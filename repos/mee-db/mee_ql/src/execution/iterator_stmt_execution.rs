@@ -14,10 +14,6 @@ fn object_key(id: &str) -> String {
     format!("{ID_PREFIX}{id}")
 }
 
-fn property_key(object_key: &str, property: &str) -> String {
-    format!("{object_key}{PATH_SEPARATOR}{property}")
-}
-
 pub struct IteratorExecutorImpl {
     store: Store,
 }
@@ -33,52 +29,6 @@ impl IteratorExecutorImpl {
             .await
             .map_err(|e| e.to_string())
     }
-
-    async fn apply_assignments(
-        source_text: Arc<String>,
-        ctx: &mut RuntimeContext,
-        executor_list: Arc<ExecutorList>,
-        assignments: &HashMap<MeeNode<String>, MeeNode<Expression>>,
-    ) -> Result<(), String> {
-        for (key, expr) in assignments.iter() {
-            let expr = Arc::new(expr.clone());
-            let value = executor_list
-                .ee
-                .execute(
-                    source_text.clone(),
-                    expr.clone(),
-                    ctx.clone(),
-                    executor_list.clone(),
-                )
-                .await?;
-            ctx.insert(key.value.clone(), value);
-        }
-        Ok(())
-    }
-
-    async fn filter_value(
-        filter_node: &Option<MeeNode<BoolExpression>>,
-        source_text: Arc<String>,
-        ctx: RuntimeContext,
-        executor_list: Arc<ExecutorList>,
-    ) -> Result<bool, String> {
-        if let Some(filter_node) = filter_node {
-            if executor_list
-                .be
-                .execute(
-                    source_text.clone(),
-                    Arc::new(filter_node.clone()),
-                    ctx,
-                    executor_list.clone(),
-                )
-                .await?
-                != Value::Bool(true)
-            {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    }
 }
 
 #[async_trait::async_trait]
@@ -91,12 +41,9 @@ impl IteratorExecutor for IteratorExecutorImpl {
         executor_list: Arc<ExecutorList>,
     ) -> ContextStream {
         let source_node = node.value.source.clone();
-        let filter_node = node.value.filter.clone();
 
         let store = self.store.clone();
         let item_name = node.value.item.value.clone();
-        let limit = node.value.limit.unwrap_or(usize::MAX);
-        let offset = node.value.offset.unwrap_or(0);
 
         let stream: ContextStream = match source_node.value.clone() {
             Source::ArraySource(exprs) => Box::pin(try_stream! {
@@ -116,18 +63,8 @@ impl IteratorExecutor for IteratorExecutorImpl {
                             .await?;
                         let mut new_ctx: RuntimeContext = ctx.clone();
                         new_ctx.insert(item_name.clone(), v);
-                        IteratorExecutorImpl::apply_assignments(
-                            source_text.clone(),
-                            &mut new_ctx,
-                            executor_list.clone(),
-                            &node.value.assignments,
-                        )
-                        .await?;
-                        if IteratorExecutorImpl::filter_value(&filter_node.clone(), source_text.clone(), new_ctx.clone(), executor_list.clone())
-                            .await?
-                        {
-                            yield new_ctx.clone();
-                        }
+
+                        yield new_ctx.clone();
                     }
                 }
             }),
@@ -149,18 +86,7 @@ impl IteratorExecutor for IteratorExecutorImpl {
                         );
                         new_ctx.insert(item_name.clone(), user);
 
-                        IteratorExecutorImpl::apply_assignments(
-                            source_text.clone(),
-                            &mut new_ctx,
-                            executor_list.clone(),
-                            &node.value.assignments,
-                        )
-                        .await?;
-                        if IteratorExecutorImpl::filter_value(&filter_node.clone(), source_text.clone(), new_ctx.clone(), executor_list.clone())
-                            .await?
-                        {
-                            yield new_ctx.clone();
-                        }
+                        yield new_ctx.clone();
                     }
                 }
             }),
@@ -195,24 +121,14 @@ impl IteratorExecutor for IteratorExecutorImpl {
                             );
 
                             new_ctx.insert(item_name.clone(), item.clone());
-                            IteratorExecutorImpl::apply_assignments(
-                                source_text.clone(),
-                                &mut new_ctx,
-                                executor_list.clone(),
-                                &node.value.assignments,
-                            )
-                            .await?;
-                            if IteratorExecutorImpl::filter_value(&filter_node.clone(), source_text.clone(), new_ctx.clone(), executor_list.clone())
-                                .await?
-                            {
-                                yield new_ctx.clone();
-                            }
+
+                            yield new_ctx.clone();
                         }
                     }
                 }
             }),
         };
 
-        stream.skip(offset).take(limit).boxed()
+        stream.boxed()
     }
 }

@@ -30,27 +30,31 @@ module.exports = grammar({
         start: $ => $._query,
 
         _query: $ => prec.left(PREC.instruction, choice(
+            $.missing_query_start,
             $.array_query,
-            $.element_query
+            $.element_query,
         )),
 
-        array_query: $ => prec.left(PREC.instruction, seq('[', field('body', $._query_body), ']')),
-        element_query: $ => prec.left(PREC.instruction, seq('(', field('body', $._query_body), ')')),
+        array_query: $ => prec.left(PREC.instruction, seq('[', field('body', $._query_body), choice($.missing_array_query_end, ']'))),
+        element_query: $ => prec.left(PREC.instruction, seq('(', field('body', $._query_body), choice($.missing_element_query_end, ')'))),
 
         _query_body: $ => prec.left(PREC.instruction, seq(
             optional(field('result', $._expression)),
-            field('iterators', repeat1($.iterator_stmt)),
-            field('updates', repeat($.update_stmt)),
-            field('deletes', repeat($.delete_stmt)),
+            choice(field('main_iterator', $.iterator_stmt), $.missing_main_iterator),
+            field('statements', repeat(choice(
+                $.iterator_stmt,
+                $.assignment,
+                $.update_stmt,
+                $.delete_stmt,
+                $.filter_stmt,
+                $.offset_stmt,
+                $.limit_stmt,
+            ))),
         )),
 
         iterator_stmt: $ => prec.left(PREC.instruction, seq(
-            $._for, field('item', $.ident), $._in, field('source', choice(seq($.path, optional('()')), $.array)),
-            field('assignments', repeat($.assignment)),
-            optional(seq($._if, field('filter', $._bool_expression))),
-            optional(seq($._offset, field('offset', $.pos_int))),
-            optional(seq($._limit, field('limit', $.pos_int))),
-        )),
+            $._for, field('item', $.ident), $._in, field('source', choice(seq($.path, optional('()')), $.array))),
+        ),
 
         assignment: $ => prec.right(PREC.instruction, seq(
             field('var', $.ident), '=', field('expr', $._expression)
@@ -64,7 +68,21 @@ module.exports = grammar({
             $._delete, field('field', $.path)
         )),
 
-        _expression: $ => prec.left(PREC.expression, choice($._query, $._bool_expression,
+        filter_stmt: $ => prec.left(PREC.instruction, seq(
+            $._if, field('filter', $._bool_expression)
+        )),
+
+        offset_stmt: $ => prec.left(PREC.instruction, seq(
+            $._offset, field('offset', $.pos_int)
+        )),
+
+        limit_stmt: $ => prec.left(PREC.instruction, seq(
+            $._limit, field('limit', $.pos_int)
+        )),
+
+        _expression: $ => prec.left(PREC.expression, choice(
+            $._query,
+            $._bool_expression,
             $.path,
             $.object,
             $.array,
@@ -92,7 +110,7 @@ module.exports = grammar({
         )),
 
         and_expression: $ => prec.left(PREC.and, seq(
-            choice($._bool_expression),
+            $._bool_expression,
             repeat1(seq($._and, $._bool_expression))
         )),
 
@@ -173,6 +191,13 @@ module.exports = grammar({
 
             return token(decimalLiteral);
         },
+
+        missing_query_start: $ => prec(-1, token(prec(-1, /[^\[\(]+/))),
+        missing_array_query_end: $ => prec(-1, token(prec(-1, /[^]].*/))),
+        missing_element_query_end: $ => prec(-1, token(prec(-1, /[^\)].*/))),
+        missing_main_iterator: $ => prec(-1, token(prec(-1, /[^fF].*/))),
+        missing_iterator: $ => prec(-1, token(prec(-1, /[^fF].*/))),
+        // missing_right_parenthesis: $ => prec(-1, prec(-1, token(/[^)]+/))),
 
         _for: _ => prec.left(PREC.key_word, 'for'),
 

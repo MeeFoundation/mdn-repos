@@ -15,6 +15,7 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
         match node.kind() {
             "comparison" => {
                 let val_node = node.child_by_field_name("val").ok_or("Expected val")?;
+                dbg!(&val_node);
                 let val = parser_list
                     .value
                     .parse(source_text, val_node, parser_list, ctx)?;
@@ -22,6 +23,7 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
                 let comparator_node = node
                     .child_by_field_name("comparator")
                     .ok_or("Expected comparator")?;
+                dbg!(&comparator_node);
                 let comparator =
                     parser_list
                         .comparator

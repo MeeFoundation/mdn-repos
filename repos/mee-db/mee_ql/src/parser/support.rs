@@ -20,7 +20,11 @@ pub fn unescape(s: &str) -> String {
 }
 
 pub fn node_text(node: &Node, source_text: &str) -> Result<MeeNode<String>, String> {
-    Ok(mee_node(node, source_text[node.byte_range()].to_string()))
+    //TODO why trim helps?
+    Ok(mee_node(
+        node,
+        source_text[node.byte_range()].trim().to_string(),
+    ))
 }
 
 pub fn mee_node<T>(node: &Node, inner: T) -> MeeNode<T> {

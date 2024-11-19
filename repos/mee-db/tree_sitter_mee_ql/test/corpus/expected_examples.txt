@@ -16,7 +16,8 @@ Find by Id
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -44,7 +45,8 @@ Find last_name by email and name
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (and_expression
         (comparison
           (path
@@ -61,7 +63,7 @@ Find last_name by email and name
               (string_content))))))))
 
 ==================
-Find by country code or country 
+Find by country code or country
 ==================
 
 [
@@ -94,7 +96,8 @@ Find by country code or country
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (or_expression
         (comparison
           (path
@@ -138,14 +141,15 @@ Select users who made a purchase after a date
       (ident)
       (path
         (ident)
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
           (ident))
         (comparator
           (string
-            (string_content)))))))              
+            (string_content)))))))
 
 ==================
 Select 10 by age, gender, and country
@@ -169,7 +173,8 @@ Select 10 by age, gender, and country
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (and_expression
         (or_expression
           (comparison
@@ -184,22 +189,24 @@ Select 10 by age, gender, and country
               (ident))
             (comparator
               (number))))
-        (comparison
-          (path
-            (ident)
-            (ident))
-          (comparator
-            (string
-              (string_content))))
-        (comparison
-          (path
-            (ident)
-            (ident))
-          (comparator
-            (string
-              (string_content)))))
+        (and_expression
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content))))
+          (comparison
+            (path
+              (ident)
+              (ident))
+            (comparator
+              (string
+                (string_content)))))))
+    (limit_stmt
       (pos_int))))
-      
+
 ==================
 Select users for refund for a canceled flight
 ==================
@@ -243,43 +250,46 @@ Select users for refund for a canceled flight
     (iterator_stmt
       (ident)
       (path
-        (ident))
-      (assignment
-        (ident)
-        (element_query
-          (number)
-          (iterator_stmt
-            (ident)
-            (path
-              (ident)
-              (ident))
-            (and_expression
-              (comparison
-                (path
-                  (ident)
-                  (ident))
-                (comparator
-                  (string
-                    (string_content))))
-              (comparison
-                (path
-                  (ident)
-                  (ident))
-                (comparator
-                  (string
-                    (string_content))))))))
-      (assignment
-        (ident)
-        (element_query
+        (ident)))
+    (assignment
+      (ident)
+      (element_query
+        (number)
+        (iterator_stmt
+          (ident)
           (path
             (ident)
-            (ident))
-          (iterator_stmt
+            (ident)))
+        (filter_stmt
+          (and_expression
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (string
+                  (string_content))))
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (string
+                  (string_content))))))))
+    (assignment
+      (ident)
+      (element_query
+        (path
+          (ident)
+          (ident))
+        (iterator_stmt
+          (ident)
+          (path
             (ident)
-            (path
-              (ident)
-              (ident))
-            (pos_int))))
+            (ident)))
+        (limit_stmt
+          (pos_int))))
+    (filter_stmt
       (and_expression
         (comparison
           (path
@@ -318,7 +328,8 @@ Update flight departure time
       (ident)
       (path
         (ident)
-        (ident))
+        (ident)))
+    (filter_stmt
       (and_expression
         (comparison
           (path
@@ -340,7 +351,7 @@ Update flight departure time
         (ident))
       (string
         (string_content)))))
-        
+
 ==================
 Add a payment card
 ==================
@@ -360,7 +371,8 @@ Add a payment card
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)

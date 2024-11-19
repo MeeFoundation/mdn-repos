@@ -284,9 +284,9 @@ mod tests {
 
     #[test]
     fn test_incompatible_types_comparison_le() {
-        assert!(parse(r#"[for user in users() if 12 <= true]"#).is_err());
-        assert!(parse(r#"[for user in users() if true <= 12]"#).is_err());
-        assert!(parse(r#"[for user in users() if 11 <= 12]"#).is_ok());
+        assert!(dbg!(parse(r#"[for user in users() if 12 <= true]"#)).is_err());
+        assert!(dbg!(parse(r#"[for user in users() if true <= 12]"#)).is_err());
+        assert!(dbg!(parse(r#"[for user in users() if 11 <= 12]"#)).is_ok());
     }
 
     #[test]

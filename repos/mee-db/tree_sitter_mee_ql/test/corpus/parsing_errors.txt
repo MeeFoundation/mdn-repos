@@ -1,0 +1,70 @@
+===
+Missing query start
+===
+user for user in users]
+---
+
+(start
+  (missing_query_start))
+
+===
+Missing element query end
+===
+(user for user in users 
+---
+
+(start
+  (element_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (missing_element_query_end)))
+
+===
+Missing array query end
+===
+[ user for user in users
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (missing_array_query_end
+      (MISSING "missing_array_query_end_token1"))))
+
+===
+Missing main iterator
+===
+[ user if user.age > 12 ]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (missing_main_iterator)
+    (missing_array_query_end
+      (MISSING "missing_array_query_end_token1"))))
+
+===
+Syntax error
+===
+[ user for user in users ffff
+---
+
+(ERROR
+  (path
+    (ident))
+  (iterator_stmt
+    (ident)
+    (path
+      (ident)))
+  (ident))

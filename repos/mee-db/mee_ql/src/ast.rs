@@ -111,27 +111,25 @@ impl<T> MeeNode<T> {
 pub struct Query {
     pub result: Option<MeeNode<Expression>>,
     pub main_iterator: MeeNode<IteratorStmt>,
-    pub embedded_iterators: Vec<MeeNode<IteratorStmt>>,
-    pub updates: HashMap<MeeNode<Path>, MeeNode<Expression>>,
-    pub deletes: MeeNode<DeleteStmt>,
+    pub statements: Vec<MeeNode<Statement>>,
     pub query_type: QueryType,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum DeleteStmt {
-    Paths(Vec<MeeNode<Path>>),
-    All,
-    None,
+pub enum Statement {
+    Iterator(IteratorStmt),
+    Assignment((MeeNode<String>, MeeNode<Expression>)),
+    Update((MeeNode<Path>, MeeNode<Expression>)),
+    Delete(MeeNode<Path>),
+    Filter(MeeNode<BoolExpression>),
+    Offset(usize),
+    Limit(usize),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IteratorStmt {
     pub item: MeeNode<String>,
     pub source: MeeNode<Source>,
-    pub assignments: HashMap<MeeNode<String>, MeeNode<Expression>>,
-    pub filter: Option<MeeNode<BoolExpression>>,
-    pub offset: Option<usize>,
-    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

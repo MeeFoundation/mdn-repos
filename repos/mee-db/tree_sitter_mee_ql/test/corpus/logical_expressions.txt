@@ -10,13 +10,15 @@ greedy and grouping
     (iterator_stmt
       (ident)
       (path
-        (ident))
-    (and_expression
+        (ident)))
+    (filter_stmt
+      (and_expression
         (true)
-        (false)
-        (path
-            (ident))))))
-        
+        (and_expression
+          (false)
+          (path
+            (ident)))))))
+
 ===
 greedy or grouping
 ===
@@ -24,17 +26,19 @@ greedy or grouping
 [for user in users if true or false or path]
 ---
 
-    (start
-      (array_query
-        (iterator_stmt
-          (ident)
-          (path
-            (ident))
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (or_expression
+        (true)
         (or_expression
-            (true)
-            (false)
-            (path
-            (ident))))))
+          (false)
+          (path
+            (ident)))))))
 
 ===
 not operation
@@ -48,9 +52,10 @@ not operation
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (not_expression
-          (true)))))
+        (true)))))
 
 ===
 and operation
@@ -64,10 +69,11 @@ and operation
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (and_expression
-          (true)
-          (false)))))
+        (true)
+        (false)))))
 
 ===
 or operation
@@ -81,10 +87,11 @@ or operation
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (or_expression
-          (true)
-          (false)))))
+        (true)
+        (false)))))
 
 ===
 grouped expression
@@ -98,13 +105,13 @@ grouped expression
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (and_expression
         (true)
         (or_expression
-        (false)
-        (true))))))
-
+          (false)
+          (true))))))
 
 ===
 operation priorities
@@ -113,20 +120,21 @@ operation priorities
 [for user in users if true and not true or false and true]
 ---
 
-        (start
-      (array_query
-        (iterator_stmt
-          (ident)
-          (path
-            (ident))
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (and_expression
+        (true)
         (or_expression
-            (and_expression
-            (true)
-            (not_expression
-                (true)))
-            (and_expression
+          (not_expression
+            (true))
+          (and_expression
             (false)
-            (true))))))
+            (true)))))))
 
 ===
 Complicated expression
@@ -135,35 +143,37 @@ Complicated expression
 [for user in users if not user.is_admin or check1 and check2 and (check4 or not check5 or not (check6 and check7))]
 ---
 
-        (start
-      (array_query
-        (iterator_stmt
-          (ident)
+(start
+  (array_query
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (or_expression
+        (not_expression
+          (path
+            (ident)
+            (ident)))
+        (and_expression
           (path
             (ident))
+          (and_expression
+            (path
+              (ident))
             (or_expression
+              (path
+                (ident))
+              (or_expression
                 (not_expression
-                (path
-                    (ident)
+                  (path
                     (ident)))
-                (and_expression
-                (path
-                    (ident))
-                (path
-                    (ident))
-                (or_expression
+                (not_expression
+                  (and_expression
                     (path
-                    (ident))
-                    (not_expression
+                      (ident))
                     (path
-                        (ident)))
-                    (not_expression
-                    (and_expression
-                        (path
-                        (ident))
-                        (path
-                        (ident))))))))))
-
+                      (ident))))))))))))
 
 ===
 With comparator
@@ -177,28 +187,29 @@ With comparator
     (iterator_stmt
       (ident)
       (path
-        (ident))
-      (or_expression
-        (and_expression
-          (true)
+        (ident)))
+    (filter_stmt
+      (and_expression
+        (true)
+        (or_expression
           (comparison
             (path
               (ident)
               (ident))
-            (comparator)))
-        (and_expression
-          (comparison
-            (path
-              (ident)
-              (ident))
-            (comparator
-              (number)))
-          (comparison
-            (path
-              (ident)
-              (ident))
-            (comparator
-              (string
-                (string_content)
-                (escape_sequence)
-                (string_content)))))))))
+            (comparator))
+          (and_expression
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (number)))
+            (comparison
+              (path
+                (ident)
+                (ident))
+              (comparator
+                (string
+                  (string_content)
+                  (escape_sequence)
+                  (string_content))))))))))

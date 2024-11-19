@@ -3,15 +3,15 @@ use crate::execution::ExecutorList;
 use crate::json_kv_store;
 use crate::parser::ASTParserImpl;
 use crate::query_executor;
-use mee_storage::json_kv_store::{new_btree_map_based, Store};
+use mee_storage::json_kv_store::Store;
 // use crate::Result;
-use futures::stream::StreamExt;
+
 use serde_json::Value;
 use std::sync::Arc;
 
-use mee_storage::binary_kv_store::PATH_SEPARATOR;
 use mee_storage::json_utils::*;
-use mee_storage::query_el::FieldFilter;
+
+#[allow(unused)]
 use serde_json::json;
 
 pub type DB = Arc<dyn QueryExecutor + Send + Sync>;
@@ -35,7 +35,7 @@ pub struct QueryExecutorImpl {
 impl QueryExecutorImpl {
     pub fn new_btree_map_based() -> DB {
         let store = json_kv_store::new_btree_map_based();
-        Arc::new( Self {
+        Arc::new(Self {
             store: store.clone(),
             executor_list: query_executor(store),
         })
@@ -414,17 +414,16 @@ mod tests {
     #[tokio::test]
     async fn test_delete_card() {
         let qe = setup().await;
-        let res = qe
-            .execute(
-                r#"[
+        qe.execute(
+            r#"[
             user for user in users if user.name == "Bob"
             for card in user.payment_cards if card.number == "9999 5678 9014 3456"
             delete card
             ]"#
-                .to_string(),
-            )
-            .await
-            .unwrap();
+            .to_string(),
+        )
+        .await
+        .unwrap();
         let res = qe
             .execute(
                 r#"[

@@ -179,6 +179,7 @@ impl Parser<MeeNode<Expression>> for ValueParser {
         parser_list: &ParserList,
         ctx: &mut Context,
     ) -> Result<MeeNode<Expression>, String> {
+        dbg!(&node);
         match node.kind() {
             "path" => {
                 let path = parser_list
@@ -299,6 +300,7 @@ impl Parser<f64> for NumberParser {
         _: &mut Context,
     ) -> Result<f64, String> {
         let text = node_text(&node, source_text)?.value;
+        dbg!(&text);
         let number = text.parse::<f64>().map_err(|e| e.to_string())?;
         Ok(number)
     }

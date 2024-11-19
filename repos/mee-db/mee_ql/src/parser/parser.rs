@@ -1,4 +1,5 @@
 use super::*;
+use statement_parser::StatementParser;
 use std::collections::HashMap;
 use tree_sitter::Node;
 
@@ -16,7 +17,7 @@ pub trait Parser<T> {
 pub struct ParserList {
     pub query: Box<dyn Parser<MeeNode<Query>>>,
     pub iterator_stmt: Box<dyn Parser<MeeNode<IteratorStmt>>>,
-    pub delete_stmt: Box<dyn Parser<MeeNode<DeleteStmt>>>,
+    pub statement: Box<dyn Parser<MeeNode<Statement>>>,
     pub value: Box<dyn Parser<MeeNode<Expression>>>,
     pub expression: Box<dyn Parser<MeeNode<Expression>>>,
     pub comparator: Box<dyn Parser<MeeNode<Comparator>>>,
@@ -36,7 +37,7 @@ impl ParserList {
         Self {
             query: Box::new(QueryParser),
             iterator_stmt: Box::new(IteratorStmtParser),
-            delete_stmt: Box::new(DeleteStmtParser),
+            statement: Box::new(StatementParser),
             value: Box::new(ValueParser),
             expression: Box::new(ExpressionParser),
             comparator: Box::new(ComparatorParser),

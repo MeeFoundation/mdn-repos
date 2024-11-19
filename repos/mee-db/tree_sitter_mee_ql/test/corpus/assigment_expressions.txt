@@ -12,17 +12,17 @@ JSON object
     (iterator_stmt
       (ident)
       (path
-        (ident))
-      (assignment
-        (ident)
-        (object
-          (pair
-            (string
-              (string_content))
-            (path
-              (ident)
-              (ident))))))))
-              
+        (ident)))
+    (assignment
+      (ident)
+      (object
+        (pair
+          (string
+            (string_content))
+          (path
+            (ident)
+            (ident)))))))
+
 ===
 Path
 ===
@@ -37,12 +37,12 @@ Path
     (iterator_stmt
       (ident)
       (path
-        (ident))
-      (assignment
+        (ident)))
+    (assignment
+      (ident)
+      (path
         (ident)
-        (path
-          (ident)
-          (ident))))))
+        (ident)))))
 
 ===
 String
@@ -58,12 +58,12 @@ String
     (iterator_stmt
       (ident)
       (path
-        (ident))
-      (assignment
-        (ident)
-        (string
-          (string_content))))))
-        
+        (ident)))
+    (assignment
+      (ident)
+      (string
+        (string_content)))))
+
 ===
 Logical expression
 ===
@@ -78,12 +78,12 @@ Logical expression
     (iterator_stmt
       (ident)
       (path
-        (ident))
-      (assignment
-        (ident)
-        (or_expression
-          (not_expression
-            (path
-              (ident)
-              (ident)))
-          (true))))))
+        (ident)))
+    (assignment
+      (ident)
+      (or_expression
+        (not_expression
+          (path
+            (ident)
+            (ident)))
+        (true)))))

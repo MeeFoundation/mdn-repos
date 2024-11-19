@@ -17,40 +17,11 @@ impl QueryExecutorImpl {
     }
 }
 
-fn object_key(id: &str) -> String {
-    format!("{ID_PREFIX}{id}")
-}
-
-//Fix for case [user for a in [1,2,3]  for user in users]
 impl QueryExecutorImpl {
-    async fn get_user_id(
-        source_text: Arc<String>,
-        node: Arc<MeeNode<Query>>,
-        ctx: &mut RuntimeContext,
-    ) -> Result<String, String> {
-        let user_item = &node.value.main_iterator.value.item.value;
-        ctx.get(user_item)
-            .and_then(|v| v.x_get_id())
-            .ok_or({
-                //only for testing
-                // let error_place = format!("\x1b[31m{}\x1b[0m", &source_text[node.start..node.end]);
-                let error_place = format!("<!{}!>", &source_text[node.start..node.end]);
-                format!(
-                    "Runtime error at position ({}, {}) (wrapped in '<!_!>') {}{}{} -  User id is not found in the context",
-                    node.start,
-                    node.end,
-                    &source_text[..node.start],
-                    error_place,
-                    &source_text[node.end..],
-                )
-            })
-            .map(|id| id.to_string())
-    }
-
-    async fn execute_updates(
+    async fn execute_update(
         &self,
         source_text: Arc<String>,
-        node: Arc<MeeNode<Query>>,
+        pair: (Arc<MeeNode<Path>>, Arc<MeeNode<Expression>>),
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
         updates: Arc<Mutex<HashMap<String, Value>>>,
@@ -58,10 +29,9 @@ impl QueryExecutorImpl {
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
-                let  ctx = ctx?;
-                for (path, expr) in node.clone().value.updates.iter() {
-                    dbg!(&path);
-                    let expr = Arc::new(expr.clone());
+                let ctx = ctx?;
+                let (path, expr) = pair.clone();
+
                     let v = executor_list
                         .ee
                         .execute(
@@ -78,29 +48,28 @@ impl QueryExecutorImpl {
                             .unwrap_or("".to_string());
                     let prefix = format!("{prefix}{}", path.value.field.as_ref().unwrap_or(&"".to_string()));
 
-                    updates.lock().unwrap().insert(prefix, v);
-                }
+                updates.lock().unwrap().insert(prefix, v);
+
                 yield ctx;
             }
+
         };
         Box::pin(stream)
     }
 
-    async fn execute_deletes(
+    async fn execute_delete(
         &self,
-        source_text: Arc<String>,
-        node: Arc<MeeNode<Query>>,
+        _source_text: Arc<String>,
+        path: Arc<MeeNode<Path>>,
         input_ctx: ContextStream,
         deletes: Arc<Mutex<HashSet<String>>>,
     ) -> ContextStream {
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
-                let mut ctx = ctx?;
-                match node.clone().value.deletes.value {
-                    DeleteStmt::Paths(ref path_nodes) => {
-                        for path_node in path_nodes.iter() {
-                            let path_node = Arc::new(path_node.clone());
+                let  ctx = ctx?;
+
+                let path_node = Arc::new(path.clone());
 
                         let prefix = ctx
                             .get(&format!("{}.$path", path_node.value.root))
@@ -109,28 +78,68 @@ impl QueryExecutorImpl {
                         let prefix = format!("{prefix}{}", path_node.value.field.as_ref().unwrap_or(&"".to_string()));
 
                         deletes.lock().unwrap().insert(prefix);
-                        }
-                    }
-                    DeleteStmt::All => {
-                        let user_id = QueryExecutorImpl::get_user_id(
-                            source_text.clone(),
-                            node.clone(),
-                            &mut ctx,
-                        )
-                        .await?;
-                        let user_item = &node.clone().value.main_iterator.value.item.value;
-                        let path_str = Path {
-                            root: user_item.clone(),
-                            field: None,
-                        }
-                        .to_store_path(&user_id);
-
-                        deletes.lock().unwrap().insert(path_str);
-                    }
-                    _ => {}
-                }
                 yield ctx.clone();
             }
+        };
+        Box::pin(stream)
+    }
+
+    async fn execute_assignment(
+        &self,
+        source_text: Arc<String>,
+        pair: (Arc<MeeNode<String>>, Arc<MeeNode<Expression>>),
+        input_ctx: ContextStream,
+        executor_list: Arc<ExecutorList>,
+    ) -> ContextStream {
+        let stream = try_stream! {
+            pin_mut!(input_ctx);
+            for await ctx in input_ctx {
+                let mut ctx = ctx?;
+                let (key, expr) = pair.clone();
+                let value = executor_list
+            .ee
+            .execute(
+                source_text.clone(),
+                expr.clone(),
+                ctx.clone(),
+                executor_list.clone(),
+            )
+            .await?;
+        ctx.insert(key.value.clone(), value);
+        yield ctx.clone();
+            }
+        };
+        Box::pin(stream)
+    }
+
+    async fn execute_filter(
+        &self,
+        filter_node: Option<MeeNode<BoolExpression>>,
+        source_text: Arc<String>,
+        input_ctx: ContextStream,
+        executor_list: Arc<ExecutorList>,
+    ) -> ContextStream {
+        let stream = try_stream! {
+            pin_mut!(input_ctx);
+            for await ctx in input_ctx {
+                let ctx = ctx?;
+
+                if let Some(ref filter_node) = filter_node {
+                    if executor_list
+                    .be
+                    .execute(
+                        source_text.clone(),
+                        Arc::new(filter_node.clone()),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                .await?
+                == Value::Bool(true)
+            {
+                yield ctx.clone();
+            }
+            }
+        }
         };
         Box::pin(stream)
     }
@@ -162,37 +171,76 @@ impl QueryExecutor for QueryExecutorImpl {
 
         let mut new_stream = main_stream;
 
-        for iterator in node.value.embedded_iterators.iter() {
-            let iterator = Arc::new(iterator.clone());
-            new_stream = executor_list
-                .ie
-                .stream(
-                    source_text.clone(),
-                    iterator.clone(),
-                    new_stream,
-                    executor_list.clone(),
-                )
-                .await;
+        for statement in node.value.statements.iter() {
+            match statement.value {
+                Statement::Iterator(ref iterator) => {
+                    new_stream = executor_list
+                        .ie
+                        .stream(
+                            source_text.clone(),
+                            Arc::new(MeeNode::new(
+                                iterator.clone(),
+                                statement.start,
+                                statement.end,
+                            ))
+                            .clone(),
+                            new_stream,
+                            executor_list.clone(),
+                        )
+                        .await;
+                }
+                Statement::Assignment(ref assignment) => {
+                    new_stream = self
+                        .execute_assignment(
+                            source_text.clone(),
+                            (
+                                Arc::new(assignment.0.clone()),
+                                Arc::new(assignment.1.clone()),
+                            ),
+                            new_stream,
+                            executor_list.clone(),
+                        )
+                        .await;
+                }
+                Statement::Update(ref update) => {
+                    new_stream = self
+                        .execute_update(
+                            source_text.clone(),
+                            (Arc::new(update.0.clone()), Arc::new(update.1.clone())),
+                            new_stream,
+                            executor_list.clone(),
+                            updates.clone(),
+                        )
+                        .await;
+                }
+                Statement::Delete(ref delete) => {
+                    new_stream = self
+                        .execute_delete(
+                            source_text.clone(),
+                            Arc::new(delete.clone()),
+                            new_stream,
+                            deletes.clone(),
+                        )
+                        .await;
+                }
+                Statement::Filter(ref filter) => {
+                    new_stream = self
+                        .execute_filter(
+                            Some(filter.clone()),
+                            source_text.clone(),
+                            new_stream,
+                            executor_list.clone(),
+                        )
+                        .await;
+                }
+                Statement::Offset(ref offset) => {
+                    new_stream = Box::pin(new_stream.skip(*offset));
+                }
+                Statement::Limit(ref limit) => {
+                    new_stream = Box::pin(new_stream.take(*limit));
+                }
+            }
         }
-
-        new_stream = self
-            .execute_updates(
-                source_text.clone(),
-                node.clone(),
-                new_stream,
-                executor_list.clone(),
-                updates.clone(),
-            )
-            .await;
-
-        new_stream = self
-            .execute_deletes(
-                source_text.clone(),
-                node.clone(),
-                new_stream,
-                deletes.clone(),
-            )
-            .await;
 
         let stream = try_stream! {
 

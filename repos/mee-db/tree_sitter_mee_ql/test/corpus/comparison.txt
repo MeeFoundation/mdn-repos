@@ -13,14 +13,15 @@ Equal
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
           (ident))
         (comparator
           (string
-            (string_content)))))))              
+            (string_content)))))))
 
 ===
 Not Equal
@@ -37,7 +38,8 @@ Not Equal
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -61,7 +63,8 @@ Greater Than
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -84,7 +87,8 @@ Less Than
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -107,7 +111,8 @@ Greater Than or Equal
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -130,7 +135,8 @@ Less Than or Equal
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -153,7 +159,8 @@ Matches
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
@@ -177,7 +184,8 @@ Exists
     (iterator_stmt
       (ident)
       (path
-        (ident))
+        (ident)))
+    (filter_stmt
       (comparison
         (path
           (ident)
