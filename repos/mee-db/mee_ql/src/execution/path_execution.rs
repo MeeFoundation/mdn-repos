@@ -31,7 +31,7 @@ impl Executor<Path, Value> for PathExecutorImpl {
             })?;
 
         if let Some(field) = &node.value.field {
-            Ok(var.x_get_property(&field).cloned().unwrap_or(Value::Null))
+            Ok(var.x_get_property(field).cloned().unwrap_or(Value::Null))
         } else {
             Ok(var.clone())
         }

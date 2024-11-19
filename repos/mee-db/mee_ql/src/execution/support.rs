@@ -115,7 +115,7 @@ impl CastValue for Value {
         node: Arc<MeeNode<T>>,
         source_text: Arc<String>,
     ) -> Result<Map<String, Value>, String> {
-        self.as_object().map(|o| o.clone()).ok_or({
+        self.as_object().cloned().ok_or({
             runtime_type_error_msg(node, source_text, NodeTypes::Object, self.actual_type())
         })
     }

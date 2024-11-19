@@ -227,7 +227,7 @@ impl Path {
                 root: parts.first().unwrap().to_string(),
                 field: None,
             }
-        } else if parts.len() == 0 {
+        } else if parts.is_empty() {
             Path {
                 root: "".to_string(),
                 field: None,

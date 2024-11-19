@@ -82,7 +82,7 @@ impl IteratorExecutor for IteratorExecutorImpl {
                         let mut new_ctx: RuntimeContext = ctx.clone();
                         new_ctx.insert(
                             format!("{item_name}.$path"),
-                            Value::String(object_key(&user.x_get_id().unwrap())),
+                            Value::String(object_key(user.x_get_id().unwrap())),
                         );
                         new_ctx.insert(item_name.clone(), user);
 

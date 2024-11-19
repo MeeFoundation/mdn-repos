@@ -13,6 +13,12 @@ pub struct BTreeMapStore {
     db: Arc<RwLock<BTreeMap<String, Vec<u8>>>>,
 }
 
+impl Default for BTreeMapStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BTreeMapStore {
     pub fn new() -> Self {
         Self {

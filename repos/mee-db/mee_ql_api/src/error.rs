@@ -1,4 +1,3 @@
-use anyhow;
 use axum::{http::StatusCode, response::IntoResponse};
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 

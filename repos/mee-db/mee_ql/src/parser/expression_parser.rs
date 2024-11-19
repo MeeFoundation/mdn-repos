@@ -92,13 +92,13 @@ impl Parser<MeeNode<Path>> for PathParser {
             Ok(MeeNode::new(path, node.start_byte(), node.end_byte())
                 .with_optional_type(value_node.expected_type.clone()))
         } else {
-            return Err(format!(
+            Err(format!(
                 "Path not found: {:?}, node: {}, text: {}, context: {:?}",
                 path,
                 node.kind(),
                 node_text(&node, source_text)?.value,
                 ctx
-            ));
+            ))
         }
     }
 }

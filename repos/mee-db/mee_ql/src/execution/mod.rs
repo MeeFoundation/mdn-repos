@@ -50,14 +50,14 @@ pub fn query_executor(store: Store) -> Arc<ExecutorList> {
 
     let qe = Arc::new(QueryExecutorImpl::new(store.clone()));
 
-    let executor_list = Arc::new(ExecutorList {
+    
+
+    Arc::new(ExecutorList {
         pe,
         ee,
         ce,
         be,
         ie,
         qe,
-    });
-
-    executor_list
+    })
 }
