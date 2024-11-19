@@ -1,10 +1,10 @@
 use super::*;
+use crate::error::*;
 use crate::execution::ExecutorList;
 use crate::json_kv_store;
 use crate::parser::ASTParserImpl;
 use crate::query_executor;
 use mee_storage::json_kv_store::Store;
-// use crate::Result;
 
 use serde_json::Value;
 use std::sync::Arc;
@@ -22,9 +22,9 @@ fn object_key(id: &str) -> String {
 
 #[async_trait::async_trait]
 pub trait QueryExecutor {
-    async fn execute(&self, source_code: String) -> Result<Value, String>;
+    async fn execute(&self, source_code: String) -> Result<Value>;
 
-    async fn insert_many(&self, values: Vec<Value>) -> Result<Vec<String>, String>;
+    async fn insert_many(&self, values: Vec<Value>) -> Result<Vec<String>>;
 }
 
 pub struct QueryExecutorImpl {
@@ -48,7 +48,7 @@ fn generate_id() -> String {
 
 #[async_trait::async_trait]
 impl QueryExecutor for QueryExecutorImpl {
-    async fn execute(&self, source_code: String) -> Result<Value, String> {
+    async fn execute(&self, source_code: String) -> Result<Value> {
         let ast = {
             let mut parser = ASTParserImpl::new(source_code.clone());
             parser.parse()?
@@ -71,15 +71,12 @@ impl QueryExecutor for QueryExecutorImpl {
         Ok(res)
     }
 
-    async fn insert_many(&self, values: Vec<Value>) -> Result<Vec<String>, String> {
+    async fn insert_many(&self, values: Vec<Value>) -> Result<Vec<String>> {
         let mut ids = Vec::with_capacity(values.len());
 
         for v in values.into_iter() {
             let id = generate_id();
-            self.store
-                .set(object_key(&id).clone(), v)
-                .await
-                .map_err(|e| e.to_string())?;
+            self.store.set(object_key(&id).clone(), v).await?;
             ids.push(id);
         }
 

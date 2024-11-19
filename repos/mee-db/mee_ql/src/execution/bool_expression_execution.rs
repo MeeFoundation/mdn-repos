@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::*;
 use crate::execution::support::*;
 use std::sync::Arc;
 
@@ -18,7 +19,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
         node: Arc<MeeNode<BoolExpression>>,
         ctx: RuntimeContext,
         executor_list: Arc<ExecutorList>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value> {
         let be = executor_list.be.clone();
         let ce = executor_list.ce.clone();
         let ee = executor_list.ee.clone();

@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::*;
 use std::sync::Arc;
 
 pub struct ExpressionExecutorImpl;
@@ -17,7 +18,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
         node: Arc<MeeNode<Expression>>,
         ctx: RuntimeContext,
         executor_list: Arc<ExecutorList>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value> {
         match &node.value {
             Expression::Query(query) => {
                 let query = Arc::new(query.as_ref().clone());
@@ -95,21 +96,11 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
             Expression::Bool(val) => Ok(Value::Bool(*val)),
             Expression::String(val) => Ok(Value::String(val.clone())),
             Expression::Number(val) => {
-                let res = Number::from_f64(*val)
-                .ok_or({ //for infinity only
-                //only for testing
-                // let error_place = format!("\x1b[31m{}\x1b[0m", &source_text[node.start..node.end]);
-                    let error_place = format!("<!{}!>", &source_text[node.start..node.end]);
-                format!(
-                    "Runtime error at position ({}, {}) (wrapped in '<!_!>') {}{}{} -  Invalid number: {:?}",
-                    node.start,
-                    node.end,
-                    &source_text[..node.start],
-                    error_place,
-                    &source_text[node.end..],
-                    val
-                )
-                })?;
+                let res = Number::from_f64(*val).ok_or(Error::runtime_error(
+                    node.position.clone(),
+                    source_text.as_str(),
+                    "Invalid number".to_string(),
+                ))?;
                 Ok(Value::Number(res))
             }
             Expression::Null => Ok(Value::Null),

@@ -1,10 +1,11 @@
 use super::*;
+use crate::error::*;
 use async_stream::try_stream;
 use futures::pin_mut;
 use futures::stream::{Stream, StreamExt};
 use mee_storage::binary_kv_store::PATH_SEPARATOR;
+use mee_storage::json_kv_store::FieldFilter;
 use mee_storage::json_kv_store::Store;
-use mee_storage::query_el::FieldFilter;
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -23,11 +24,9 @@ impl IteratorExecutorImpl {
         Self { store }
     }
 
-    async fn users(store: Store) -> Result<impl Stream<Item = Value> + Send, String> {
-        store
-            .range("".to_string(), FieldFilter::All)
-            .await
-            .map_err(|e| e.to_string())
+    async fn users(store: Store) -> Result<impl Stream<Item = Value> + Send> {
+        let res = store.range("".to_string(), FieldFilter::All).await?;
+        Ok(res)
     }
 }
 

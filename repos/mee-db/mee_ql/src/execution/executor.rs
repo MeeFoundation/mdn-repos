@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
@@ -10,7 +11,7 @@ pub trait Executor<T, U> {
         node: Arc<MeeNode<T>>,
         ctx: RuntimeContext,
         executor_list: Arc<ExecutorList>,
-    ) -> Result<U, String>;
+    ) -> Result<U>;
 }
 
 #[async_trait::async_trait]
@@ -22,7 +23,7 @@ pub trait ComparatorExecutor {
         node: Arc<MeeNode<Comparator>>,
         ctx: RuntimeContext,
         executor_list: Arc<ExecutorList>,
-    ) -> Result<bool, String>;
+    ) -> Result<bool>;
 }
 #[async_trait::async_trait]
 pub trait IteratorExecutor {

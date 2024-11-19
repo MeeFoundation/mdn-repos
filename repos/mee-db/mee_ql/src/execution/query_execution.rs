@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::*;
 use async_stream::{stream, try_stream};
 use futures::pin_mut;
 use futures::stream::StreamExt;
@@ -180,8 +181,8 @@ impl QueryExecutor for QueryExecutorImpl {
                             source_text.clone(),
                             Arc::new(MeeNode::new(
                                 iterator.clone(),
-                                statement.start,
-                                statement.end,
+                                statement.position.0,
+                                statement.position.1,
                             ))
                             .clone(),
                             new_stream,
@@ -275,7 +276,7 @@ impl Executor<Query, Value> for QueryExecutorImpl {
         node: Arc<MeeNode<Query>>,
         ctx: RuntimeContext,
         executor_list: Arc<ExecutorList>,
-    ) -> Result<Value, String> {
+    ) -> Result<Value> {
         let ctx = ctx.clone();
         let initial_stream = stream! {
             yield Ok(ctx);
@@ -321,17 +322,13 @@ impl Executor<Query, Value> for QueryExecutorImpl {
         for (path, value) in updates.into_iter() {
             let path = path.clone();
             let value = value.clone();
-            self.store
-                .clone()
-                .set(path, value)
-                .await
-                .map_err(|e| e.to_string())?;
+            self.store.clone().set(path, value).await?;
         }
 
         for path in deletes.into_iter() {
             let path = path.clone();
 
-            self.store.delete(path).await.map_err(|e| e.to_string())?;
+            self.store.delete(path).await?;
         }
 
         result

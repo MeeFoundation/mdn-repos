@@ -1,5 +1,6 @@
 use super::parser::{Parser, ParserList};
 use super::*;
+use crate::error::*;
 use std::collections::HashMap;
 use tree_sitter::Node;
 
@@ -11,7 +12,7 @@ impl Parser<MeeNode<Expression>> for ExpressionParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<MeeNode<Expression>, String> {
+    ) -> Result<MeeNode<Expression>> {
         match node.kind() {
             "element_query" | "array_query" => {
                 let query = parser_list
@@ -71,7 +72,7 @@ impl Parser<MeeNode<Path>> for PathParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<MeeNode<Path>, String> {
+    ) -> Result<MeeNode<Path>> {
         let mut segments = Vec::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "ident" {
@@ -92,12 +93,16 @@ impl Parser<MeeNode<Path>> for PathParser {
             Ok(MeeNode::new(path, node.start_byte(), node.end_byte())
                 .with_optional_type(value_node.expected_type.clone()))
         } else {
-            Err(format!(
-                "Path not found: {:?}, node: {}, text: {}, context: {:?}",
-                path,
-                node.kind(),
-                node_text(&node, source_text)?.value,
-                ctx
+            Err(Error::validation_error(
+                Position(node.byte_range().start, node.byte_range().end),
+                source_text,
+                format!(
+                    "Path not found: {:?}, node: {}, text: {}, context: {:?}",
+                    path,
+                    node.kind(),
+                    node_text(&node, source_text)?.value,
+                    ctx
+                ),
             ))
         }
     }
@@ -111,9 +116,15 @@ impl Parser<usize> for PosIntParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-    ) -> Result<usize, String> {
+    ) -> Result<usize> {
         let text = node_text(&node, source_text)?.value;
-        let number = text.parse::<usize>().map_err(|e| e.to_string())?;
+        let number = text.parse::<usize>().map_err(|_| {
+            Error::validation_error(
+                Position(node.byte_range().start, node.byte_range().end),
+                source_text,
+                "Expected a positive integer",
+            )
+        })?;
         Ok(number)
     }
 }
@@ -126,7 +137,7 @@ impl Parser<Vec<MeeNode<Expression>>> for ArrayParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<Vec<MeeNode<Expression>>, String> {
+    ) -> Result<Vec<MeeNode<Expression>>> {
         let mut values = Vec::new();
         for child in node.named_children(&mut node.walk()) {
             values.push(
@@ -147,22 +158,19 @@ impl Parser<HashMap<String, MeeNode<Expression>>> for ObjectParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<HashMap<String, MeeNode<Expression>>, String> {
+    ) -> Result<HashMap<String, MeeNode<Expression>>> {
         let mut pairs = HashMap::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "pair" {
-                let key = parser_list.string.parse(
-                    source_text,
-                    child.child_by_field_name("key").ok_or("Expected key")?,
-                    parser_list,
-                    ctx,
-                )?;
-                let value = parser_list.value.parse(
-                    source_text,
-                    child.child_by_field_name("value").ok_or("Expected value")?,
-                    parser_list,
-                    ctx,
-                )?;
+                let key_node = get_child_by_field_name(child, "key", source_text)?;
+                let key = parser_list
+                    .string
+                    .parse(source_text, key_node, parser_list, ctx)?;
+
+                let value_node = get_child_by_field_name(child, "value", source_text)?;
+                let value = parser_list
+                    .value
+                    .parse(source_text, value_node, parser_list, ctx)?;
                 pairs.insert(key, value);
             }
         }
@@ -178,7 +186,7 @@ impl Parser<MeeNode<Expression>> for ValueParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<MeeNode<Expression>, String> {
+    ) -> Result<MeeNode<Expression>> {
         dbg!(&node);
         match node.kind() {
             "path" => {
@@ -250,7 +258,11 @@ impl Parser<MeeNode<Expression>> for ValueParser {
                 node.start_byte(),
                 node.end_byte(),
             )),
-            _ => Err(format!("Unknown value kind: {}", node.kind())),
+            _ => Err(Error::syntax_error(
+                Position(node.byte_range().start, node.byte_range().end),
+                source_text,
+                format!("Unknown value: {}", node.kind()),
+            )),
         }
     }
 }
@@ -263,7 +275,7 @@ impl Parser<String> for IdentParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-    ) -> Result<String, String> {
+    ) -> Result<String> {
         let text = node_text(&node, source_text)?.value;
         Ok(text)
     }
@@ -277,7 +289,7 @@ impl Parser<String> for StringParser {
         node: Node,
         _: &ParserList,
         _: &mut Context,
-    ) -> Result<String, String> {
+    ) -> Result<String> {
         let mut string_content = String::new();
         for child in node.named_children(&mut node.walk()) {
             if child.kind() == "string_content" {
@@ -292,16 +304,16 @@ impl Parser<String> for StringParser {
 
 pub struct NumberParser;
 impl Parser<f64> for NumberParser {
-    fn parse(
-        &self,
-        source_text: &str,
-        node: Node,
-        _: &ParserList,
-        _: &mut Context,
-    ) -> Result<f64, String> {
+    fn parse(&self, source_text: &str, node: Node, _: &ParserList, _: &mut Context) -> Result<f64> {
         let text = node_text(&node, source_text)?.value;
         dbg!(&text);
-        let number = text.parse::<f64>().map_err(|e| e.to_string())?;
+        let number = text.parse::<f64>().map_err(|_| {
+            Error::validation_error(
+                Position(node.byte_range().start, node.byte_range().end),
+                source_text,
+                "Expected a number",
+            )
+        })?;
         Ok(number)
     }
 }

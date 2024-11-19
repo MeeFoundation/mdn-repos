@@ -1,5 +1,5 @@
 pub mod ast;
-// mod error;
+pub mod error;
 pub mod parser;
 pub mod query_executor;
 

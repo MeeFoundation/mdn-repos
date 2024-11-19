@@ -1,5 +1,6 @@
 use super::parser::{Parser, ParserList};
 use super::*;
+use crate::error::*;
 use std::collections::HashSet;
 use tree_sitter::Node;
 
@@ -11,17 +12,15 @@ impl Parser<MeeNode<IteratorStmt>> for IteratorStmtParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<MeeNode<IteratorStmt>, String> {
-        let item_node = node.child_by_field_name("item").ok_or("Expected item")?;
+    ) -> Result<MeeNode<IteratorStmt>> {
+        let item_node = get_child_by_field_name(node, "item", source_text)?;
         let mut item = node_text(&item_node, source_text)?;
 
-        let source = parser_list.source.parse(
-            source_text,
-            node.child_by_field_name("source")
-                .ok_or("Expected source")?,
-            parser_list,
-            ctx,
-        )?;
+        let source_node = get_child_by_field_name(node, "source", source_text)?;
+
+        let source = parser_list
+            .source
+            .parse(source_text, source_node, parser_list, ctx)?;
 
         if source.expected_type == Some(NodeTypes::Users) {
             item = item.with_type(NodeTypes::AbsolutePath);
@@ -50,7 +49,7 @@ impl Parser<MeeNode<Source>> for SourceParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<MeeNode<Source>, String> {
+    ) -> Result<MeeNode<Source>> {
         match node.kind() {
             "path" => {
                 let path = parser_list
@@ -81,7 +80,11 @@ impl Parser<MeeNode<Source>> for SourceParser {
                 }
                 Ok(source)
             }
-            _ => Err(format!("Unknown source kind: {}", node.kind())),
+            _ => Err(Error::syntax_error(
+                Position(node.byte_range().start, node.byte_range().end),
+                source_text,
+                format!("Unknown source kind: {}", node.kind()),
+            )),
         }
     }
 }

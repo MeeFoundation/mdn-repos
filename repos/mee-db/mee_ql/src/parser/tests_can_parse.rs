@@ -1,7 +1,7 @@
 //While ASR is not stable just check that source code is parsed
 #[cfg(test)]
 mod tests {
-    use crate::{ast::*, parser::ASTParserImpl};
+    use crate::{ast::*, error::*, parser::ASTParserImpl};
 
     #[test]
     fn test_greedy_and_grouping() {
@@ -263,7 +263,7 @@ mod tests {
         parser.parse().unwrap();
     }
 
-    fn parse(source: &str) -> Result<MeeNode<Query>, String> {
+    fn parse(source: &str) -> Result<MeeNode<Query>> {
         let mut parser = ASTParserImpl::new(source.to_string());
         parser.parse()
     }

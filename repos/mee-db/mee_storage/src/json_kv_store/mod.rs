@@ -1,4 +1,5 @@
-mod error;
+pub mod error;
+mod field_filter;
 mod storage;
 
 use crate::binary_kv_store;
@@ -7,13 +8,13 @@ use serde_json::Value;
 use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
 
-pub use error::*;
+use error::*;
 
 pub type Store = Arc<dyn JsonStore + Send + Sync + 'static>;
 
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
-use crate::query_el::FieldFilter;
 use core::fmt::Debug;
+pub use field_filter::FieldFilter;
 
 #[allow(unused)]
 #[async_trait::async_trait]

@@ -1,6 +1,7 @@
 use super::parser::{Parser, ParserList};
 use super::support::mee_node;
 use super::*;
+use crate::error::*;
 use tree_sitter::Node;
 
 pub struct BoolExpressionParser;
@@ -11,19 +12,21 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<MeeNode<BoolExpression>, String> {
+    ) -> Result<MeeNode<BoolExpression>> {
         match node.kind() {
             "comparison" => {
-                let val_node = node.child_by_field_name("val").ok_or("Expected val")?;
+                let val_node = node.child_by_field_name("val").ok_or(Error::syntax_error(
+                    Position(node.byte_range().start, node.byte_range().end),
+                    source_text,
+                    "Expected val",
+                ))?;
                 dbg!(&val_node);
                 let val = parser_list
                     .value
                     .parse(source_text, val_node, parser_list, ctx)?;
 
-                let comparator_node = node
-                    .child_by_field_name("comparator")
-                    .ok_or("Expected comparator")?;
-                dbg!(&comparator_node);
+                let comparator_node = get_child_by_field_name(node, "comparator", source_text)?;
+
                 let comparator =
                     parser_list
                         .comparator
@@ -59,7 +62,11 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
                 Ok(mee_node(&node, BoolExpression::Or(expressions)).with_type(NodeTypes::Bool))
             }
             "not_expression" => {
-                let operand_node = node.child(1).ok_or("Expected operand")?;
+                let operand_node = node.child(1).ok_or(Error::syntax_error(
+                    Position(node.byte_range().start, node.byte_range().end),
+                    source_text,
+                    "Expected operand",
+                ))?;
                 let expr = parser_list.bool_expression.parse(
                     source_text,
                     operand_node,
@@ -79,16 +86,22 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
                 Ok(mee_node(&node, BoolExpression::Expression(expr)).with_type(NodeTypes::Bool))
             }
             "(" => {
-                let next_sibling = node.next_sibling().ok_or("Expected next sibling")?;
+                let next_sibling = node.next_sibling().ok_or(Error::syntax_error(
+                    Position(node.byte_range().start, node.byte_range().end),
+                    source_text,
+                    "Expected next sibling",
+                ))?;
                 parser_list
                     .bool_expression
                     .parse(source_text, next_sibling, parser_list, ctx)
             }
-            _ => Err(format!(
-                "Unknown bool expression kind: {}. next: {}, text: {}",
-                node.kind(),
-                node_text(&node.next_sibling().unwrap_or(node), source_text)?.value,
-                node_text(&node, source_text)?.value
+            _ => Err(Error::syntax_error(
+                Position(node.byte_range().start, node.byte_range().end),
+                source_text,
+                format!(
+                    "Unknown bool expression: {}",
+                    node_text(&node, source_text)?.value
+                ),
             )),
         }
     }

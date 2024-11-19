@@ -29,13 +29,14 @@ pub(crate) use serde_json::Number;
 
 pub(crate) use std::collections::HashMap;
 
+use crate::error::*;
 use futures::stream::Stream;
 use mee_storage::json_kv_store::Store;
 use std::pin::Pin;
 
 pub type RuntimeContext = HashMap<String, Value>;
-pub type ContextStream = futures::stream::BoxStream<'static, Result<RuntimeContext, String>>;
-pub type JsonResultStream = Pin<Box<dyn Stream<Item = Result<Value, String>> + Send>>;
+pub type ContextStream = futures::stream::BoxStream<'static, Result<RuntimeContext>>;
+pub type JsonResultStream = Pin<Box<dyn Stream<Item = Result<Value>> + Send>>;
 
 pub fn query_executor(store: Store) -> Arc<ExecutorList> {
     let pe = Arc::new(PathExecutorImpl::new());
@@ -49,8 +50,6 @@ pub fn query_executor(store: Store) -> Arc<ExecutorList> {
     let ie = Arc::new(IteratorExecutorImpl::new(store.clone()));
 
     let qe = Arc::new(QueryExecutorImpl::new(store.clone()));
-
-    
 
     Arc::new(ExecutorList {
         pe,

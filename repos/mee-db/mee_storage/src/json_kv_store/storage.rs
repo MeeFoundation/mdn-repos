@@ -77,7 +77,10 @@ impl JsonStore for KVBasedJsonStoreImpl {
     // str: enything
     async fn range(&self, key: String, select_fields: FieldFilter) -> Result<JsonStream> {
         let kv_byte_stream = self.db.range(key.clone()).await?;
-        debug!("Ask range for key: '{key}' with field filter: '{select_fields}'");
+        debug!(
+            "Ask range for key: '{key}' with field filter: '{:?}'",
+            select_fields
+        );
 
         let s = stream! {
             let mut current_value = Value::Null;

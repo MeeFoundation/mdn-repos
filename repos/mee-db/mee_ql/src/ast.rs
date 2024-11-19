@@ -1,3 +1,4 @@
+use crate::error::*;
 use mee_storage::json_utils::ID_PREFIX;
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -24,10 +25,12 @@ pub enum NodeTypes {
 }
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct Position(pub usize, pub usize);
+
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct MeeNode<T> {
     pub value: T,
-    pub start: usize,
-    pub end: usize,
+    pub position: Position,
     pub expected_type: Option<NodeTypes>,
 }
 
@@ -35,8 +38,7 @@ impl<T> MeeNode<T> {
     pub fn new(value: T, start: usize, end: usize) -> Self {
         Self {
             value,
-            start,
-            end,
+            position: Position(start, end),
             expected_type: None,
         }
     }
@@ -59,34 +61,25 @@ impl<T> MeeNode<T> {
     where
         F: FnOnce(&T) -> U,
     {
-        MeeNode::new(f(&self.value), self.start, self.end)
+        MeeNode::new(f(&self.value), self.position.0, self.position.1)
     }
 
-    pub fn check_type(
-        &self,
-        expected_type: &NodeTypes,
-        source_code: &str,
-    ) -> Result<&Self, String> {
+    pub fn check_type(&self, expected_type: &NodeTypes, source_code: &str) -> Result<&Self> {
         if let Some(inner_type) = self.expected_type.as_ref() {
             match (inner_type, expected_type) {
                 (NodeTypes::AbsolutePath, NodeTypes::AbsolutePath) => Ok(self),
                 (NodeTypes::AbsolutePath, _) => Ok(self),
                 (t, u) if t == u => Ok(self),
                 _ => {
-                    //only for testing
-                    // let error_place = format!("\x1b[31m{}\x1b[0m", &source_code[self.start..self.end]);
-                    let error_place = format!("<!{}!>", &source_code[self.start..self.end]);
-                    let msg = format!(
-                    "Position ({}, {}) (wrapped in '<!_!>') {}{}{} -  Expected type: {:?}, found: {:?}",
-                    self.start,
-                    self.end,
-                    &source_code[..self.start],
-                    error_place,
-                    &source_code[self.end..],
-                    expected_type,
-                    inner_type
-                );
-                    Err(msg)
+                    let reason = format!(
+                        "Expected type: {:?}, found: {:?}",
+                        expected_type, inner_type
+                    );
+                    Err(Error::validation_error(
+                        self.position.clone(),
+                        source_code,
+                        reason,
+                    ))
                 }
             }
         } else {
@@ -98,7 +91,7 @@ impl<T> MeeNode<T> {
         &self,
         expected_type: &Option<NodeTypes>,
         source_code: &str,
-    ) -> Result<&Self, String> {
+    ) -> Result<&Self> {
         if let Some(inner_type) = expected_type.as_ref() {
             self.check_type(inner_type, source_code)
         } else {
@@ -241,216 +234,3 @@ impl Path {
     }
 }
 /* #endregion */
-
-// #[cfg(test)]
-// pub mod test_support_impls {
-//     use super::*;
-
-//     impl Path {
-//         pub fn from_dot_separated<T>(str: T) -> Self
-//         where
-//             T: Into<String>,
-//         {
-//             str.into().into()
-//         }
-//     }
-
-//     impl<T> From<T> for Path
-//     where
-//         T: Into<String>,
-//     {
-//         fn from(value: T) -> Self {
-//             Path::new(value)
-//         }
-//     }
-
-//     // region: BoolExpression implementations
-//     impl From<bool> for BoolExpression {
-//         fn from(value: bool) -> Self {
-//             if value {
-//                 BoolExpression::True
-//             } else {
-//                 BoolExpression::False
-//             }
-//         }
-//     }
-
-//     impl From<&str> for BoolExpression {
-//         fn from(value: &str) -> Self {
-//             BoolExpression::Expression(Expression::Link(Path::from(value)))
-//         }
-//     }
-
-//     impl From<Path> for BoolExpression {
-//         fn from(value: Path) -> Self {
-//             BoolExpression::Expression(Expression::Link(value))
-//         }
-//     }
-
-//     impl BoolExpression {
-//         pub fn and<T>(self, other: T) -> Self
-//         where
-//             T: Into<BoolExpression>,
-//         {
-//             match self {
-//                 BoolExpression::And(mut exprs) => {
-//                     exprs.push(other.into());
-//                     BoolExpression::And(exprs)
-//                 }
-//                 expr => BoolExpression::And(vec![expr, other.into()]),
-//             }
-//         }
-
-//         pub fn or<T>(self, other: T) -> Self
-//         where
-//             T: Into<BoolExpression>,
-//         {
-//             match self {
-//                 BoolExpression::Or(mut exprs) => {
-//                     exprs.push(other.into());
-//                     BoolExpression::Or(exprs)
-//                 }
-//                 expr => BoolExpression::Or(vec![expr, other.into()]),
-//             }
-//         }
-
-//         pub fn not(self) -> Self {
-//             BoolExpression::Not(Box::new(self))
-//         }
-//     }
-//     // endregion
-
-//     // region: Value implementations
-//     impl From<bool> for Expression {
-//         fn from(value: bool) -> Self {
-//             Expression::Bool(value)
-//         }
-//     }
-
-//     impl From<&str> for Expression {
-//         fn from(value: &str) -> Self {
-//             Expression::String(value.to_string())
-//         }
-//     }
-
-//     impl From<isize> for Expression {
-//         fn from(value: isize) -> Self {
-//             Expression::Number(value as f64)
-//         }
-//     }
-
-//     impl From<f64> for Expression {
-//         fn from(value: f64) -> Self {
-//             Expression::Number(value)
-//         }
-//     }
-
-//     impl<T> From<Vec<T>> for Expression
-//     where
-//         T: Into<Expression>,
-//     {
-//         fn from(value: Vec<T>) -> Self {
-//             Expression::Array(value.into_iter().map(|e| e.into()).collect::<Vec<_>>())
-//         }
-//     }
-
-//     impl From<Path> for Expression {
-//         fn from(value: Path) -> Self {
-//             Expression::Link(value)
-//         }
-//     }
-
-//     impl<S, T> From<HashMap<S, T>> for Expression
-//     where
-//         T: Into<Expression>,
-//         S: Into<String>,
-//     {
-//         fn from(value: HashMap<S, T>) -> Self {
-//             Expression::Object(
-//                 value
-//                     .into_iter()
-//                     .map(|(k, v)| (k.into(), v.into()))
-//                     .collect(),
-//             )
-//         }
-//     }
-
-//     impl Expression {
-//         pub fn exists(self) -> BoolExpression {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Exists,
-//             }
-//         }
-//         pub fn matches<T>(self, pattern: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Matches(pattern.into()),
-//             }
-//         }
-
-//         pub fn eq<T>(self, other: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Eq(other.into()),
-//             }
-//         }
-
-//         pub fn ne<T>(self, other: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Ne(other.into()),
-//             }
-//         }
-
-//         pub fn gt<T>(self, other: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Gt(other.into()),
-//             }
-//         }
-
-//         pub fn lt<T>(self, other: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Lt(other.into()),
-//             }
-//         }
-
-//         pub fn ge<T>(self, other: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Ge(other.into()),
-//             }
-//         }
-
-//         pub fn le<T>(self, other: T) -> BoolExpression
-//         where
-//             T: Into<Expression>,
-//         {
-//             BoolExpression::Comparison {
-//                 val: self,
-//                 comparator: Comparator::Le(other.into()),
-//             }
-//         }
-//     }
-//     // endregion
-// }

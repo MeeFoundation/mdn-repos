@@ -1,10 +1,11 @@
 pub mod b_tree_map_store;
 mod error;
 
+use core::fmt::Debug;
 use std::sync::Arc;
+
 pub type KV = (String, Vec<u8>);
 pub type KVStream = futures::stream::BoxStream<'static, KV>;
-use core::fmt::Debug;
 pub use error::*;
 
 #[async_trait::async_trait]

@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::*;
 use statement_parser::StatementParser;
 use std::collections::HashMap;
 use tree_sitter::Node;
@@ -10,7 +11,7 @@ pub trait Parser<T> {
         node: Node,
         parser_list: &ParserList,
         ctx: &mut Context,
-    ) -> Result<T, String>;
+    ) -> Result<T>;
 }
 
 #[allow(unused)]

@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::*;
 use crate::execution::support::*;
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
         node: Arc<MeeNode<Comparator>>,
         ctx: RuntimeContext,
         executor_list: Arc<ExecutorList>,
-    ) -> Result<bool, String> {
+    ) -> Result<bool> {
         match &node.value {
             Comparator::Eq(expr) => {
                 let expr = Arc::new(expr.clone());
@@ -196,15 +197,10 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     let right = right.cast_to_string(node.clone(), source_text.clone())?;
 
                     let pattern = regex::Regex::new(&right).map_err(move |_| {
-                        let error_place = format!("<!{}!>", &source_text[node.start..node.end]);
-                    format!(
-                        "Runtime error at position ({}, {}) (wrapped in '<!_!>') {}{}{} -  Invalid RegExp pattern '{}'",
-                        node.start,
-                        node.end,
-                        &source_text[..node.start],
-                        error_place,
-                        &source_text[node.end..],
-                        &right
+                        Error::runtime_error(
+                            node.position.clone(),
+                            source_text.as_str(),
+                            "Invalid RegExp pattern".to_string(),
                         )
                     })?;
 

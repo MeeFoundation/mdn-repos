@@ -7,7 +7,7 @@
 //! let code = r#"
 //! "#;
 //! let mut parser = tree_sitter::Parser::new();
-//! let language = tree_sitter_YOUR_LANGUAGE_NAME::LANGUAGE;
+//! let language = tree_sitter_mee_ql::LANGUAGE;
 //! parser
 //!     .set_language(&language.into())
 //!     .expect("Error loading YourLanguageName parser");
