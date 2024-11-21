@@ -12,6 +12,7 @@ pub trait JwkOps: FromStr {
     where
         Self: Sized;
     fn key_operations(&self) -> Option<Vec<&str>>;
+    fn key_id(&self) -> Option<&str>;
     fn set_key_operations(&mut self, values: Vec<impl Into<String>>);
     fn to_public_key(&self) -> MeeCryptoResult<Self>
     where
@@ -34,6 +35,9 @@ impl FromStr for Jwk {
 }
 
 impl JwkOps for Jwk {
+    fn key_id(&self) -> Option<&str> {
+        self.0.key_id()
+    }
     fn key_operations(&self) -> Option<Vec<&str>> {
         josekit::jwk::Jwk::key_operations(&self.0)
     }

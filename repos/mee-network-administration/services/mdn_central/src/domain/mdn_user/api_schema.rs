@@ -12,6 +12,7 @@ use utoipa::OpenApi;
           register_user_device,
           approve_user_device_linkage,
           list_user_device_linkage_requests,
+          list_user_devices,
       ),
       components(
           schemas(
@@ -21,6 +22,7 @@ use utoipa::OpenApi;
               RegisterUserDeviceRequest,
               ApproveUserDeviceLinkageRequest,
               UserDeviceLinkageRequest,
+              UserDeviceResponse,
           ),
       ),
       tags(

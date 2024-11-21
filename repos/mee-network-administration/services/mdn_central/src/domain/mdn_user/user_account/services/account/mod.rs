@@ -1,11 +1,18 @@
 use crate::{
-    domain::mdn_user::user_account::{
-        api::account::middlewares::LoggedInMdnUser,
-        api::account::types::{
-            AuthorizeUserResponse, CreateUserAccountRequest,
-            UserAccountLoginRequest, UserAccountLoginResponse,
+    domain::{
+        mdn_authority::utils::MdnSignaturesService,
+        mdn_user::user_account::{
+            api::account::{
+                middlewares::LoggedInMdnUser,
+                types::{
+                    AuthorizeUserResponse, CreateUserAccountRequest,
+                    UserAccountLoginRequest, UserAccountLoginResponse,
+                },
+            },
+            repositories::mdn_users::{
+                CreateUserAccountDto, MdnUsersRepository,
+            },
         },
-        repositories::mdn_users::{CreateUserAccountDto, MdnUsersRepository},
     },
     error::{MdnCentralErr, MdnCentralResult},
 };
@@ -15,9 +22,11 @@ use argon2::{
 };
 use mdn_identity_agent::mdn_cloud::user_account::auth_utils::{
     decode_mdn_cloud_user_id_token, encode_mdn_cloud_user_id_token,
+    EncodeMdnCloudUserIdTokenParams,
 };
-use mee_crypto::jwk::Jwk;
-use mee_secrets_manager::signatures_service::SignaturesService;
+use mee_did::universal_resolver::{
+    DIDResolverExt, UniversalDidResolver, VerificationRelationship,
+};
 use service_models::{MdnUserAccountRole, UserAccountDomainModel};
 use std::sync::Arc;
 
@@ -25,37 +34,47 @@ pub mod service_models;
 
 pub struct MdnUserAccountService<'a> {
     user_account_repository: Box<dyn MdnUsersRepository + Send + Sync + 'a>,
-    mdn_central_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
+    mdn_central_authority_signature:
+        Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
 impl<'a> MdnUserAccountService<'a> {
     pub fn new(
         user_account_repository: Box<dyn MdnUsersRepository + Send + Sync + 'a>,
-        mee_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
+        mee_authority_signature: Arc<dyn MdnSignaturesService + Send + Sync>,
     ) -> Self {
         Self {
             user_account_repository,
             mdn_central_authority_signature: mee_authority_signature,
         }
     }
-    async fn mee_sig(&self) -> MdnCentralResult<Jwk> {
-        Ok(self
-            .mdn_central_authority_signature
-            .get_jwk_signature()
-            .await?
-            .ok_or_else(|| MdnCentralErr::MissingMdnCentralAuthoritySignature)?
-            .try_into()?)
-    }
     async fn make_login_response(
         &self,
         user: UserAccountDomainModel,
+        device_did: String,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
-        let auth_token = encode_mdn_cloud_user_id_token(
-            "TODO: url backed by OIDC config or DID".to_string(),
-            user.mdn_user_uid.clone(),
-            user.mdn_user_role.to_string(),
-            self.mee_sig().await?,
-        )?;
+        let mdn_did =
+            self.mdn_central_authority_signature.mee_sig_did().await?;
+
+        let auth_token =
+            encode_mdn_cloud_user_id_token(EncodeMdnCloudUserIdTokenParams {
+                sub: user.mdn_user_uid.clone(),
+                aud: device_did,
+                mdn_user_role: user.mdn_user_role.to_string(),
+                sign_key: self
+                    .mdn_central_authority_signature
+                    .mee_sig()
+                    .await?,
+                kid: Some(
+                    UniversalDidResolver
+                        .resolve_did_for_relation(
+                            &mdn_did,
+                            VerificationRelationship::Authentication,
+                        )
+                        .await?,
+                ),
+                iss: mdn_did,
+            })?;
 
         let res = UserAccountLoginResponse {
             mdn_user_uid: user.mdn_user_uid,
@@ -67,7 +86,11 @@ impl<'a> MdnUserAccountService<'a> {
 
     pub async fn user_login(
         &self,
-        UserAccountLoginRequest { email, password }: UserAccountLoginRequest,
+        UserAccountLoginRequest {
+            email,
+            password,
+            device_did,
+        }: UserAccountLoginRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
         let Some(user) = self
             .user_account_repository
@@ -86,7 +109,9 @@ impl<'a> MdnUserAccountService<'a> {
             Err(MdnCentralErr::MdnUserAccountInvalidPassword)?;
         }
 
-        let res = self.make_login_response(user.try_into()?).await?;
+        let res = self
+            .make_login_response(user.try_into()?, device_did)
+            .await?;
 
         Ok(res)
     }
@@ -96,6 +121,7 @@ impl<'a> MdnUserAccountService<'a> {
             email,
             phone,
             password,
+            device_did,
         }: CreateUserAccountRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
         if self
@@ -130,7 +156,7 @@ impl<'a> MdnUserAccountService<'a> {
             })
             .await?;
 
-        self.make_login_response(res.try_into()?).await
+        self.make_login_response(res.try_into()?, device_did).await
     }
     pub async fn _authorize_user_account(
         &self,
@@ -150,7 +176,7 @@ impl<'a> MdnUserAccountService<'a> {
         &self,
         token: &str,
     ) -> MdnCentralResult<LoggedInMdnUser> {
-        let mee_sig = self.mee_sig().await?;
+        let mee_sig = self.mdn_central_authority_signature.mee_sig().await?;
 
         let mdn_user_id_token = decode_mdn_cloud_user_id_token(token, mee_sig)?;
 

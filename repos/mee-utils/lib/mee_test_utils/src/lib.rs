@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! create_cargo_target_level_file {
+macro_rules! cargo_target_level_filename {
     ($filename:expr) => {{
         let cargo_manifest_dir = env!("CARGO_MANIFEST_DIR");
         let local_target = format!("{}/target", cargo_manifest_dir);
@@ -11,8 +11,6 @@ macro_rules! create_cargo_target_level_file {
         };
 
         let filepath = format!("{cargo_target}/{}", $filename);
-
-        std::fs::File::create(&filepath).unwrap();
 
         filepath
     }};

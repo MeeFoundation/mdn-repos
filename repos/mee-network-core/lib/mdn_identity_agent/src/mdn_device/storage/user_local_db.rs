@@ -1,6 +1,7 @@
 use super::local_kvdb::LocalKvDbExt;
 use crate::{error::MdnIdentityAgentResult, mdn_device::storage::local_kvdb::LocalKvDb};
 use async_trait::async_trait;
+use mee_crypto::jwk::Jwk;
 use mee_data_sync::iroh::iroh_net;
 use std::sync::Arc;
 
@@ -8,6 +9,9 @@ use std::sync::Arc;
 pub trait MdnUserLocalDb {
     async fn read_user_device_did(&self) -> MdnIdentityAgentResult<Option<String>>;
     async fn write_user_device_did(&self, did: &str) -> MdnIdentityAgentResult;
+
+    async fn read_user_device_secret_key(&self) -> MdnIdentityAgentResult<Option<Jwk>>;
+    async fn write_user_device_secret_key(&self, jwk: Jwk) -> MdnIdentityAgentResult;
 
     async fn read_mdn_user_auth_token(&self) -> MdnIdentityAgentResult<Option<String>>;
     async fn write_mdn_user_auth_token(&self, token: &str) -> MdnIdentityAgentResult;
@@ -23,6 +27,7 @@ pub trait MdnUserLocalDb {
 
 const MDN_USER_DEVICE_DID: &str = "MDN_USER_DEVICE_DID";
 const MDN_USER_AUTH_TOKEN: &str = "MDN_USER_AUTH_TOKEN";
+const MDN_USER_SECRET_KEY: &str = "MDN_USER_SECRET_KEY";
 const IROH_NODE_SECRET_KEY: &str = "IROH_NODE_SECRET_KEY";
 
 pub struct MdnUserLocalDbDefault {
@@ -83,6 +88,19 @@ impl MdnUserLocalDb for MdnUserLocalDbDefault {
         Ok(self
             .local_kvdb
             .set_json_value(IROH_NODE_SECRET_KEY.to_string(), &secret_key)
+            .await?)
+    }
+
+    async fn read_user_device_secret_key(&self) -> MdnIdentityAgentResult<Option<Jwk>> {
+        Ok(self
+            .local_kvdb
+            .get_json_value(MDN_USER_SECRET_KEY.to_string())
+            .await?)
+    }
+    async fn write_user_device_secret_key(&self, jwk: Jwk) -> MdnIdentityAgentResult {
+        Ok(self
+            .local_kvdb
+            .set_json_value(MDN_USER_SECRET_KEY.to_string(), &jwk)
             .await?)
     }
 }

@@ -13,7 +13,10 @@ use mee_http_utils::{
 };
 use mee_secrets_manager::{
     client::SimpleFileSecretsManagerClient,
-    signatures_service::{SignaturesService, SignaturesServiceDefault},
+    signatures_service::{
+        SignaturesService, SignaturesServiceConfigBuilder,
+        SignaturesServiceDefault,
+    },
 };
 use service_utils::mee_provider_manager::auth::MeeProviderAuthorizer;
 use std::sync::Arc;
@@ -45,9 +48,20 @@ impl AppCtl {
         //     app_config.clone().into(),
         // )
         // .await?;
+
+        let signatures_service_config =
+            SignaturesServiceConfigBuilder::default()
+                .jwk_secret_path(Some(
+                    app_config.jwk_auth_signature_secret_path.clone(),
+                ))
+                .iroh_key_secret_path(Some(
+                    app_config.iroh_signature_secret_path.clone(),
+                ))
+                .build()
+                .map_err(anyhow::Error::from)?;
+
         let signatures_service = Arc::new(SignaturesServiceDefault::new(
-            app_config.jwk_auth_signature_secret_path.clone(),
-            Some(app_config.iroh_signature_secret_path.clone()),
+            signatures_service_config,
             // TODO replace with real world secure secret manager
             Arc::new(SimpleFileSecretsManagerClient::new(format!(
                 "{}/../target",
@@ -65,7 +79,8 @@ impl AppCtl {
         })
     }
     pub async fn run(self) -> MeeDirectoryServiceResult {
-        let api_routes = Router::new().nest("/virtual_agent", mdn_virtual_agent_router());
+        let api_routes =
+            Router::new().nest("/virtual_agent", mdn_virtual_agent_router());
 
         let app = Router::new()
             .merge(SwaggerUi::new(SWAGGER_PATH).url(

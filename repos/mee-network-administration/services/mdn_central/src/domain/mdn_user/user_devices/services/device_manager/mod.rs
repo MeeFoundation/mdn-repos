@@ -1,27 +1,35 @@
+use std::sync::Arc;
+
 use crate::{
-    domain::mdn_user::{
-        user_account::{
-            api::account::middlewares::LoggedInMdnUser,
-            services::account::MdnUserAccountService,
-        },
-        user_devices::{
-            api::devices::types::{
-                ApproveUserDeviceLinkageRequest, RegisterUserDeviceRequest,
-                UserDeviceLinkageRequest,
+    domain::{
+        mdn_authority::utils::MdnSignaturesService,
+        mdn_user::{
+            user_account::{
+                api::account::middlewares::LoggedInMdnUser,
+                services::account::MdnUserAccountService,
             },
-            repositories::{
-                device_requests_for_linkage::{
-                    into_user_device_linkage_request,
-                    CreateRequestForLinkageDto,
-                    MdnUserDeviceRequestsForLinkageRepository,
+            user_devices::{
+                api::devices::types::{
+                    ApproveUserDeviceLinkageRequest, RegisterUserDeviceRequest,
+                    UserDeviceLinkageRequest,
                 },
-                mdn_user_devices::{AddDeviceDto, MdnUserDevicesRepository},
+                repositories::{
+                    device_requests_for_linkage::{
+                        CreateRequestForLinkageDto,
+                        DeviceLinkageRequestWithDevice,
+                        MdnUserDeviceRequestsForLinkageRepository,
+                    },
+                    mdn_user_devices::{
+                        AddDeviceDto, MdnUserDevicesRepository,
+                    },
+                },
             },
         },
     },
     error::{MdnCentralErr, MdnCentralResult},
 };
 use device_did_utils::verify_device_did_signature;
+use mdn_identity_agent::mdn_cloud::user_devices::api_types::UserDeviceResponse;
 
 pub mod device_did_utils;
 
@@ -31,6 +39,8 @@ pub struct MdnUserDeviceManagerService<'a> {
     mdn_user_device_requests_for_linkage_repository:
         Box<dyn MdnUserDeviceRequestsForLinkageRepository + Send + Sync + 'a>,
     mdn_user_auth_service: MdnUserAccountService<'a>,
+    mdn_central_authority_signature:
+        Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
 impl<'a> MdnUserDeviceManagerService<'a> {
@@ -42,12 +52,36 @@ impl<'a> MdnUserDeviceManagerService<'a> {
             dyn MdnUserDeviceRequestsForLinkageRepository + Send + Sync + 'a,
         >,
         mdn_user_auth_service: MdnUserAccountService<'a>,
+        mdn_central_authority_signature: Arc<
+            dyn MdnSignaturesService + Send + Sync,
+        >,
     ) -> Self {
         Self {
             mdn_user_device_requests_for_linkage_repository,
             mdn_user_devices_repository,
             mdn_user_auth_service,
+            mdn_central_authority_signature,
         }
+    }
+
+    pub async fn list_user_devices(
+        &self,
+        user: LoggedInMdnUser,
+    ) -> MdnCentralResult<Vec<UserDeviceResponse>> {
+        let acc = self
+            .mdn_user_auth_service
+            .get_account_by_uid_required(&user.mdn_user_uid)
+            .await?;
+
+        let user_devices = self
+            .mdn_user_devices_repository
+            .list_devices(acc.mdn_user_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+        Ok(user_devices)
     }
 
     pub async fn list_user_device_linkage_requests(
@@ -64,14 +98,14 @@ impl<'a> MdnUserDeviceManagerService<'a> {
             .list_requests(acc.mdn_user_id)
             .await?
             .into_iter()
-            .map(into_user_device_linkage_request)
+            .map(Into::into)
             .collect())
     }
     pub async fn register_user_device(
         &self,
         RegisterUserDeviceRequest {
             user_device_did,
-            user_device_jwt_proof: user_device_did_signature,
+            user_device_jwt_proof,
             willow_peer_id,
             iroh_node_id,
             device_description,
@@ -85,7 +119,7 @@ impl<'a> MdnUserDeviceManagerService<'a> {
 
         let device_id_token = verify_device_did_signature(
             &user_device_did,
-            &user_device_did_signature,
+            &user_device_jwt_proof,
         )
         .await?;
 
@@ -101,8 +135,9 @@ impl<'a> MdnUserDeviceManagerService<'a> {
             ))?;
         }
 
-        // TODO add real MDN central DID retrieval mechanism
-        if device_id_token.aud != "did:key:mdn_central" {
+        if device_id_token.aud
+            != self.mdn_central_authority_signature.mee_sig_did().await?
+        {
             Err(MdnCentralErr::InvalidMdnDeviceUserAuthToken(
                 "Audience mismatch".to_string(),
             ))?;
@@ -176,7 +211,7 @@ impl<'a> MdnUserDeviceManagerService<'a> {
             )?
         }
 
-        let (_req, dev) = self
+        let DeviceLinkageRequestWithDevice(_req, dev) = self
             .mdn_user_device_requests_for_linkage_repository
             .get_request_by_uid(
                 acc.mdn_user_id,

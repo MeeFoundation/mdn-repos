@@ -1,9 +1,14 @@
 use crate::{
     config::AppConfig,
-    domain::mdn_user::{
-        router::mdn_users_router,
-        user_account::controller::MdnUserAccountController,
-        user_devices::controller::MdnUserDevicesController,
+    domain::{
+        mdn_authority::{
+            router::mdn_authority_router, utils::MdnSignaturesService,
+        },
+        mdn_user::{
+            router::mdn_users_router,
+            user_account::controller::MdnUserAccountController,
+            user_devices::controller::MdnUserDevicesController,
+        },
     },
     error::MdnCentralResult,
 };
@@ -14,7 +19,9 @@ use mee_http_utils::monitoring::health_check_router;
 
 use mee_secrets_manager::{
     client::SimpleFileSecretsManagerClient,
-    signatures_service::SignaturesServiceDefault,
+    signatures_service::{
+        SignaturesServiceConfigBuilder, SignaturesServiceDefault,
+    },
 };
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -29,6 +36,8 @@ pub struct AppCtl {
     pub(crate) app_config: AppConfig,
     pub(crate) mdn_user_account_controller: MdnUserAccountController,
     pub(crate) mdn_user_devices_controller: MdnUserDevicesController,
+    pub(crate) mdn_central_authority_signature:
+        Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
 impl AppCtl {
@@ -46,11 +55,24 @@ impl AppCtl {
         )
         .await?;
 
-        // TODO replace with real world secure secret manager
+        let signatures_service_config =
+            SignaturesServiceConfigBuilder::default()
+                .jwk_secret_path(Some(
+                    app_config.mdn_central_jwk_signature_secret_path.clone(),
+                ))
+                .did_id_secret_path(Some(
+                    app_config.mdn_central_did_secret_path.clone(),
+                ))
+                .iroh_key_secret_path(Some(
+                    app_config.mdn_central_iroh_signature_secret_path.clone(),
+                ))
+                .build()
+                .map_err(anyhow::Error::from)?;
+
         let mdn_central_authority_signature =
             Arc::new(SignaturesServiceDefault::new(
-                app_config.mdn_central_signature_secret_path.clone(),
-                None,
+                signatures_service_config,
+                // TODO replace with real world secure secret manager
                 Arc::new(SimpleFileSecretsManagerClient::new("".to_string())),
             ));
 
@@ -64,6 +86,7 @@ impl AppCtl {
                 mdn_central_authority_signature.clone(),
             ),
             app_config,
+            mdn_central_authority_signature,
         })
     }
     pub async fn run(self) -> MdnCentralResult {
@@ -77,6 +100,7 @@ impl AppCtl {
                 ),
                 crate::domain::mdn_user::api_schema::ApiDoc::openapi(),
             ))
+            .merge(mdn_authority_router())
             .merge(health_check_router())
             .nest(API_V1_PATH, api_routes)
             .with_state(self.clone())

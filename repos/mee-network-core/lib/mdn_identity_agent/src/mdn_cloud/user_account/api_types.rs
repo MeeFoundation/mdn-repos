@@ -6,6 +6,7 @@ pub struct CreateUserAccountRequest {
     pub email: String,
     pub phone: Option<String>,
     pub password: String,
+    pub device_did: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -18,4 +19,5 @@ pub struct UserAccountLoginResponse {
 pub struct UserAccountLoginRequest {
     pub email: String,
     pub password: String,
+    pub device_did: String,
 }

@@ -32,10 +32,22 @@ pub fn decode_mdn_device_user_id_token(
     Ok(claims)
 }
 
+pub struct EncodeMdnDeviceUserIdTokenParams {
+    pub iss: String,
+    pub sub: String,
+    pub aud: String,
+    pub sign_key: Jwk,
+    pub kid: Option<String>,
+}
+
 pub fn encode_mdn_device_user_id_token(
-    iss: String,
-    sub: String,
-    sign_key: Jwk,
+    EncodeMdnDeviceUserIdTokenParams {
+        iss,
+        sub,
+        aud,
+        sign_key,
+        kid,
+    }: EncodeMdnDeviceUserIdTokenParams,
 ) -> anyhow::Result<String> {
     let now = Utc::now();
     let iat = now.timestamp();
@@ -46,7 +58,7 @@ pub fn encode_mdn_device_user_id_token(
 
     let claims = MdnDeviceUserIdToken {
         iss,
-        aud: sub.clone(),
+        aud,
         sub,
         exp,
         iat,
@@ -55,7 +67,7 @@ pub fn encode_mdn_device_user_id_token(
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
     let signer = algo.signer_from_jwk(&sign_key.try_into()?)?;
-    let encoded_token = encode_token(&signer, &claims, None)?;
+    let encoded_token = encode_token(&signer, &claims, kid)?;
 
     Ok(encoded_token)
 }

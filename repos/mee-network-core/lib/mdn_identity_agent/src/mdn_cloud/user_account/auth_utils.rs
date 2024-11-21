@@ -27,20 +27,31 @@ pub fn decode_mdn_cloud_user_id_token(
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
 
-    let verifier = algo
-        .verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)
-        .unwrap();
+    let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
 
     let (claims, _header) = decode_token::<MdnCloudUserIdToken>(&verifier, &encoded_token)?;
 
     Ok(claims)
 }
 
+pub struct EncodeMdnCloudUserIdTokenParams {
+    pub iss: String,
+    pub sub: String,
+    pub aud: String,
+    pub mdn_user_role: String,
+    pub sign_key: Jwk,
+    pub kid: Option<String>,
+}
+
 pub fn encode_mdn_cloud_user_id_token(
-    iss: String,
-    sub: String,
-    mdn_user_role: String,
-    sign_key: Jwk,
+    EncodeMdnCloudUserIdTokenParams {
+        iss,
+        sub,
+        aud,
+        mdn_user_role,
+        sign_key,
+        kid,
+    }: EncodeMdnCloudUserIdTokenParams,
 ) -> MdnIdentityAgentResult<String> {
     let now = Utc::now();
     let iat = now.timestamp();
@@ -51,7 +62,7 @@ pub fn encode_mdn_cloud_user_id_token(
 
     let claims = MdnCloudUserIdToken {
         iss,
-        aud: sub.clone(),
+        aud,
         sub,
         exp,
         iat,
@@ -61,7 +72,7 @@ pub fn encode_mdn_cloud_user_id_token(
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
     let signer = algo.signer_from_jwk(&sign_key.try_into()?)?;
-    let encoded_token = encode_token(&signer, &claims, None)?;
+    let encoded_token = encode_token(&signer, &claims, kid)?;
 
     Ok(encoded_token)
 }

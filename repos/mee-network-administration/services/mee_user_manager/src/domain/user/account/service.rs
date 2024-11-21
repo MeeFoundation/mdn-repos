@@ -43,7 +43,7 @@ impl<'a> UserAccountService<'a> {
         &self,
         user: UserAccountDomainModel,
     ) -> MeeUserManagerResult<UserAccountLoginResponse> {
-        let mee_sig = self.mee_authority_signature.get_jwk_signature().await?;
+        let mee_sig = self.mee_authority_signature.get_source_jwk_signature().await?;
 
         let root_key = mee_sig
             .as_ref()
@@ -164,7 +164,7 @@ impl<'a> UserAccountService<'a> {
     ) -> MeeUserManagerResult<LoggedInUser> {
         let pkey = self
             .mee_authority_signature
-            .get_biscuit_signature()
+            .get_biscuit_signature_from_source_jwk()
             .await?
             .ok_or(MeeUserManagerErr::MissingMeeAuthoritySignature)?;
 

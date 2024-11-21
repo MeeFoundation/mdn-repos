@@ -8,6 +8,27 @@ use crate::{
     error::MdnCentralResult,
 };
 use axum::{extract::State, Json};
+use mdn_identity_agent::mdn_cloud::user_devices::api_types::UserDeviceResponse;
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/mdn_users/devices/list_all",
+    responses(
+        (status = 200, description = "Returns all registered user devices", body = ()),
+        (status = 500, description = "Something went wrong", body = String),
+    ),
+)]
+pub async fn list_user_devices(
+    logged_in_mdn_user: LoggedInMdnUser,
+    State(app_ctl): State<AppCtl>,
+) -> MdnCentralResult<Json<Vec<UserDeviceResponse>>> {
+    Ok(Json(
+        app_ctl
+            .mdn_user_devices_controller
+            .list_user_devices(logged_in_mdn_user)
+            .await?,
+    ))
+}
 
 #[utoipa::path(
     post,
@@ -21,7 +42,7 @@ pub async fn register_user_device(
     logged_in_mdn_user: LoggedInMdnUser,
     State(app_ctl): State<AppCtl>,
     Json(payload): Json<RegisterUserDeviceRequest>,
-) -> MdnCentralResult<()> {
+) -> MdnCentralResult {
     Ok(app_ctl
         .mdn_user_devices_controller
         .register_user_device(payload, logged_in_mdn_user)

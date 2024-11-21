@@ -15,28 +15,32 @@ use super::{
     services::device_manager::MdnUserDeviceManagerService,
 };
 use crate::{
-    domain::mdn_user::user_account::{
-        api::account::middlewares::LoggedInMdnUser,
-        controller::MdnUserAccountController,
+    domain::{
+        mdn_authority::utils::MdnSignaturesService,
+        mdn_user::user_account::{
+            api::account::middlewares::LoggedInMdnUser,
+            controller::MdnUserAccountController,
+        },
     },
     error::MdnCentralResult,
 };
+use mdn_identity_agent::mdn_cloud::user_devices::api_types::UserDeviceResponse;
 use mee_db_utils::sql_storage::RbdStorage;
-use mee_secrets_manager::signatures_service::SignaturesService;
 use sea_orm::ConnectionTrait;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MdnUserDevicesController {
     rdb_storage: RbdStorage,
-    mdn_central_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
+    mdn_central_authority_signature:
+        Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
 impl MdnUserDevicesController {
     pub fn new(
         rdb_storage: RbdStorage,
         mdn_central_authority_signature: Arc<
-            dyn SignaturesService + Send + Sync,
+            dyn MdnSignaturesService + Send + Sync,
         >,
     ) -> Self {
         Self {
@@ -56,6 +60,7 @@ impl MdnUserDevicesController {
                 tx,
                 self.mdn_central_authority_signature.clone(),
             ),
+            self.mdn_central_authority_signature.clone(),
         )
     }
     pub fn mdn_user_devices_repository<'a, C: ConnectionTrait>(
@@ -89,6 +94,14 @@ impl MdnUserDevicesController {
     ) -> MdnCentralResult<Vec<UserDeviceLinkageRequest>> {
         self.user_device_manager_service(&*self.rdb_storage.connection())
             .list_user_device_linkage_requests(user)
+            .await
+    }
+    pub async fn list_user_devices(
+        &self,
+        user: LoggedInMdnUser,
+    ) -> MdnCentralResult<Vec<UserDeviceResponse>> {
+        self.user_device_manager_service(&*self.rdb_storage.connection())
+            .list_user_devices(user)
             .await
     }
     pub async fn register_user_device(

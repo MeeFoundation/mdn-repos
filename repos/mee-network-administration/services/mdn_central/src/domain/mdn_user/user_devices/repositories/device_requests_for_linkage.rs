@@ -14,20 +14,22 @@ pub struct CreateRequestForLinkageDto {
     pub mdn_user_device_request_for_linkage_uid: String,
 }
 
-pub type DeviceLinkageRequestWithDevice = (
-    mdn_user_device_requests_for_linkage::Model,
-    mdn_user_devices::Model,
+pub struct DeviceLinkageRequestWithDevice(
+    pub mdn_user_device_requests_for_linkage::Model,
+    pub mdn_user_devices::Model,
 );
 
-pub fn into_user_device_linkage_request(
-    (req, dev): DeviceLinkageRequestWithDevice,
-) -> UserDeviceLinkageRequest {
-    UserDeviceLinkageRequest {
-        device_description: dev.device_description,
-        device_did: dev.device_did,
-        mdn_user_device_uid: dev.mdn_user_device_uid,
-        mdn_user_device_request_for_linkage_uid: req
-            .mdn_user_device_request_for_linkage_uid,
+impl From<DeviceLinkageRequestWithDevice> for UserDeviceLinkageRequest {
+    fn from(
+        DeviceLinkageRequestWithDevice(req, dev): DeviceLinkageRequestWithDevice,
+    ) -> Self {
+        UserDeviceLinkageRequest {
+            device_description: dev.device_description,
+            device_did: dev.device_did,
+            mdn_user_device_uid: dev.mdn_user_device_uid,
+            mdn_user_device_request_for_linkage_uid: req
+                .mdn_user_device_request_for_linkage_uid,
+        }
     }
 }
 
@@ -104,7 +106,9 @@ impl<'a, C: ConnectionTrait> MdnUserDeviceRequestsForLinkageRepository
 
         let res = res
             .into_iter()
-            .filter_map(|(req, dev)| dev.map(|d| (req, d)))
+            .filter_map(|(req, dev)| {
+                dev.map(|d| DeviceLinkageRequestWithDevice(req, d))
+            })
             .collect();
 
         Ok(res)
@@ -128,7 +132,9 @@ impl<'a, C: ConnectionTrait> MdnUserDeviceRequestsForLinkageRepository
             .one(self.db_conn)
             .await?;
 
-        let res = res.and_then(|(req, dev)| dev.map(|d| (req, d)));
+        let res = res.and_then(|(req, dev)| {
+            dev.map(|d| DeviceLinkageRequestWithDevice(req, d))
+        });
 
         Ok(res)
     }

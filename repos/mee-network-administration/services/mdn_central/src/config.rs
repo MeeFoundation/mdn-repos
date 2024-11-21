@@ -6,7 +6,13 @@ use url::Url;
 #[command(author, version, about, long_about = None)]
 pub struct AppConfig {
     #[arg(env, long)]
-    pub mdn_central_signature_secret_path: String,
+    pub mdn_central_jwk_signature_secret_path: String,
+
+    #[arg(env, long)]
+    pub mdn_central_did_secret_path: String,
+
+    #[arg(env, long)]
+    pub mdn_central_iroh_signature_secret_path: String,
 
     #[arg(env, long)]
     pub server_host: String,

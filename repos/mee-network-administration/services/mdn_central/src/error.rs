@@ -48,8 +48,11 @@ pub enum MdnCentralErr {
     #[error("User management error: user password is invalid")]
     MdnUserAccountInvalidPassword,
 
-    #[error("Mee authority signature is missing")]
+    #[error("MDN central authority signature is missing")]
     MissingMdnCentralAuthoritySignature,
+
+    #[error("MDN central DID identifier is missing")]
+    MissingMdnCentralAuthorityDid,
 
     #[error("Mee crypto utils error: {0}")]
     MeeCryptoUtils(#[from] MeeCryptoErr),

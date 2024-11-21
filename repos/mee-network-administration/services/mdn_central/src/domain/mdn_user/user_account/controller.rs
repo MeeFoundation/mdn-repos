@@ -9,23 +9,25 @@ use super::{
     },
     services::account::MdnUserAccountService,
 };
-use crate::error::MdnCentralResult;
+use crate::{
+    domain::mdn_authority::utils::MdnSignaturesService, error::MdnCentralResult,
+};
 use mee_db_utils::sql_storage::RbdStorage;
-use mee_secrets_manager::signatures_service::SignaturesService;
 use sea_orm::ConnectionTrait;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MdnUserAccountController {
     rdb_storage: RbdStorage,
-    mdn_central_authority_signature: Arc<dyn SignaturesService + Send + Sync>,
+    mdn_central_authority_signature:
+        Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
 impl MdnUserAccountController {
     pub fn new(
         rdb_storage: RbdStorage,
         mdn_central_authority_signature: Arc<
-            dyn SignaturesService + Send + Sync,
+            dyn MdnSignaturesService + Send + Sync,
         >,
     ) -> Self {
         Self {
@@ -36,7 +38,7 @@ impl MdnUserAccountController {
     pub fn user_account_service<'a, C: ConnectionTrait>(
         tx: &'a C,
         mdn_central_authority_signature: Arc<
-            dyn SignaturesService + Send + Sync,
+            dyn MdnSignaturesService + Send + Sync,
         >,
     ) -> MdnUserAccountService<'a> {
         MdnUserAccountService::new(

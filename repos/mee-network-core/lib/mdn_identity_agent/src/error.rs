@@ -53,6 +53,6 @@ pub enum MdnIdentityAgentErr {
     MeeDataSync(#[from] MeeDataSyncErr),
 
     // domain error
-    #[error("MDN user device identity sub-system error: {0}")]
-    MdnDeviceIdm(String),
+    #[error("MDN user identity sub-system error: {0}")]
+    MdnUserIdm(String),
 }

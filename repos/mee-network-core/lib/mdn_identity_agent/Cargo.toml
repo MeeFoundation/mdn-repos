@@ -11,6 +11,10 @@ mee_crypto = { path = "../mee_crypto" }
 mee_did = { path = "../mee_did" }
 mee_data_sync = { path = "../mee_data_sync" }
 
+tracing-subscriber = { workspace = true, features = [
+  "env-filter",
+  "tracing-log",
+] }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }

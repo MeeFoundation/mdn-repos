@@ -54,8 +54,24 @@ pub struct LocalKvDbRedb {
 impl LocalKvDbRedb {
     const MAIN_TABLE: TableDefinition<'_, &str, Vec<u8>> = TableDefinition::new("MAIN_TABLE");
 
-    pub fn new(db_file_path: String) -> Self {
-        Self { db_file_path }
+    pub async fn try_new(db_file_path: String) -> MdnIdentityAgentResult<Self> {
+        let db_file_path = db_file_path.clone();
+
+        tokio::task::spawn_blocking({
+            let db_file_path = db_file_path.clone();
+            move || {
+                let db = Database::create(db_file_path)?;
+
+                let write_txn = db.begin_write()?;
+                write_txn.open_table(Self::MAIN_TABLE)?;
+                write_txn.commit()?;
+
+                MdnIdentityAgentResult::Ok(())
+            }
+        })
+        .await??;
+
+        Ok(Self { db_file_path })
     }
 }
 
@@ -125,11 +141,11 @@ impl LocalKvDb for LocalKvDbRedb {
 
 #[tokio::test]
 async fn local_kvdb_smoke() {
-    use mee_test_utils::create_cargo_target_level_file;
+    use mee_test_utils::cargo_target_level_filename;
 
-    let db_file = create_cargo_target_level_file!("local_kvdb_smoke");
+    let db_file = cargo_target_level_filename!("local_kvdb_smoke");
 
-    let db = LocalKvDbRedb::new(db_file);
+    let db = LocalKvDbRedb::try_new(db_file).await.unwrap();
     let test_key = "test".to_string();
     let test_value = vec![123];
 
