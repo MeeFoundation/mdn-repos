@@ -21,7 +21,7 @@ impl Parser<MeeNode<BoolExpression>> for BoolExpressionParser {
                     "Expected val",
                 ))?;
                 let val = parser_list
-                    .value
+                    .expression
                     .parse(source_text, val_node, parser_list, ctx)?;
 
                 let comparator_node = get_child_by_field_name(node, "comparator", source_text)?;

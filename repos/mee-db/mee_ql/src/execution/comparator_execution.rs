@@ -207,6 +207,122 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     Ok(pattern.is_match(&left))
                 }
             }
+            Comparator::After(expr) => {
+                let expr = Arc::new(expr.clone());
+                let left = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        left_node.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                let right = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        expr.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left.cast_to_date(left_node.clone(), source_text.clone())?
+                        > right.cast_to_date(node.clone(), source_text.clone())?)
+            }
+            Comparator::Before(expr) => {
+                let expr = Arc::new(expr.clone());
+                let left = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        left_node.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                let right = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        expr.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left.cast_to_date(left_node.clone(), source_text.clone())?
+                        < right.cast_to_date(node.clone(), source_text.clone())?)
+            }
+            Comparator::Between(from, to) => {
+                let left = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        left_node.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                let from_node = Arc::new(from.clone());
+                let to_node = Arc::new(to.clone());
+                let from = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        from_node.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                let to = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        to_node.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+
+                if left == Value::Null || from == Value::Null || to == Value::Null {
+                    return Ok(false);
+                }
+
+                let left = left.cast_to_date(left_node.clone(), source_text.clone())?;
+                let from = from.cast_to_date(from_node.clone(), source_text.clone())?;
+                let to = to.cast_to_date(to_node.clone(), source_text.clone())?;
+                Ok(left >= from && left < to)
+            }
+            Comparator::Contains(expr) => {
+                let expr = Arc::new(expr.clone());
+                let left = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        left_node.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                let right = executor_list
+                    .ee
+                    .execute(
+                        source_text.clone(),
+                        expr.clone(),
+                        ctx.clone(),
+                        executor_list.clone(),
+                    )
+                    .await?;
+                Ok(left != Value::Null
+                    && right != Value::Null
+                    && left
+                        .cast_to_array(left_node.clone(), source_text.clone())?
+                        .contains(&right))
+            }
             Comparator::Exists => Ok(!executor_list
                 .ee
                 .execute(

@@ -82,6 +82,42 @@ impl Parser<MeeNode<Comparator>> for ComparatorParser {
                 expr.check_type(&NodeTypes::String, source_text)?;
                 Ok(mee_node(&node, Comparator::Matches(expr)).with_type(NodeTypes::String))
             }
+            "after" => {
+                let right_node = get_child_by_field_name(node, "right", source_text)?;
+                let expr =
+                    parser_list
+                        .expression
+                        .parse(source_text, right_node, parser_list, ctx)?;
+                Ok(mee_node(&node, Comparator::After(expr)))
+            }
+            "before" => {
+                let right_node = get_child_by_field_name(node, "right", source_text)?;
+                let expr =
+                    parser_list
+                        .expression
+                        .parse(source_text, right_node, parser_list, ctx)?;
+                Ok(mee_node(&node, Comparator::Before(expr)))
+            }
+            "between" => {
+                let from_node = get_child_by_field_name(node, "from", source_text)?;
+                let to_node = get_child_by_field_name(node, "to", source_text)?;
+                let from =
+                    parser_list
+                        .expression
+                        .parse(source_text, from_node, parser_list, ctx)?;
+                let to = parser_list
+                    .expression
+                    .parse(source_text, to_node, parser_list, ctx)?;
+                Ok(mee_node(&node, Comparator::Between(from, to)))
+            }
+            "contains" => {
+                let right_node = get_child_by_field_name(node, "right", source_text)?;
+                let expr =
+                    parser_list
+                        .expression
+                        .parse(source_text, right_node, parser_list, ctx)?;
+                Ok(mee_node(&node, Comparator::Contains(expr)))
+            }
             "exists" => Ok(mee_node(&node, Comparator::Exists)),
             _ => Err(Error::syntax_error(
                 Position(node.byte_range().start, node.byte_range().end),

@@ -94,6 +94,7 @@ mod tests {
             "name": "Alice",
             "last_name": "Walker",
             "age": 30,
+            "birth_date": "1993-05-15",
             "email": "awalker@gmail.com",
             "payment_cards": [
                 {
@@ -119,6 +120,7 @@ mod tests {
             "name": "Bob",
             "last_name": "Smith",
             "age": 25,
+            "birth_date": "1998-05-15",
             "email": "sbob@gmail.com",
             "payment_cards": [
             {
@@ -144,6 +146,7 @@ mod tests {
                 "name": "Carol",
                 "last_name": "Johnson",
                 "age": 35,
+                "birth_date": "1995-05-15",
                 "email": "jcarol@gmail.com",
                 "payment_cards": [
                 {
@@ -169,6 +172,7 @@ mod tests {
                 "name": "Dan",
                 "last_name": "Brown",
                 "age": 40,
+                "birth_date": "1996-05-15",
                 "email": "bdan@yahoo.com",
                 "payment_cards": [
                 {
@@ -447,5 +451,54 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(res, json!(["Alice", "Carol", "Dan"]));
+    }
+
+    #[tokio::test]
+    async fn test_after() {
+        let qe = setup().await;
+        let res = qe
+            .execute(
+                r#"[user.name for user in users if user.birth_date after "1998-05-14"]"#
+                    .to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["Bob"]));
+    }
+
+    #[tokio::test]
+    async fn test_before() {
+        let qe = setup().await;
+        let res = qe
+            .execute(
+                r#"[user.name for user in users if user.birth_date before "1993-05-16"]"#
+                    .to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["Alice"]));
+    }
+
+    #[tokio::test]
+    async fn test_between() {
+        let qe = setup().await;
+        let res = qe
+            .execute(
+                r#"[user.name for user in users if user.birth_date between "1993-05-15" and "1996-05-15"]"#
+                    .to_string(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["Alice", "Carol"]));
+    }
+
+    #[tokio::test]
+    async fn test_contains() {
+        let qe = setup().await;
+        let res = qe
+            .execute(r#"[user.name for user in users if [card.number for card in user.payment_cards] contains "9999 5678 9014 3456"]"#.to_string())
+            .await
+            .unwrap();
+        assert_eq!(res, json!(["Bob"]));
     }
 }

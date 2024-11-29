@@ -1,5 +1,6 @@
 mod bool_expression_parser;
 mod comparator_parser;
+mod error_text;
 mod expression_parser;
 mod iterator_parser;
 mod parser;
@@ -74,7 +75,6 @@ impl ASTParserImpl {
     }
 
     fn find_errors(node: tree_sitter::Node, source_code: &str) -> Result<()> {
-        dbg!(&node);
         if node.is_error() {
             Err(Error::syntax_error(
                 Position(node.byte_range().start, node.byte_range().end),
@@ -83,21 +83,13 @@ impl ASTParserImpl {
             ))?;
         } else {
             match node.kind() {
-                "missing_query_start" => Err(Error::syntax_error(
-                    Position(node.byte_range().start, node.byte_range().end),
-                    source_code.to_string(),
-                    "Expected '[' or '(' as start of query",
-                ))?,
-                "missing_array_query_end" => Err(Error::syntax_error(
-                    Position(node.byte_range().start, node.byte_range().end),
-                    source_code.to_string(),
-                    "Expected ']' as end of array query",
-                ))?,
-                "missing_element_query_end" => Err(Error::syntax_error(
-                    Position(node.byte_range().start, node.byte_range().end),
-                    source_code.to_string(),
-                    "Expected ')' as end of element query",
-                ))?,
+                kind if kind == "MISSING" || kind.starts_with("missing_") => {
+                    Err(Error::syntax_error(
+                        Position(node.byte_range().start, node.byte_range().end),
+                        source_code.to_string(),
+                        error_text::error_text(kind),
+                    ))?
+                }
                 _ => {}
             }
         }

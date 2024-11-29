@@ -5,7 +5,14 @@ user for user in users]
 ---
 
 (start
-  (missing_query_start))
+  (missing_query_start
+    (MISSING "ERROR_missing_query_start"))
+  (path
+    (ident))
+  (iterator_stmt
+    (ident)
+    (path
+      (ident))))
 
 ===
 Missing element query end
@@ -21,7 +28,8 @@ Missing element query end
       (ident)
       (path
         (ident)))
-    (missing_element_query_end)))
+    (missing_element_query_end
+      (MISSING "ERROR_missing_element_query_end"))))
 
 ===
 Missing array query end
@@ -38,7 +46,7 @@ Missing array query end
       (path
         (ident)))
     (missing_array_query_end
-      (MISSING "missing_array_query_end_token1"))))
+      (MISSING "ERROR_missing_array_query_end"))))
 
 ===
 Missing main iterator
@@ -50,21 +58,21 @@ Missing main iterator
   (array_query
     (path
       (ident))
-    (missing_main_iterator)
-    (missing_array_query_end
-      (MISSING "missing_array_query_end_token1"))))
+    (missing_main_iterator
+      (MISSING "ERROR_missing_main_iterator"))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
 
 ===
-Syntax error
+Missing right TODO fix
 ===
-[ user for user in users ffff
+
+[ user  for user in users if user.age >= ]
 ---
 
-(ERROR
-  (path
-    (ident))
-  (iterator_stmt
-    (ident)
-    (path
-      (ident)))
-  (ident))
+

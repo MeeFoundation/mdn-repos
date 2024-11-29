@@ -21,6 +21,7 @@ pub enum NodeTypes {
     Object,
     Users,
     AbsolutePath,
+    DateTime,
     Null,
 }
 
@@ -148,6 +149,10 @@ pub enum Comparator {
     Ge(MeeNode<Expression>),
     Le(MeeNode<Expression>),
     Matches(MeeNode<Expression>),
+    After(MeeNode<Expression>),
+    Before(MeeNode<Expression>),
+    Between(MeeNode<Expression>, MeeNode<Expression>),
+    Contains(MeeNode<Expression>),
     Exists,
 }
 
