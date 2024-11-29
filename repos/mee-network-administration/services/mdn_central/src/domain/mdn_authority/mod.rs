@@ -1,3 +1,3 @@
 pub mod api_methods;
-pub mod router;
+pub mod api_router;
 pub mod utils;

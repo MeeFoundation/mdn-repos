@@ -1,1 +1,1 @@
-DROP TABLE mdn_users;
+-- TODO add tables deletion

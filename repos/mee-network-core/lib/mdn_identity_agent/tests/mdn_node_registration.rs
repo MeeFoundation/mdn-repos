@@ -1,0 +1,60 @@
+use mdn_identity_agent::agent_device::agent_node::{MdnAgentNode, MdnAgentNodeConfig};
+use mee_test_utils::cargo_target_level_filename;
+use tracing_subscriber::{filter::LevelFilter, EnvFilter};
+
+#[tokio::test]
+async fn node_registration_flow() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::DEBUG.into())
+                .parse("")
+                .unwrap(),
+        )
+        .init();
+
+    let local_db_file_path = cargo_target_level_filename!("node_registration_flow_local_db1");
+
+    log::info!(
+        "remove old db: {:?}",
+        std::fs::remove_file(&local_db_file_path)
+    );
+
+    let agent_node = MdnAgentNode::try_new(MdnAgentNodeConfig {
+        local_db_file_path,
+        mdn_api_base_url: "http://127.0.0.1:8899".parse().unwrap(),
+    })
+    .await
+    .unwrap();
+
+    let email = "alice@email.com";
+    let password = "alice_password";
+
+    let res = agent_node
+        .mdn_user_account_manager
+        .register(email.to_string(), password.to_string())
+        .await;
+
+    log::info!("Registration result: {res:#?}");
+
+    agent_node
+        .mdn_user_account_manager
+        .login(email.to_string(), password.to_string())
+        .await
+        .unwrap();
+
+    assert!(agent_node
+        .mdn_user_account_manager
+        .get_user_auth_token()
+        .await
+        .unwrap()
+        .is_some());
+
+    agent_node.mdn_user_nodes_manager.register().await.unwrap();
+
+    let nodes = agent_node.mdn_user_nodes_manager.list_all().await.unwrap();
+
+    assert!(nodes.len() > 0);
+
+    log::info!("devices: {nodes:#?}");
+}

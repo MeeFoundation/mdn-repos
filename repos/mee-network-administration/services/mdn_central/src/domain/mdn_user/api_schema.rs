@@ -1,7 +1,4 @@
-use super::{
-    user_account::api::account::{methods::*, types::*},
-    user_devices::api::devices::{methods::*, types::*},
-};
+use super::user_account::api::{methods::*, types::*};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -9,20 +6,12 @@ use utoipa::OpenApi;
       paths(
           register_user,
           login_user,
-          register_user_device,
-          approve_user_device_linkage,
-          list_user_device_linkage_requests,
-          list_user_devices,
       ),
       components(
           schemas(
               CreateUserAccountRequest,
               UserAccountLoginRequest,
               UserAccountLoginResponse,
-              RegisterUserDeviceRequest,
-              ApproveUserDeviceLinkageRequest,
-              UserDeviceLinkageRequest,
-              UserDeviceResponse,
           ),
       ),
       tags(

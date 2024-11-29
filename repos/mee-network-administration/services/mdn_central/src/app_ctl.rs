@@ -2,12 +2,14 @@ use crate::{
     config::AppConfig,
     domain::{
         mdn_authority::{
-            router::mdn_authority_router, utils::MdnSignaturesService,
+            api_router::mdn_authority_router, utils::MdnSignaturesService,
+        },
+        mdn_custodian::mdn_nodes::{
+            api_router::mdn_nodes_router, controller::MdnNodesController,
         },
         mdn_user::{
-            router::mdn_users_router,
+            api_router::mdn_users_router,
             user_account::controller::MdnUserAccountController,
-            user_devices::controller::MdnUserDevicesController,
         },
     },
     error::MdnCentralResult,
@@ -35,7 +37,7 @@ const SWAGGER_PATH: &str = "/swagger-ui";
 pub struct AppCtl {
     pub(crate) app_config: AppConfig,
     pub(crate) mdn_user_account_controller: MdnUserAccountController,
-    pub(crate) mdn_user_devices_controller: MdnUserDevicesController,
+    pub(crate) mdn_nodes_controller: MdnNodesController,
     pub(crate) mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
 }
@@ -81,16 +83,15 @@ impl AppCtl {
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
             ),
-            mdn_user_devices_controller: MdnUserDevicesController::new(
-                rdb_storage.clone(),
-                mdn_central_authority_signature.clone(),
-            ),
+            mdn_nodes_controller: MdnNodesController::new(rdb_storage.clone()),
             app_config,
             mdn_central_authority_signature,
         })
     }
     pub async fn run(self) -> MdnCentralResult {
-        let api_routes = Router::new().nest("/mdn_users", mdn_users_router());
+        let api_routes = Router::new()
+            .nest("/mdn_users", mdn_users_router())
+            .nest("/mdn_nodes", mdn_nodes_router());
 
         let mut app = Router::new()
             .merge(SwaggerUi::new(SWAGGER_PATH).url(

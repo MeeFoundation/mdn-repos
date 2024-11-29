@@ -1,9 +1,10 @@
 use crate::{
     domain::{
         mdn_authority::utils::MdnSignaturesService,
+        mdn_custodian::account::services::account::MdnCustodiansService,
         mdn_user::user_account::{
-            api::account::{
-                middlewares::LoggedInMdnUser,
+            api::{
+                middlewares::DirectlyLoggedInMdnUser,
                 types::{
                     AuthorizeUserResponse, CreateUserAccountRequest,
                     UserAccountLoginRequest, UserAccountLoginResponse,
@@ -36,16 +37,21 @@ pub struct MdnUserAccountService<'a> {
     user_account_repository: Box<dyn MdnUsersRepository + Send + Sync + 'a>,
     mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
+    mdn_custodians_service: MdnCustodiansService<'a>,
 }
 
 impl<'a> MdnUserAccountService<'a> {
     pub fn new(
         user_account_repository: Box<dyn MdnUsersRepository + Send + Sync + 'a>,
-        mee_authority_signature: Arc<dyn MdnSignaturesService + Send + Sync>,
+        mdn_central_authority_signature: Arc<
+            dyn MdnSignaturesService + Send + Sync,
+        >,
+        mdn_custodians_service: MdnCustodiansService<'a>,
     ) -> Self {
         Self {
+            mdn_custodians_service,
             user_account_repository,
-            mdn_central_authority_signature: mee_authority_signature,
+            mdn_central_authority_signature,
         }
     }
     async fn make_login_response(
@@ -56,8 +62,18 @@ impl<'a> MdnUserAccountService<'a> {
         let mdn_did =
             self.mdn_central_authority_signature.mee_sig_did().await?;
 
+        let db_user =
+            self.get_account_by_uid_required(&user.mdn_user_uid).await?;
+
+        let mdn_user_custodian_uid = self
+            .mdn_custodians_service
+            .get_user_custodian(db_user.mdn_user_id)
+            .await?
+            .mdn_custodian_uid;
+
         let auth_token =
             encode_mdn_cloud_user_id_token(EncodeMdnCloudUserIdTokenParams {
+                mdn_user_custodian_uid,
                 sub: user.mdn_user_uid.clone(),
                 aud: device_did,
                 mdn_user_role: user.mdn_user_role.to_string(),
@@ -144,7 +160,7 @@ impl<'a> MdnUserAccountService<'a> {
         let res = self
             .user_account_repository
             .create_account(CreateUserAccountDto {
-                mdn_user_uid: format!("mdn_user_{}", uuid::Uuid::new_v4()),
+                mdn_user_uid: format!("mdn_user-{}", uuid::Uuid::new_v4()),
                 mdn_user_email: email,
                 mdn_user_role: MdnUserAccountRole::Customer,
                 mdn_user_phone: phone,
@@ -154,6 +170,10 @@ impl<'a> MdnUserAccountService<'a> {
                 salt: password_salt.to_string(),
                 password: password_hash,
             })
+            .await?;
+
+        self.mdn_custodians_service
+            .create_user_custodian_account(res.mdn_user_id)
             .await?;
 
         self.make_login_response(res.try_into()?, device_did).await
@@ -175,14 +195,15 @@ impl<'a> MdnUserAccountService<'a> {
     pub async fn authorize_user_token(
         &self,
         token: &str,
-    ) -> MdnCentralResult<LoggedInMdnUser> {
+    ) -> MdnCentralResult<DirectlyLoggedInMdnUser> {
         let mee_sig = self.mdn_central_authority_signature.mee_sig().await?;
 
         let mdn_user_id_token = decode_mdn_cloud_user_id_token(token, mee_sig)?;
 
-        let user = LoggedInMdnUser {
+        let user = DirectlyLoggedInMdnUser {
             mdn_user_uid: mdn_user_id_token.sub,
             _mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
+            mdn_user_custodian_uid: mdn_user_id_token.mdn_user_custodian_uid,
         };
 
         Ok(user)
@@ -199,8 +220,8 @@ impl<'a> MdnUserAccountService<'a> {
         &self,
         uid: &str,
     ) -> MdnCentralResult<crate::db_models::mdn_users::Model> {
-        self.get_account_by_uid(uid).await?.ok_or_else(|| {
-            MdnCentralErr::MissingDbEntity(format!("user with uid={uid}"))
-        })
+        self.get_account_by_uid(uid)
+            .await?
+            .ok_or_else(|| MdnCentralErr::MissingDbEntity(format!("{uid}")))
     }
 }

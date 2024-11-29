@@ -7,55 +7,48 @@ use mee_crypto::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::error::MdnIdentityAgentResult;
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MdnCloudUserIdToken {
+pub struct MdnUserNodeIdToken {
     pub iss: String,
     pub sub: String,
     pub aud: String,
     pub exp: i64,
     pub iat: i64,
-
-    pub mdn_user_role: String,
-    pub mdn_user_custodian_uid: String,
 }
 
-pub fn decode_mdn_cloud_user_id_token(
+pub fn decode_user_node_id_token(
     encoded_token: &str,
     sign_key: Jwk,
-) -> MdnIdentityAgentResult<MdnCloudUserIdToken> {
+) -> anyhow::Result<MdnUserNodeIdToken> {
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
 
-    let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
+    let verifier = algo
+        .verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)
+        .unwrap();
 
-    let (claims, _header) = decode_token::<MdnCloudUserIdToken>(&verifier, &encoded_token)?;
+    let (claims, _header) = decode_token::<MdnUserNodeIdToken>(&verifier, &encoded_token)?;
 
     Ok(claims)
 }
 
-pub struct EncodeMdnCloudUserIdTokenParams {
+pub struct EncodeMdnDeviceUserIdTokenParams {
     pub iss: String,
     pub sub: String,
     pub aud: String,
-    pub mdn_user_role: String,
-    pub mdn_user_custodian_uid: String,
     pub sign_key: Jwk,
     pub kid: Option<String>,
 }
 
-pub fn encode_mdn_cloud_user_id_token(
-    EncodeMdnCloudUserIdTokenParams {
+pub fn encode_user_node_id_token(
+    EncodeMdnDeviceUserIdTokenParams {
         iss,
         sub,
         aud,
-        mdn_user_role,
-        mdn_user_custodian_uid,
         sign_key,
         kid,
-    }: EncodeMdnCloudUserIdTokenParams,
-) -> MdnIdentityAgentResult<String> {
+    }: EncodeMdnDeviceUserIdTokenParams,
+) -> anyhow::Result<String> {
     let now = Utc::now();
     let iat = now.timestamp();
     let exp = now
@@ -63,14 +56,12 @@ pub fn encode_mdn_cloud_user_id_token(
         .context("chrono time manipulation issue")?
         .timestamp();
 
-    let claims = MdnCloudUserIdToken {
+    let claims = MdnUserNodeIdToken {
         iss,
         aud,
         sub,
         exp,
         iat,
-        mdn_user_role,
-        mdn_user_custodian_uid,
     };
 
     // TODO derive algo from input jwk

@@ -4,22 +4,14 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
-#[sea_orm(table_name = "mdn_users")]
+#[sea_orm(table_name = "mdn_custodians")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_user_id: i64,
+    pub mdn_custodian_id: i64,
     #[sea_orm(unique)]
-    pub mdn_user_uid: String,
-    #[sea_orm(unique)]
-    pub mdn_user_email: String,
-    #[sea_orm(unique)]
-    pub mdn_user_phone: Option<String>,
-    pub mdn_user_name: Option<String>,
-    pub mdn_user_role: String,
-    pub is_user_active: bool,
-    pub is_user_verified: bool,
-    pub salt: String,
-    pub password: String,
+    pub mdn_custodian_uid: String,
+    pub mdn_user_custodian_id: Option<i64>,
+    pub mdn_provider_custodian_id: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -34,14 +26,24 @@ pub enum Relation {
         has_many = "super::mdn_custodian_context_operation_caps::Entity"
     )]
     MdnCustodianContextOperationCaps,
-    #[sea_orm(has_many = "super::mdn_custodians::Entity")]
-    MdnCustodians,
+    #[sea_orm(has_many = "super::mdn_nodes::Entity")]
+    MdnNodes,
     #[sea_orm(
-        has_many = "super::mdn_user_device_requests_for_linkage::Entity"
+        belongs_to = "super::mdn_providers::Entity",
+        from = "Column::MdnProviderCustodianId",
+        to = "super::mdn_providers::Column::MdnProviderId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
     )]
-    MdnUserDeviceRequestsForLinkage,
-    #[sea_orm(has_many = "super::mdn_user_devices::Entity")]
-    MdnUserDevices,
+    MdnProviders,
+    #[sea_orm(
+        belongs_to = "super::mdn_users::Entity",
+        from = "Column::MdnUserCustodianId",
+        to = "super::mdn_users::Column::MdnUserId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    MdnUsers,
 }
 
 impl Related<super::mdn_context_scoped_ids::Entity> for Entity {
@@ -62,21 +64,21 @@ impl Related<super::mdn_custodian_context_operation_caps::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_custodians::Entity> for Entity {
+impl Related<super::mdn_nodes::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnCustodians.def()
+        Relation::MdnNodes.def()
     }
 }
 
-impl Related<super::mdn_user_device_requests_for_linkage::Entity> for Entity {
+impl Related<super::mdn_providers::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnUserDeviceRequestsForLinkage.def()
+        Relation::MdnProviders.def()
     }
 }
 
-impl Related<super::mdn_user_devices::Entity> for Entity {
+impl Related<super::mdn_users::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnUserDevices.def()
+        Relation::MdnUsers.def()
     }
 }
 

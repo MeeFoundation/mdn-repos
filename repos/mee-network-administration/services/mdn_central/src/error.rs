@@ -68,15 +68,8 @@ pub enum MdnCentralErr {
     )]
     MissingMdnUserAuthToken,
 
-    // #[error(
-    //     "User management error: cloud user authorization token is invalid"
-    // )]
-    // InvalidMdnCloudUserAuthToken,
-    #[error("User management error: device user authorization token is invalid: {0}")]
-    InvalidMdnDeviceUserAuthToken(String),
-
-    #[error("User device management error: {0}")]
-    MdnUserDeviceManagement(String),
+    #[error("User account management error: {0}")]
+    MdnUserAccountManagement(String),
 }
 
 impl From<TransactionError<MdnCentralErr>> for MdnCentralErr {

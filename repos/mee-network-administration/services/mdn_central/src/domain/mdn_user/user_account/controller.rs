@@ -1,16 +1,21 @@
 use super::{
-    api::account::middlewares::LoggedInMdnUser,
-    api::account::types::{
+    api::middlewares::DirectlyLoggedInMdnUser,
+    api::types::{
         AuthorizeUserRequest, AuthorizeUserResponse, CreateUserAccountRequest,
         UserAccountLoginRequest, UserAccountLoginResponse,
     },
-    repositories::mdn_users::{
-        MdnUserAccountRepositoryImpl, MdnUsersRepository,
-    },
+    repositories::mdn_users::MdnUserAccountRepositoryImpl,
     services::account::MdnUserAccountService,
 };
 use crate::{
-    domain::mdn_authority::utils::MdnSignaturesService, error::MdnCentralResult,
+    domain::{
+        mdn_authority::utils::MdnSignaturesService,
+        mdn_custodian::account::{
+            repositories::mdn_custodians::MdnCustodiansRepositoryImpl,
+            services::account::MdnCustodiansService,
+        },
+    },
+    error::MdnCentralResult,
 };
 use mee_db_utils::sql_storage::RbdStorage;
 use sea_orm::ConnectionTrait;
@@ -42,14 +47,17 @@ impl MdnUserAccountController {
         >,
     ) -> MdnUserAccountService<'a> {
         MdnUserAccountService::new(
-            Box::new(Self::user_account_repository(tx)),
+            Box::new(MdnUserAccountRepositoryImpl::new(tx)),
             mdn_central_authority_signature.clone(),
+            Self::mdn_custodians_service(tx),
         )
     }
-    pub fn user_account_repository<'a, C: ConnectionTrait>(
+    pub fn mdn_custodians_service<'a, C: ConnectionTrait>(
         tx: &'a C,
-    ) -> impl MdnUsersRepository + 'a {
-        MdnUserAccountRepositoryImpl::new(tx)
+    ) -> MdnCustodiansService<'a> {
+        MdnCustodiansService::new(Box::new(MdnCustodiansRepositoryImpl::new(
+            tx,
+        )))
     }
 
     pub async fn register_user(
@@ -97,7 +105,7 @@ impl MdnUserAccountController {
     pub async fn authorize_user_token(
         &self,
         token: String,
-    ) -> MdnCentralResult<LoggedInMdnUser> {
+    ) -> MdnCentralResult<DirectlyLoggedInMdnUser> {
         let res = Self::user_account_service(
             &*self.rdb_storage.connection(),
             self.mdn_central_authority_signature.clone(),
