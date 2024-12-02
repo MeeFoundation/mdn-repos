@@ -12,7 +12,7 @@ user for user in users]
   (iterator_stmt
     (ident)
     (path
-      (ident))))
+      (ident)))
 
 ===
 Missing element query end

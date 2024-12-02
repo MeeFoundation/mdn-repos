@@ -13,6 +13,7 @@ pub trait BinaryKVStore: Debug {
     #[allow(unused)]
     async fn insert(&self, path: String, value: Vec<u8>) -> Result<()>;
     async fn insert_many(&self, batch: Vec<KV>) -> Result<()>;
+    async fn max_index(&self, path: String) -> Result<usize>;
     async fn range(&self, path: String) -> Result<KVStream>;
     async fn delete(&self, path: &str) -> Result<()>;
     #[allow(unused)]

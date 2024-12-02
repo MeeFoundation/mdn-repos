@@ -48,6 +48,28 @@ impl Parser<MeeNode<Statement>> for StatementParser {
                         .parse(source_text, expr_node, parser_list, ctx)?;
                 Ok(mee_node(&node, Statement::Update((field, expr))))
             }
+            "append_stmt" => {
+                let field_node = get_child_by_field_name(node, "field", source_text)?;
+                let field = parser_list
+                    .path
+                    .parse(source_text, field_node, parser_list, ctx)?;
+                field.check_type(&NodeTypes::AbsolutePath, source_text)?;
+
+                if let Ok(expr_node) = get_child_by_field_name(node, "values", source_text) {
+                    let expr =
+                        parser_list
+                            .expression
+                            .parse(source_text, expr_node, parser_list, ctx)?;
+                    Ok(mee_node(&node, Statement::AppendMany((field, expr))))
+                } else {
+                    let expr_node = get_child_by_field_name(node, "value", source_text)?;
+                    let expr =
+                        parser_list
+                            .expression
+                            .parse(source_text, expr_node, parser_list, ctx)?;
+                    Ok(mee_node(&node, Statement::AppendOne((field, expr))))
+                }
+            }
             "delete_stmt" => {
                 let field_node = get_child_by_field_name(node, "field", source_text)?;
                 let field = parser_list

@@ -39,11 +39,10 @@ pub fn get_child_by_field_name<'a>(
     field_name: &'a str,
     source_text: &'a str,
 ) -> Result<Node<'a>> {
-    Ok(node
-        .child_by_field_name(field_name)
+    node.child_by_field_name(field_name)
         .ok_or(Error::syntax_error(
             Position(node.byte_range().start, node.byte_range().end),
             source_text,
             format!("Expected child with type: {:?}", field_name),
-        ))?)
+        ))
 }

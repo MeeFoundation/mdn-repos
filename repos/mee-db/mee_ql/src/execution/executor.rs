@@ -46,6 +46,7 @@ pub trait QueryExecutor: Executor<Query, Value> {
         executor_list: Arc<ExecutorList>,
         updates: Arc<Mutex<HashMap<String, Value>>>,
         deletes: Arc<Mutex<HashSet<String>>>,
+        appends: Arc<Mutex<HashMap<String, Vec<Value>>>>,
     ) -> JsonResultStream;
 }
 

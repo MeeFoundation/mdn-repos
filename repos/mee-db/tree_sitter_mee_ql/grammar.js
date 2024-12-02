@@ -13,6 +13,7 @@ const PREC = {
     instruction: 100,
     assignment: 101,
     update_stmt: 102,
+    append_stmt: 103,
     // unknown_stmt: -1, // Remove or keep for potential future use
     pair: 103,
     key_word: 1000,
@@ -68,6 +69,7 @@ module.exports = grammar({
                     $.filter_stmt,
                     $.offset_stmt,
                     $.limit_stmt,
+                    $.append_stmt,
                     // Removed $.unknown_stmt
                 ))),
             )
@@ -101,6 +103,18 @@ module.exports = grammar({
                     field('expr', $._expected_expression)
                 ),
                 $.missing_update_field
+            )
+        )),
+
+        append_stmt: $ => prec.left(PREC.append_stmt, seq(
+            $._append,
+            field('field', $.path),
+            choice(
+                seq(
+                    $._values,
+                    field('values', $._expected_expression)
+                ),
+                field('values', $._expected_expression)
             )
         )),
 
@@ -311,6 +325,8 @@ module.exports = grammar({
         _delete: $ => token(prec(PREC.key_word, 'delete')),
         _offset: $ => token(prec(PREC.key_word, 'offset')),
         _limit: $ => token(prec(PREC.key_word, 'limit')),
+        _append: $ => token(prec(PREC.key_word, 'append')),
+        _values: $ => token(prec(PREC.key_word, 'values')),
 
         ident: $ => choice(token(prec(PREC.ident, /[a-zA-Z_][a-zA-Z0-9_]*/)), $.missing_identifier),
     },

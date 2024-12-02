@@ -4,15 +4,15 @@
 //! tree-sitter [Parser][], and then use the parser to parse some code:
 //!
 //! ```
-//! let code = r#"
-//! "#;
-//! let mut parser = tree_sitter::Parser::new();
-//! let language = tree_sitter_mee_ql::LANGUAGE;
-//! parser
-//!     .set_language(&language.into())
-//!     .expect("Error loading YourLanguageName parser");
-//! let tree = parser.parse(code, None).unwrap();
-//! assert!(!tree.root_node().has_error());
+// ! let code = r#"
+// ! "#;
+// ! let mut parser = tree_sitter::Parser::new();
+// ! let language = tree_sitter_mee_ql::LANGUAGE;
+// ! parser
+// !     .set_language(&language.into())
+// !     .expect("Error loading YourLanguageName parser");
+// ! let tree = parser.parse(code, None).unwrap();
+// ! assert!(!tree.root_node().has_error());
 //! ```
 //!
 //! [Language]: https://docs.rs/tree-sitter/*/tree_sitter/struct.Language.html

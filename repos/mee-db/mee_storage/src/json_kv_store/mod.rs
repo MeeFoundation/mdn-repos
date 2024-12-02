@@ -23,6 +23,7 @@ pub trait JsonStore: Debug {
     async fn get(&self, key: String, select_fields: FieldFilter) -> Result<Option<Value>>;
     async fn delete(&self, key: String) -> Result<()>;
     async fn range(&self, key: String, select_fields: FieldFilter) -> Result<JsonStream>;
+    async fn append(&self, key: String, value: Vec<Value>) -> Result<()>;
 }
 
 #[allow(dead_code)]

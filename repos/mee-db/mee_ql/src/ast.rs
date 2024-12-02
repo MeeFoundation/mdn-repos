@@ -115,6 +115,8 @@ pub enum Statement {
     Assignment((MeeNode<String>, MeeNode<Expression>)),
     Update((MeeNode<Path>, MeeNode<Expression>)),
     Delete(MeeNode<Path>),
+    AppendOne((MeeNode<Path>, MeeNode<Expression>)),
+    AppendMany((MeeNode<Path>, MeeNode<Expression>)),
     Filter(MeeNode<BoolExpression>),
     Offset(usize),
     Limit(usize),

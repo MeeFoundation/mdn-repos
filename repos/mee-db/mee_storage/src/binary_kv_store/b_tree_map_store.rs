@@ -63,15 +63,35 @@ impl BinaryKVStore for BTreeMapStore {
         Ok(())
     }
 
+    async fn max_index(&self, path: String) -> Result<usize> {
+        let db = self.db.read().await;
+        let excluded = Excluded(format!("{path}{}", char::MAX));
+        let range = db.range((Included(path.clone()), excluded));
+        let mut max_index = 0;
+        for (k, _) in range.clone() {
+            let k = match k[path.len()..].to_string() {
+                k if k.starts_with(PATH_SEPARATOR) => k[1..].to_string(),
+                k => k,
+            };
+            let index = k.split(PATH_SEPARATOR).next().unwrap();
+            if let Ok(index) = index.parse::<usize>() {
+                if index > max_index {
+                    max_index = index;
+                }
+            }
+        }
+        Ok(max_index)
+    }
+
     async fn range(&self, path: String) -> Result<KVStream> {
         let db = self.db.clone();
 
         let s = stream! {
             let db = db.read().await;
-            let excluded = Excluded(format!("{}{}", &path, char::MAX));
+            let excluded = Excluded(format!("{path}{}", char::MAX));
             let range = db.range((Included(path.clone()), excluded));
             for (k, v) in range {
-                let k = match k.replace(&path, "") {
+                let k = match k[path.len()..].to_string() {
                     k if k.starts_with(PATH_SEPARATOR) => k[1..].to_string(),
                     k => k,
                 };

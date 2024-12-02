@@ -181,7 +181,6 @@ impl Parser<MeeNode<Expression>> for ValueParser {
         parser_list: &ParserList,
         ctx: &mut Context,
     ) -> Result<MeeNode<Expression>> {
-        dbg!(&node.kind(), node_text(&node, source_text)?);
         match node.kind() {
             "path" => {
                 let path = parser_list

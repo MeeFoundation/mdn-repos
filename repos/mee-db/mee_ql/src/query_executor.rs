@@ -501,4 +501,73 @@ mod tests {
             .unwrap();
         assert_eq!(res, json!(["Bob"]));
     }
+
+    #[tokio::test]
+    async fn test_append_one() {
+        let qe = setup().await;
+        qe.execute(
+            r#"[user for user in users if user.name == "Bob" append user.payment_cards 
+        {
+                    "holder": "Bob Smith",
+                    "number": "1234 1234 1234 1234",
+                    "expire": "2028-12-01",
+                    "cvv": "321",
+                    "isssuer": "Mastercard"
+                }]"#
+            .to_string(),
+        )
+        .await
+        .unwrap();
+        let res = qe
+            .execute(r#"[card.number for user in users if user.name == "Bob" for card in user.payment_cards]"#.to_string())
+            .await
+            .unwrap();
+        assert_eq!(
+            res,
+            json!([
+                "1234 5678 9013 3456",
+                "9999 5678 9014 3456",
+                "1234 1234 1234 1234"
+            ])
+        );
+    }
+
+    #[tokio::test]
+    async fn test_append_many() {
+        let qe = setup().await;
+        qe.execute(
+            r#"[user for user in users if user.name == "Bob" append user.payment_cards values [
+        {
+                    "holder": "Bob Smith",
+                    "number": "1234 1234 1234 1234",
+                    "expire": "2028-12-01",
+                    "cvv": "321",
+                    "isssuer": "Mastercard"
+                },
+                {
+                    "holder": "Bob Smith",
+                    "number": "1234 1234 1234 1235",
+                    "expire": "2028-12-01",
+                    "cvv": "321",
+                    "isssuer": "Mastercard"
+                }]
+                ]"#
+            .to_string(),
+        )
+        .await
+        .unwrap();
+        let res = qe
+            .execute(r#"[card.number for user in users if user.name == "Bob" for card in user.payment_cards]"#.to_string())
+            .await
+            .unwrap();
+        assert_eq!(
+            res,
+            json!([
+                "1234 5678 9013 3456",
+                "9999 5678 9014 3456",
+                "1234 1234 1234 1234",
+                "1234 1234 1234 1235"
+            ])
+        );
+    }
 }

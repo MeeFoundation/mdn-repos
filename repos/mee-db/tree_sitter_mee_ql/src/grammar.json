@@ -212,6 +212,10 @@
                     {
                       "type": "SYMBOL",
                       "name": "limit_stmt"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "append_stmt"
                     }
                   ]
                 }
@@ -398,6 +402,57 @@
               {
                 "type": "SYMBOL",
                 "name": "missing_update_field"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "append_stmt": {
+      "type": "PREC_LEFT",
+      "value": 103,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "_append"
+          },
+          {
+            "type": "FIELD",
+            "name": "field",
+            "content": {
+              "type": "SYMBOL",
+              "name": "path"
+            }
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_values"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "values",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "_expected_expression"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "FIELD",
+                "name": "values",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_expected_expression"
+                }
               }
             ]
           }
@@ -1808,6 +1863,28 @@
         "content": {
           "type": "STRING",
           "value": "limit"
+        }
+      }
+    },
+    "_append": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 1000,
+        "content": {
+          "type": "STRING",
+          "value": "append"
+        }
+      }
+    },
+    "_values": {
+      "type": "TOKEN",
+      "content": {
+        "type": "PREC",
+        "value": 1000,
+        "content": {
+          "type": "STRING",
+          "value": "values"
         }
       }
     },

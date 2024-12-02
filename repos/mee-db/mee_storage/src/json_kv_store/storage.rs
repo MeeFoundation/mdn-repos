@@ -74,7 +74,6 @@ impl JsonStore for KVBasedJsonStoreImpl {
         Ok(())
     }
 
-    // str: enything
     async fn range(&self, key: String, select_fields: FieldFilter) -> Result<JsonStream> {
         let kv_byte_stream = self.db.range(key.clone()).await?;
         debug!(
@@ -121,6 +120,15 @@ impl JsonStore for KVBasedJsonStoreImpl {
         .boxed();
 
         Ok(s)
+    }
+
+    async fn append(&self, key: String, value: Vec<Value>) -> Result<()> {
+        let count = self.db.max_index(format!("{key}{PATH_SEPARATOR}")).await?;
+        for (i, v) in value.into_iter().enumerate() {
+            let new_key = format!("{key}{PATH_SEPARATOR}{}", count + i + 1);
+            self.set(new_key, v).await?;
+        }
+        Ok(())
     }
 }
 

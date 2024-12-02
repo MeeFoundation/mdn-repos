@@ -59,6 +59,84 @@
     }
   },
   {
+    "type": "append_stmt",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      },
+      "values": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "array",
+            "named": true
+          },
+          {
+            "type": "array_query",
+            "named": true
+          },
+          {
+            "type": "element_query",
+            "named": true
+          },
+          {
+            "type": "false",
+            "named": true
+          },
+          {
+            "type": "missing_expression",
+            "named": true
+          },
+          {
+            "type": "missing_parenthesis_end",
+            "named": true
+          },
+          {
+            "type": "null",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "object",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          },
+          {
+            "type": "string",
+            "named": true
+          },
+          {
+            "type": "true",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "array",
     "named": true,
     "fields": {},
@@ -132,6 +210,10 @@
           {
             "type": ")",
             "named": false
+          },
+          {
+            "type": "append_stmt",
+            "named": true
           },
           {
             "type": "array",
@@ -291,6 +373,10 @@
         "multiple": true,
         "required": false,
         "types": [
+          {
+            "type": "append_stmt",
+            "named": true
+          },
           {
             "type": "assignment",
             "named": true
@@ -740,6 +826,10 @@
             "named": false
           },
           {
+            "type": "append_stmt",
+            "named": true
+          },
+          {
             "type": "array",
             "named": true
           },
@@ -897,6 +987,10 @@
         "multiple": true,
         "required": false,
         "types": [
+          {
+            "type": "append_stmt",
+            "named": true
+          },
           {
             "type": "assignment",
             "named": true
@@ -1486,6 +1580,10 @@
             "named": false
           },
           {
+            "type": "append_stmt",
+            "named": true
+          },
+          {
             "type": "array",
             "named": true
           },
@@ -1643,6 +1741,10 @@
         "multiple": true,
         "required": false,
         "types": [
+          {
+            "type": "append_stmt",
+            "named": true
+          },
           {
             "type": "assignment",
             "named": true
@@ -1973,6 +2075,10 @@
     "named": false
   },
   {
+    "type": "append",
+    "named": false
+  },
+  {
     "type": "before",
     "named": false
   },
@@ -2059,6 +2165,10 @@
   {
     "type": "true",
     "named": true
+  },
+  {
+    "type": "values",
+    "named": false
   },
   {
     "type": "{",

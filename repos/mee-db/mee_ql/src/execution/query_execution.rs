@@ -144,6 +144,52 @@ impl QueryExecutorImpl {
         };
         Box::pin(stream)
     }
+
+    async fn execute_append(
+        &self,
+        source_text: Arc<String>,
+        pair: (Arc<MeeNode<Path>>, Arc<MeeNode<Expression>>),
+        input_ctx: ContextStream,
+        executor_list: Arc<ExecutorList>,
+        appends: Arc<Mutex<HashMap<String, Vec<Value>>>>,
+    ) -> ContextStream {
+        let stream = try_stream! {
+            pin_mut!(input_ctx);
+            for await ctx in input_ctx {
+                let ctx = ctx?;
+                let (path, expr) = pair.clone();
+
+                    let v = executor_list
+                        .ee
+                        .execute(
+                            source_text.clone(),
+                            expr.clone(),
+                            ctx.clone(),
+                            executor_list.clone(),
+                        )
+                        .await?;
+
+
+                let prefix = ctx
+                            .get(&format!("{}.$path", path.value.root))
+                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
+                            .unwrap_or("".to_string());
+                    let prefix = format!("{prefix}{}", path.value.field.as_ref().unwrap_or(&"".to_string()));
+
+                if let Value::Array(arr) = v {
+                    for value in arr {
+                        appends.lock().unwrap().entry(prefix.clone()).or_default().push(value);
+                    }
+                } else {
+                    appends.lock().unwrap().entry(prefix.clone()).or_default().push(v);
+                }
+
+                yield ctx;
+            }
+
+        };
+        Box::pin(stream)
+    }
 }
 
 #[async_trait::async_trait]
@@ -156,6 +202,7 @@ impl QueryExecutor for QueryExecutorImpl {
         executor_list: Arc<ExecutorList>,
         updates: Arc<Mutex<HashMap<String, Value>>>,
         deletes: Arc<Mutex<HashSet<String>>>,
+        appends: Arc<Mutex<HashMap<String, Vec<Value>>>>,
     ) -> JsonResultStream {
         let main_stream: ContextStream = Box::pin(input_ctx);
         let main_iterator = Arc::new(node.value.main_iterator.clone());
@@ -234,6 +281,17 @@ impl QueryExecutor for QueryExecutorImpl {
                         )
                         .await;
                 }
+                Statement::AppendOne(ref append) | Statement::AppendMany(ref append) => {
+                    new_stream = self
+                        .execute_append(
+                            source_text.clone(),
+                            (Arc::new(append.0.clone()), Arc::new(append.1.clone())),
+                            new_stream,
+                            executor_list.clone(),
+                            appends.clone(),
+                        )
+                        .await;
+                }
                 Statement::Offset(ref offset) => {
                     new_stream = Box::pin(new_stream.skip(*offset));
                 }
@@ -285,7 +343,7 @@ impl Executor<Query, Value> for QueryExecutorImpl {
 
         let updates = Arc::new(Mutex::new(HashMap::new()));
         let deletes = Arc::new(Mutex::new(HashSet::new()));
-
+        let appends = Arc::new(Mutex::new(HashMap::new()));
         let mut stream = self
             .stream(
                 source_text.clone(),
@@ -294,6 +352,7 @@ impl Executor<Query, Value> for QueryExecutorImpl {
                 executor_list,
                 updates.clone(),
                 deletes.clone(),
+                appends.clone(),
             )
             .await;
 
@@ -314,6 +373,14 @@ impl Executor<Query, Value> for QueryExecutorImpl {
             .clone()
             .into_iter()
             .collect::<HashMap<_, _>>();
+
+        let appends = appends
+            .lock()
+            .unwrap()
+            .clone()
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+
         let deletes = deletes
             .lock()
             .unwrap()
@@ -327,9 +394,14 @@ impl Executor<Query, Value> for QueryExecutorImpl {
             self.store.clone().set(path, value).await?;
         }
 
+        for (path, values) in appends.into_iter() {
+            let path = path.clone();
+            let values = values.clone();
+            self.store.clone().append(path, values).await?;
+        }
+
         for path in deletes.into_iter() {
             let path = path.clone();
-
             self.store.delete(path).await?;
         }
 

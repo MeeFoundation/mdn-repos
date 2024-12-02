@@ -70,7 +70,7 @@ impl IteratorExecutor for IteratorExecutorImpl {
             Source::PathSource(MeeNode {
                 value: Path { ref root, field },
                 ..
-            }) if field.is_none() && *root == "users".to_string() => Box::pin(try_stream! {
+            }) if field.is_none() && root == "users" => Box::pin(try_stream! {
                 pin_mut!(input_ctx);
                 for await ctx in input_ctx {
                     let ctx = ctx?;
