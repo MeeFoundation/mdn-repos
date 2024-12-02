@@ -1,0 +1,301 @@
+===
+Equal
+===
+
+[ user.id for user in users if user.name == "Ivan"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Not Equal
+===
+
+[ user.id for user in users if user.name != "Ivan"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Greater Than
+===
+
+[ user.id for user in users if user.age > 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Less Than
+===
+
+[ user.id for user in users if user.age < 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Greater Than or Equal
+===
+
+[ user.id for user in users if user.age >= 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Less Than or Equal
+===
+
+[ user.id for user in users if user.age <= 30]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (number))))))
+
+===
+Matches
+===
+
+[ user.id for user in users if user.name matches "I.*"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Exists
+===
+
+[ user.id for user in users if user.email exists]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator)))))
+
+===
+Contains
+===
+
+[user.name for user in users if [card.number for card in user.payment_cards] contains "9999 5678 9014 3456"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (array_query
+          (path
+            (ident)
+            (ident))
+          (iterator_stmt
+            (ident)
+            (path
+              (ident)
+              (ident))))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+After
+===
+
+[ user.id for user in users if user.registration_date after "2023-01-01"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Before
+===
+
+[ user.id for user in users if user.registration_date before "2023-01-01"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))))
+
+===
+Between
+===
+
+[ user.id for user in users if user.registration_date between "2023-01-01" and "2023-12-31"]
+---
+
+(start
+  (array_query
+    (path
+      (ident)
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content))
+          (string
+            (string_content)))))))

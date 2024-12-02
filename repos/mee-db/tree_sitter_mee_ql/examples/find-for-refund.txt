@@ -1,0 +1,13 @@
+[
+  {
+    "name": user.name,
+    "family_name": user.last_name,
+    "card_number": number
+  }
+
+  for user in users()
+  for flight in user.flights
+    if flight.number == "AS702" and flight.dt == "2024.11.11T11:00:00"
+  number = (card.number for card in user.payment_cards limit 1)
+  if number exists
+]

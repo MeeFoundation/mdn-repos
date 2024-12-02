@@ -1,0 +1,21 @@
+[package]
+name = "mee_ql"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tree-sitter = { workspace = true }
+tree-sitter-mee-ql = { path = "../tree_sitter_mee_ql" }
+thiserror = { workspace = true }
+tracing = { workspace = true, features = ["attributes"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+serde_json = { workspace = true }
+regex = { workspace = true }
+mee_storage = { path = "../mee_storage" }
+async-stream = { workspace = true }
+futures = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+assert-json-diff = { workspace = true }
+uuid = { workspace = true }
+chrono = {workspace = true }

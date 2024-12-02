@@ -1,0 +1,54 @@
+//unused file
+
+?start: w_query
+
+w_query : ("[" query "]") | ("(" query ")") 
+query : expr? iterator (iterator | assignment| condition )* update_assignment? ("limit" int )? ("offset" int )? 
+
+iterator : "for" var "in"  source
+assignment: var "=" ( expr | w_query )
+update_assignment: "set" path "=" json
+
+source:   path("()")? | array
+condition: "if" comparison
+
+comparison : (expr (comparator)? | "(" comparison ")") (logical_op comparison)?
+path : var((".")var)*
+expr : json
+comparator: "==" expr 
+        | "!=" expr 
+        | ">" expr 
+        | "<" expr 
+        | ">="expr 
+        | "<=" expr
+        | "matches" expr 
+        | "exists"
+logical_op: "and" | "or"
+
+limit: "limit" int
+
+// json
+?json: path 
+      | object
+      | array
+      | string
+      | SIGNED_NUMBER      -> number
+      | "true"             -> true
+      | "false"            -> false
+      | "null"             -> null
+
+array  : "[" [json ("," json)*] "]"
+object : "{" [pair ("," pair)*] "}"
+pair   : string ":" json
+
+string : ESCAPED_STRING
+var : CNAME
+int : INT
+
+%import common.ESCAPED_STRING
+%import common.SIGNED_NUMBER
+%import common.WS
+%import common.CNAME
+%import common.INT
+
+%ignore WS
