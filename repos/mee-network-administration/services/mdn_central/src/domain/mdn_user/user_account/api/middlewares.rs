@@ -18,6 +18,7 @@ pub struct DirectlyLoggedInMdnUser {
 
 pub enum LoggedInMdnUser {
     DirectlyLoggedInMdnUser(DirectlyLoggedInMdnUser),
+    // TODO add provider participant support
     OAuthLoggedInUser,
 }
 

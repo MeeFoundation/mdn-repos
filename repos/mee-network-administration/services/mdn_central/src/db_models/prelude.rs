@@ -10,6 +10,4 @@ pub use super::mdn_node_caps::Entity as MdnNodeCaps;
 pub use super::mdn_node_signing_pub_keys::Entity as MdnNodeSigningPubKeys;
 pub use super::mdn_nodes::Entity as MdnNodes;
 pub use super::mdn_providers::Entity as MdnProviders;
-pub use super::mdn_user_device_requests_for_linkage::Entity as MdnUserDeviceRequestsForLinkage;
-pub use super::mdn_user_devices::Entity as MdnUserDevices;
 pub use super::mdn_users::Entity as MdnUsers;

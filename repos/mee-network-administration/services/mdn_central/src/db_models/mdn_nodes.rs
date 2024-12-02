@@ -12,6 +12,7 @@ pub struct Model {
     pub mdn_node_uid: String,
     pub mdn_node_willow_peer_id: String,
     pub mdn_node_iroh_node_id: String,
+    pub mdn_node_subject_id: i64,
     pub mdn_node_custodian_id: i64,
 }
 
@@ -29,6 +30,14 @@ pub enum Relation {
     MdnIdentityContextsOnNodes,
     #[sea_orm(has_many = "super::mdn_node_signing_pub_keys::Entity")]
     MdnNodeSigningPubKeys,
+    #[sea_orm(
+        belongs_to = "super::mdn_users::Entity",
+        from = "Column::MdnNodeSubjectId",
+        to = "super::mdn_users::Column::MdnUserId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    MdnUsers,
 }
 
 impl Related<super::mdn_custodians::Entity> for Entity {
@@ -46,6 +55,12 @@ impl Related<super::mdn_identity_contexts_on_nodes::Entity> for Entity {
 impl Related<super::mdn_node_signing_pub_keys::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MdnNodeSigningPubKeys.def()
+    }
+}
+
+impl Related<super::mdn_users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MdnUsers.def()
     }
 }
 

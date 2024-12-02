@@ -7,6 +7,7 @@ use sea_orm::{entity::*, query::*};
 
 pub struct AddMdnNodeDto {
     pub mdn_node_custodian_id: i64,
+    pub mdn_node_subject_id: i64,
     pub mdn_node_uid: String,
     pub mdn_node_willow_peer_id: String,
     pub mdn_node_iroh_node_id: String,
@@ -54,10 +55,12 @@ impl<'a, C: ConnectionTrait> MdnNodesRepository
             mdn_node_uid,
             mdn_node_willow_peer_id,
             mdn_node_iroh_node_id,
+            mdn_node_subject_id,
         }: AddMdnNodeDto,
     ) -> MdnCentralResult<mdn_nodes::Model> {
         let res = mdn_nodes::ActiveModel {
             mdn_node_id: NotSet,
+            mdn_node_subject_id: Set(mdn_node_subject_id),
             mdn_node_uid: Set(mdn_node_uid),
             mdn_node_willow_peer_id: Set(mdn_node_willow_peer_id),
             mdn_node_iroh_node_id: Set(mdn_node_iroh_node_id),

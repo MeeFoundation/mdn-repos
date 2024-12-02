@@ -10,7 +10,7 @@ pub struct Model {
     pub mdn_context_scoped_id: i64,
     #[sea_orm(unique)]
     pub mdn_context_scoped_uid: String,
-    pub mdn_user_id: Option<i64>,
+    pub mdn_user_id: i64,
     pub for_mdn_custodian_id: i64,
 }
 

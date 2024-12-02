@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS mdn_nodes(
   mdn_node_uid varchar unique not null,
   mdn_node_willow_peer_id varchar not null,
   mdn_node_iroh_node_id varchar not null,
+  mdn_node_subject_id bigint not null,
+  FOREIGN KEY (mdn_node_subject_id) REFERENCES mdn_users(mdn_user_id),
   mdn_node_custodian_id bigint not null,
   FOREIGN KEY (mdn_node_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
 );
@@ -44,7 +46,7 @@ CREATE TABLE IF NOT EXISTS mdn_nodes(
 CREATE TABLE IF NOT EXISTS mdn_context_scoped_ids(
   mdn_context_scoped_id bigint generated always as identity primary key,
   mdn_context_scoped_uid varchar unique not null,
-  mdn_user_id bigint,
+  mdn_user_id bigint not null,
   FOREIGN KEY (mdn_user_id) REFERENCES mdn_users(mdn_user_id),
   for_mdn_custodian_id bigint not null,
   FOREIGN KEY (for_mdn_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)

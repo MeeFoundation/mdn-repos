@@ -26,6 +26,6 @@ pub async fn register_node(
 ) -> MdnCentralResult {
     Ok(app_ctl
         .mdn_nodes_controller
-        .add_node(payload, logged_in_mdn_user.mdn_custodian_uid())
+        .add_node(payload, logged_in_mdn_user)
         .await?)
 }

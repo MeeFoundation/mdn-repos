@@ -23,16 +23,14 @@ pub fn decode_user_node_id_token(
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
 
-    let verifier = algo
-        .verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)
-        .unwrap();
+    let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
 
     let (claims, _header) = decode_token::<MdnUserNodeIdToken>(&verifier, &encoded_token)?;
 
     Ok(claims)
 }
 
-pub struct EncodeMdnDeviceUserIdTokenParams {
+pub struct EncodeMdnNodeUserIdTokenParams {
     pub iss: String,
     pub sub: String,
     pub aud: String,
@@ -41,13 +39,13 @@ pub struct EncodeMdnDeviceUserIdTokenParams {
 }
 
 pub fn encode_user_node_id_token(
-    EncodeMdnDeviceUserIdTokenParams {
+    EncodeMdnNodeUserIdTokenParams {
         iss,
         sub,
         aud,
         sign_key,
         kid,
-    }: EncodeMdnDeviceUserIdTokenParams,
+    }: EncodeMdnNodeUserIdTokenParams,
 ) -> anyhow::Result<String> {
     let now = Utc::now();
     let iat = now.timestamp();

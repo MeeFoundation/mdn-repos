@@ -36,12 +36,8 @@ pub enum Relation {
     MdnCustodianContextOperationCaps,
     #[sea_orm(has_many = "super::mdn_custodians::Entity")]
     MdnCustodians,
-    #[sea_orm(
-        has_many = "super::mdn_user_device_requests_for_linkage::Entity"
-    )]
-    MdnUserDeviceRequestsForLinkage,
-    #[sea_orm(has_many = "super::mdn_user_devices::Entity")]
-    MdnUserDevices,
+    #[sea_orm(has_many = "super::mdn_nodes::Entity")]
+    MdnNodes,
 }
 
 impl Related<super::mdn_context_scoped_ids::Entity> for Entity {
@@ -68,15 +64,9 @@ impl Related<super::mdn_custodians::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_user_device_requests_for_linkage::Entity> for Entity {
+impl Related<super::mdn_nodes::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnUserDeviceRequestsForLinkage.def()
-    }
-}
-
-impl Related<super::mdn_user_devices::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::MdnUserDevices.def()
+        Relation::MdnNodes.def()
     }
 }
 

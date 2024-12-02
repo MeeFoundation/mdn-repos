@@ -14,6 +14,7 @@ use crate::{
             repositories::mdn_custodians::MdnCustodiansRepositoryImpl,
             services::account::MdnCustodiansService,
         },
+        mdn_user::identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepositoryImpl,
     },
     error::MdnCentralResult,
 };
@@ -50,6 +51,7 @@ impl MdnUserAccountController {
             Box::new(MdnUserAccountRepositoryImpl::new(tx)),
             mdn_central_authority_signature.clone(),
             Self::mdn_custodians_service(tx),
+            Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),
         )
     }
     pub fn mdn_custodians_service<'a, C: ConnectionTrait>(

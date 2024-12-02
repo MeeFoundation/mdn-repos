@@ -12,6 +12,4 @@ pub mod mdn_node_caps;
 pub mod mdn_node_signing_pub_keys;
 pub mod mdn_nodes;
 pub mod mdn_providers;
-pub mod mdn_user_device_requests_for_linkage;
-pub mod mdn_user_devices;
 pub mod mdn_users;

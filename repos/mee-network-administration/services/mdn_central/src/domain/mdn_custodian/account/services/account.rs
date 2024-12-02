@@ -24,17 +24,18 @@ impl<'a> MdnCustodiansService<'a> {
     pub async fn create_user_custodian_account(
         &self,
         mdn_user_id: i64,
-    ) -> MdnCentralResult {
+    ) -> MdnCentralResult<mdn_custodians::Model> {
         let mdn_custodian_uid = uuid::Uuid::new_v4().to_string();
 
-        self.mdn_custodians_repository
+        let res = self
+            .mdn_custodians_repository
             .create_user_custodian_account(CreateUserCustodianAccountDto {
                 mdn_custodian_uid: format!("mdn_custodian-{mdn_custodian_uid}"),
                 mdn_user_custodian_id: mdn_user_id,
             })
             .await?;
 
-        Ok(())
+        Ok(res)
     }
 
     pub async fn get_user_custodian(

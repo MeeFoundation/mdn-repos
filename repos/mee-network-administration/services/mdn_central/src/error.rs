@@ -70,6 +70,9 @@ pub enum MdnCentralErr {
 
     #[error("User account management error: {0}")]
     MdnUserAccountManagement(String),
+
+    #[error("User node auth token error: {0}")]
+    InvalidMdnNodeUserAuthToken(String),
 }
 
 impl From<TransactionError<MdnCentralErr>> for MdnCentralErr {

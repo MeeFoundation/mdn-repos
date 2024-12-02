@@ -2,16 +2,21 @@ use crate::{
     domain::{
         mdn_authority::utils::MdnSignaturesService,
         mdn_custodian::account::services::account::MdnCustodiansService,
-        mdn_user::user_account::{
-            api::{
-                middlewares::DirectlyLoggedInMdnUser,
-                types::{
-                    AuthorizeUserResponse, CreateUserAccountRequest,
-                    UserAccountLoginRequest, UserAccountLoginResponse,
-                },
+        mdn_user::{
+            identity_context::repositories::mdn_context_scoped_ids::{
+                CreateScopedIdDto, MdnContextScopedIdsRepository,
             },
-            repositories::mdn_users::{
-                CreateUserAccountDto, MdnUsersRepository,
+            user_account::{
+                api::{
+                    middlewares::DirectlyLoggedInMdnUser,
+                    types::{
+                        AuthorizeUserResponse, CreateUserAccountRequest,
+                        UserAccountLoginRequest, UserAccountLoginResponse,
+                    },
+                },
+                repositories::mdn_users::{
+                    CreateUserAccountDto, MdnUsersRepository,
+                },
             },
         },
     },
@@ -38,6 +43,8 @@ pub struct MdnUserAccountService<'a> {
     mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
     mdn_custodians_service: MdnCustodiansService<'a>,
+    mdn_context_scoped_ids_repository:
+        Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
 }
 
 impl<'a> MdnUserAccountService<'a> {
@@ -47,11 +54,15 @@ impl<'a> MdnUserAccountService<'a> {
             dyn MdnSignaturesService + Send + Sync,
         >,
         mdn_custodians_service: MdnCustodiansService<'a>,
+        mdn_context_scoped_ids_repository: Box<
+            dyn MdnContextScopedIdsRepository + Send + Sync + 'a,
+        >,
     ) -> Self {
         Self {
             mdn_custodians_service,
             user_account_repository,
             mdn_central_authority_signature,
+            mdn_context_scoped_ids_repository,
         }
     }
     async fn make_login_response(
@@ -172,8 +183,20 @@ impl<'a> MdnUserAccountService<'a> {
             })
             .await?;
 
-        self.mdn_custodians_service
+        let user_custodian = self
+            .mdn_custodians_service
             .create_user_custodian_account(res.mdn_user_id)
+            .await?;
+
+        self.mdn_context_scoped_ids_repository
+            .create_context_scoped_id(CreateScopedIdDto {
+                mdn_context_scoped_uid: format!(
+                    "mdn_user_csi_self-${}",
+                    uuid::Uuid::new_v4()
+                ),
+                mdn_user_id: res.mdn_user_id,
+                for_mdn_custodian_id: user_custodian.mdn_custodian_id,
+            })
             .await?;
 
         self.make_login_response(res.try_into()?, device_did).await

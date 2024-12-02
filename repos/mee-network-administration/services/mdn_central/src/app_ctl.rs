@@ -83,7 +83,10 @@ impl AppCtl {
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
             ),
-            mdn_nodes_controller: MdnNodesController::new(rdb_storage.clone()),
+            mdn_nodes_controller: MdnNodesController::new(
+                rdb_storage.clone(),
+                mdn_central_authority_signature.clone(),
+            ),
             app_config,
             mdn_central_authority_signature,
         })

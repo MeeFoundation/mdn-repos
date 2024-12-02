@@ -1,13 +1,11 @@
 use crate::{
-    agent_device::idm::{
-        mdn_node_auth::{encode_user_node_id_token, EncodeMdnDeviceUserIdTokenParams},
-        user_auth::MdnUserAccountManager,
-    },
+    agent_device::idm::user_auth::MdnUserAccountManager,
     error::MdnIdentityAgentResult,
     mdn_cloud::mdn_nodes::{
         api_client::MdnNodesApiClient,
         api_types::{MdnNodeResponse, RegisterMdnNodeRequest},
     },
+    mdn_common::mdn_node_auth::{encode_user_node_id_token, EncodeMdnNodeUserIdTokenParams},
 };
 use async_trait::async_trait;
 use mee_did::universal_resolver::{DIDResolverExt, UniversalDidResolver, VerificationRelationship};
@@ -58,9 +56,9 @@ impl MdnUserNodesManager for MdnUserNodesManagerDefault {
             .get_user_auth_decoded_token_required()
             .await?;
 
-        let mdn_node_did_proof = encode_user_node_id_token(EncodeMdnDeviceUserIdTokenParams {
+        let mdn_node_did_proof = encode_user_node_id_token(EncodeMdnNodeUserIdTokenParams {
             iss: mdn_node_did.clone(),
-            sub: mdn_user_auth_token.sub,
+            sub: mdn_user_auth_token.sub.clone(),
             aud: mdn_user_auth_token.iss,
             sign_key,
             kid: Some(
@@ -74,8 +72,9 @@ impl MdnUserNodesManager for MdnUserNodesManagerDefault {
         })?;
 
         let payload = RegisterMdnNodeRequest {
-            mdn_node_did: mdn_node_did,
+            mdn_node_did,
             mdn_node_did_proof,
+            mdn_node_subject_id: mdn_user_auth_token.sub,
             // TODO provide willow peer id
             mdn_node_willow_peer_id: "todo willow peer id".to_string(),
             mdn_node_iroh_node_id,
