@@ -4,17 +4,26 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
-#[sea_orm(table_name = "mdn_node_signing_pub_keys")]
+#[sea_orm(table_name = "mdn_nodes_on_hosting_platforms")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_node_signing_pub_key_id: i64,
+    pub mdn_nodes_on_hosting_platform_id: i64,
     #[sea_orm(unique)]
-    pub mdn_node_signing_pub_key_did: String,
+    pub mdn_nodes_on_hosting_platform_uid: String,
     pub mdn_node_id: i64,
+    pub mdn_node_hosting_platform_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::mdn_node_hosting_platforms::Entity",
+        from = "Column::MdnNodeHostingPlatformId",
+        to = "super::mdn_node_hosting_platforms::Column::MdnNodeHostingPlatformId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    MdnNodeHostingPlatforms,
     #[sea_orm(
         belongs_to = "super::mdn_nodes::Entity",
         from = "Column::MdnNodeId",
@@ -23,6 +32,12 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     MdnNodes,
+}
+
+impl Related<super::mdn_node_hosting_platforms::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MdnNodeHostingPlatforms.def()
+    }
 }
 
 impl Related<super::mdn_nodes::Entity> for Entity {

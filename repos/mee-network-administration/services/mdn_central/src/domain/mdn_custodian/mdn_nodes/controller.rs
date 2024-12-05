@@ -1,11 +1,6 @@
-use std::sync::Arc;
-
 use super::{
-    api::types::{MdnNodeResponse, RegisterMdnNodeRequest},
-    repositories::{
-        mdn_node_signing_pub_keys::MdnNodeSigningPubKeysRepositoryImpl,
-        mdn_nodes::MdnNodesRepositoryImpl,
-    },
+    api::types::{MdnNodeHostingPlatformResponse, RegisterMdnNodeHostingPlatformRequest},
+    repositories::mdn_node_hosting_platforms::MdnNodesRepositoryImpl,
     services::mdn_nodes::MdnNodesService,
 };
 use crate::{
@@ -17,6 +12,7 @@ use crate::{
             user_account::{
                 api::middlewares::LoggedInMdnUser,
                 controller::MdnUserAccountController,
+                repositories::mdn_user_signing_pub_keys::MdnNodeSigningPubKeysRepositoryImpl,
             },
         },
     },
@@ -24,6 +20,7 @@ use crate::{
 };
 use mee_db_utils::sql_storage::RbdStorage;
 use sea_orm::ConnectionTrait;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MdnNodesController {
@@ -63,29 +60,29 @@ impl MdnNodesController {
         )
     }
 
-    pub async fn list_all(
+    pub async fn list_all_node_hosting_platforms(
         &self,
         mdn_custodian_uid: &str,
-    ) -> MdnCentralResult<Vec<MdnNodeResponse>> {
+    ) -> MdnCentralResult<Vec<MdnNodeHostingPlatformResponse>> {
         let res = Self::mdn_node_service(
             self.mdn_central_authority_signature.clone(),
             &*self.rdb_storage.connection(),
         )
-        .list_all(mdn_custodian_uid)
+        .list_all_node_hosting_platforms(mdn_custodian_uid)
         .await?;
 
         Ok(res)
     }
-    pub async fn add_node(
+    pub async fn register_node_hosting_platform(
         &self,
-        payload: RegisterMdnNodeRequest,
+        payload: RegisterMdnNodeHostingPlatformRequest,
         logged_in_mdn_user: LoggedInMdnUser,
     ) -> MdnCentralResult {
         Self::mdn_node_service(
             self.mdn_central_authority_signature.clone(),
             &*self.rdb_storage.connection(),
         )
-        .register_node(payload, logged_in_mdn_user)
+        .register_node_hosting_platform(payload, logged_in_mdn_user)
         .await?;
 
         Ok(())

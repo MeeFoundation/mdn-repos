@@ -1,9 +1,9 @@
 use crate::{
     agent_device::idm::user_auth::MdnUserAccountManager,
     error::MdnIdentityAgentResult,
-    mdn_cloud::mdn_nodes::{
+    mdn_cloud::mdn_node_hosting_platforms::{
         api_client::MdnNodesApiClient,
-        api_types::{MdnNodeResponse, RegisterMdnNodeRequest},
+        api_types::{MdnNodeHostingPlatformResponse, RegisterMdnNodeHostingPlatformRequest},
     },
     mdn_common::mdn_node_auth::{encode_user_node_id_token, EncodeMdnNodeUserIdTokenParams},
 };
@@ -14,7 +14,7 @@ use std::sync::Arc;
 #[async_trait]
 pub trait MdnUserNodesManager {
     async fn register(&self) -> MdnIdentityAgentResult<()>;
-    async fn list_all(&self) -> MdnIdentityAgentResult<Vec<MdnNodeResponse>>;
+    async fn list_all(&self) -> MdnIdentityAgentResult<Vec<MdnNodeHostingPlatformResponse>>;
 }
 
 pub struct MdnUserNodesManagerDefault {
@@ -37,14 +37,14 @@ impl MdnUserNodesManagerDefault {
 #[async_trait]
 impl MdnUserNodesManager for MdnUserNodesManagerDefault {
     async fn register(&self) -> MdnIdentityAgentResult<()> {
-        let mdn_node_iroh_node_id = self
+        let iroh_node_id = self
             .mdn_user_account_manager
             .get_iroh_node_key()
             .await?
             .public()
             .to_string();
 
-        let mdn_node_did = self.mdn_user_account_manager.get_user_device_did().await?;
+        let node_hosting_platform_did = self.mdn_user_account_manager.get_user_device_did().await?;
 
         let sign_key = self
             .mdn_user_account_manager
@@ -56,28 +56,28 @@ impl MdnUserNodesManager for MdnUserNodesManagerDefault {
             .get_user_auth_decoded_token_required()
             .await?;
 
-        let mdn_node_did_proof = encode_user_node_id_token(EncodeMdnNodeUserIdTokenParams {
-            iss: mdn_node_did.clone(),
-            sub: mdn_user_auth_token.sub.clone(),
-            aud: mdn_user_auth_token.iss,
-            sign_key,
-            kid: Some(
-                UniversalDidResolver
-                    .resolve_did_for_relation(
-                        &mdn_node_did,
-                        VerificationRelationship::Authentication,
-                    )
-                    .await?,
-            ),
-        })?;
+        let node_hosting_platform_did_proof =
+            encode_user_node_id_token(EncodeMdnNodeUserIdTokenParams {
+                iss: node_hosting_platform_did.clone(),
+                sub: mdn_user_auth_token.sub.clone(),
+                aud: mdn_user_auth_token.iss,
+                sign_key,
+                kid: Some(
+                    UniversalDidResolver
+                        .resolve_did_for_relation(
+                            &node_hosting_platform_did,
+                            VerificationRelationship::Authentication,
+                        )
+                        .await?,
+                ),
+            })?;
 
-        let payload = RegisterMdnNodeRequest {
-            mdn_node_did,
-            mdn_node_did_proof,
-            mdn_node_subject_id: mdn_user_auth_token.sub,
+        let payload = RegisterMdnNodeHostingPlatformRequest {
+            node_hosting_platform_did,
+            node_hosting_platform_did_proof,
             // TODO provide willow peer id
-            mdn_node_willow_peer_id: "todo willow peer id".to_string(),
-            mdn_node_iroh_node_id,
+            willow_peer_id: "todo willow peer id".to_string(),
+            iroh_node_id,
         };
 
         Ok(self
@@ -91,7 +91,7 @@ impl MdnUserNodesManager for MdnUserNodesManagerDefault {
             )
             .await?)
     }
-    async fn list_all(&self) -> MdnIdentityAgentResult<Vec<MdnNodeResponse>> {
+    async fn list_all(&self) -> MdnIdentityAgentResult<Vec<MdnNodeHostingPlatformResponse>> {
         Ok(self
             .mdn_nodes_api_client
             .list_all(

@@ -6,7 +6,7 @@ use mee_did::universal_resolver::{
     DIDResolverExt, UniversalDidResolver, VerificationRelationship,
 };
 
-pub async fn verify_mdn_node_did_signature(
+pub async fn verify_mdn_node_hoster_did_signature(
     device_did: &str,
     device_did_signature: &str,
 ) -> MdnCentralResult<MdnUserNodeIdToken> {

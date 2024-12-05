@@ -32,15 +32,31 @@ CREATE TABLE IF NOT EXISTS mdn_custodians(
   FOREIGN KEY (mdn_provider_custodian_id) REFERENCES mdn_providers(mdn_provider_id)
 );
 
+CREATE TABLE IF NOT EXISTS mdn_node_hosting_platforms(
+  mdn_node_hosting_platform_id bigint generated always as identity primary key,
+  mdn_node_hosting_platform_uid varchar unique not null,
+  willow_peer_id varchar not null,
+  iroh_node_id varchar not null,
+  mdn_custodian_id bigint not null,
+  FOREIGN KEY (mdn_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
+);
+
 CREATE TABLE IF NOT EXISTS mdn_nodes(
   mdn_node_id bigint generated always as identity primary key,
   mdn_node_uid varchar unique not null,
-  mdn_node_willow_peer_id varchar not null,
-  mdn_node_iroh_node_id varchar not null,
   mdn_node_subject_id bigint not null,
   FOREIGN KEY (mdn_node_subject_id) REFERENCES mdn_users(mdn_user_id),
   mdn_node_custodian_id bigint not null,
   FOREIGN KEY (mdn_node_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
+);
+
+CREATE TABLE IF NOT EXISTS mdn_nodes_on_hosting_platforms(
+  mdn_nodes_on_hosting_platform_id bigint generated always as identity primary key,
+  mdn_nodes_on_hosting_platform_uid varchar unique not null,
+  mdn_node_id bigint not null,
+  FOREIGN KEY (mdn_node_id) REFERENCES mdn_nodes(mdn_node_id),
+  mdn_node_hosting_platform_id bigint not null,
+  FOREIGN KEY (mdn_node_hosting_platform_id) REFERENCES mdn_node_hosting_platforms(mdn_node_hosting_platform_id)
 );
 
 CREATE TABLE IF NOT EXISTS mdn_context_scoped_ids(
@@ -52,11 +68,13 @@ CREATE TABLE IF NOT EXISTS mdn_context_scoped_ids(
   FOREIGN KEY (for_mdn_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
 );
 
-CREATE TABLE IF NOT EXISTS mdn_node_signing_pub_keys(
-  mdn_node_signing_pub_key_id bigint generated always as identity primary key,
-  mdn_node_signing_pub_key_did varchar unique not null,
-  mdn_node_id bigint not null,
-  FOREIGN KEY (mdn_node_id) REFERENCES mdn_nodes(mdn_node_id)
+CREATE TABLE IF NOT EXISTS mdn_user_signing_pub_keys(
+  mdn_user_signing_pub_key_id bigint generated always as identity primary key,
+  mdn_user_signing_pub_key_did varchar unique not null,
+  mdn_node_hosting_platform_id bigint,
+  FOREIGN KEY (mdn_node_hosting_platform_id) REFERENCES mdn_node_hosting_platforms(mdn_node_hosting_platform_id),
+  mdn_user_id bigint not null,
+  FOREIGN KEY (mdn_user_id) REFERENCES mdn_users(mdn_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS mdn_custodian_context_operation_caps(

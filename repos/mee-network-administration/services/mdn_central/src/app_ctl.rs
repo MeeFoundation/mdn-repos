@@ -4,8 +4,11 @@ use crate::{
         mdn_authority::{
             api_router::mdn_authority_router, utils::MdnSignaturesService,
         },
-        mdn_custodian::mdn_nodes::{
-            api_router::mdn_nodes_router, controller::MdnNodesController,
+        mdn_custodian::{
+            capabilities::api_router::mdn_capabilities_router,
+            mdn_nodes::{
+                api_router::mdn_nodes_router, controller::MdnNodesController,
+            },
         },
         mdn_user::{
             api_router::mdn_users_router,
@@ -94,7 +97,8 @@ impl AppCtl {
     pub async fn run(self) -> MdnCentralResult {
         let api_routes = Router::new()
             .nest("/mdn_users", mdn_users_router())
-            .nest("/mdn_nodes", mdn_nodes_router());
+            .nest("/mdn_nodes", mdn_nodes_router())
+            .nest("/mdn_capabilities", mdn_capabilities_router());
 
         let mut app = Router::new()
             .merge(SwaggerUi::new(SWAGGER_PATH).url(

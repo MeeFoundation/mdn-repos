@@ -1,4 +1,4 @@
-use super::api_types::{MdnNodeResponse, RegisterMdnNodeRequest};
+use super::api_types::{MdnNodeHostingPlatformResponse, RegisterMdnNodeHostingPlatformRequest};
 use async_trait::async_trait;
 use mee_http_utils::requests::{any_response_handle_error, json_response_handle_error};
 use url::Url;
@@ -7,10 +7,13 @@ use url::Url;
 pub trait MdnNodesApiClient {
     async fn register(
         &self,
-        payload: RegisterMdnNodeRequest,
+        payload: RegisterMdnNodeHostingPlatformRequest,
         auth_token: &str,
     ) -> anyhow::Result<()>;
-    async fn list_all(&self, auth_token: &str) -> anyhow::Result<Vec<MdnNodeResponse>>;
+    async fn list_all(
+        &self,
+        auth_token: &str,
+    ) -> anyhow::Result<Vec<MdnNodeHostingPlatformResponse>>;
 }
 
 pub struct MdnNodesApiClientDefault {
@@ -34,12 +37,12 @@ impl MdnNodesApiClientDefault {
 impl MdnNodesApiClient for MdnNodesApiClientDefault {
     async fn register(
         &self,
-        payload: RegisterMdnNodeRequest,
+        payload: RegisterMdnNodeHostingPlatformRequest,
         auth_token: &str,
     ) -> anyhow::Result<()> {
         any_response_handle_error(
             self.http_client
-                .post(self.make_api_v1_path_url("/register")?)
+                .post(self.make_api_v1_path_url("/register_node_hosting_platform")?)
                 .json(&payload)
                 .bearer_auth(auth_token)
                 .send()
@@ -50,10 +53,13 @@ impl MdnNodesApiClient for MdnNodesApiClientDefault {
 
         Ok(())
     }
-    async fn list_all(&self, auth_token: &str) -> anyhow::Result<Vec<MdnNodeResponse>> {
+    async fn list_all(
+        &self,
+        auth_token: &str,
+    ) -> anyhow::Result<Vec<MdnNodeHostingPlatformResponse>> {
         let res = json_response_handle_error(
             self.http_client
-                .get(self.make_api_v1_path_url("/list_all")?)
+                .get(self.make_api_v1_path_url("/list_all_node_hosting_platforms")?)
                 .bearer_auth(auth_token)
                 .send()
                 .await?,

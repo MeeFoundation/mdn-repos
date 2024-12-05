@@ -6,7 +6,7 @@ use super::{
 use crate::{
     error::MdnIdentityAgentResult,
     mdn_cloud::{
-        mdn_nodes::api_client::MdnNodesApiClientDefault,
+        mdn_node_hosting_platforms::api_client::MdnNodesApiClientDefault,
         user_account::api_client::MdnUserAccountApiClientDefault,
     },
 };
