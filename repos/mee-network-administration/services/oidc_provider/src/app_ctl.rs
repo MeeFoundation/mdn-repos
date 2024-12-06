@@ -12,7 +12,10 @@ use mee_db_utils::sql_storage::RbdStorage;
 use mee_http_utils::monitoring::health_check_router;
 use mee_secrets_manager::{
     client::SimpleFileSecretsManagerClient,
-    signatures_service::{SignaturesService, SignaturesServiceDefault},
+    signatures_service::{
+        SignaturesService, SignaturesServiceConfigBuilder,
+        SignaturesServiceDefault,
+    },
 };
 use service_utils::{
     mee_provider_manager::{
@@ -55,9 +58,16 @@ impl AppCtl {
         )
         .await?;
 
+        let signatures_service_config =
+            SignaturesServiceConfigBuilder::default()
+                .jwk_secret_path(Some(
+                    app_config.mee_signature_secret_path.clone(),
+                ))
+                .build()
+                .map_err(anyhow::Error::from)?;
+
         let mee_authority_signature = Arc::new(SignaturesServiceDefault::new(
-            app_config.mee_signature_secret_path.clone(),
-            None,
+            signatures_service_config,
             // TODO replace with real world secure secret manager
             Arc::new(SimpleFileSecretsManagerClient::new(format!(
                 "{}/../target",

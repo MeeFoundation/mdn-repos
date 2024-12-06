@@ -54,7 +54,7 @@ impl<'a> ProviderAccountService<'a> {
         &self,
         provider: ProviderAccountDomainModel,
     ) -> MeeProviderManagerResult<ProviderAccountLoginResponse> {
-        let mee_sig = self.mee_authority_signature.get_jwk_signature().await?;
+        let mee_sig = self.mee_authority_signature.get_source_jwk_signature().await?;
 
         let root_key = mee_sig
             .as_ref()

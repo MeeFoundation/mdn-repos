@@ -196,7 +196,7 @@ impl OidcController {
     pub async fn jwks(&self) -> MeeOidcProviderResult<JwkSet> {
         let sig = self
             .mee_authority_signature
-            .get_jwk_signature()
+            .get_source_jwk_signature()
             .await?
             .ok_or(MeeOidcProviderErr::MissingMeeAuthoritySignature)?;
 

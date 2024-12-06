@@ -1,3 +1,4 @@
+use didkit::ssi::did::DIDMethodError;
 use mee_macro_utils::from_external_error_to_string_error;
 
 pub type MeeDidResult<T, E = MeeDidErr> = std::result::Result<T, E>;
@@ -16,6 +17,9 @@ pub enum MeeDidErr {
     #[error("Serde codec error: {error}")]
     SerdeCodec { error: String },
 
+    #[error("Mee crypto utils error: {error}")]
+    MeeCryptoUtils { error: String },
+
     #[error("Other unspecified error: {error}")]
     Other { error: String },
 }
@@ -27,10 +31,7 @@ impl MeeDidErr {
     }
 }
 
-from_external_error_to_string_error!(
-    ssi::did::DIDMethodError,
-    MeeDidErr,
-    DidMethod
-);
-from_external_error_to_string_error!(ssi::did::Error, MeeDidErr, SsiSdkDid);
+from_external_error_to_string_error!(DIDMethodError, MeeDidErr, DidMethod);
+from_external_error_to_string_error!(didkit::ssi::did::Error, MeeDidErr, SsiSdkDid);
 from_external_error_to_string_error!(serde_json::Error, MeeDidErr, SerdeCodec);
+from_external_error_to_string_error!(mee_crypto::error::MeeCryptoErr, MeeDidErr, MeeCryptoUtils);
