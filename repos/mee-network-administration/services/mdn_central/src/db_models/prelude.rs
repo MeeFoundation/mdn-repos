@@ -3,13 +3,11 @@
 pub use super::mdn_context_scoped_ids::Entity as MdnContextScopedIds;
 pub use super::mdn_custodian_context_data_access_caps::Entity as MdnCustodianContextDataAccessCaps;
 pub use super::mdn_custodian_context_operation_caps::Entity as MdnCustodianContextOperationCaps;
+pub use super::mdn_custodian_storage_caps::Entity as MdnCustodianStorageCaps;
+pub use super::mdn_custodian_storages::Entity as MdnCustodianStorages;
 pub use super::mdn_custodians::Entity as MdnCustodians;
 pub use super::mdn_identity_contexts::Entity as MdnIdentityContexts;
-pub use super::mdn_identity_contexts_on_nodes::Entity as MdnIdentityContextsOnNodes;
-pub use super::mdn_node_caps::Entity as MdnNodeCaps;
-pub use super::mdn_node_hosting_platforms::Entity as MdnNodeHostingPlatforms;
-pub use super::mdn_nodes::Entity as MdnNodes;
-pub use super::mdn_nodes_on_hosting_platforms::Entity as MdnNodesOnHostingPlatforms;
+pub use super::mdn_identity_contexts_in_storages::Entity as MdnIdentityContextsInStorages;
 pub use super::mdn_providers::Entity as MdnProviders;
 pub use super::mdn_user_signing_pub_keys::Entity as MdnUserSigningPubKeys;
 pub use super::mdn_users::Entity as MdnUsers;

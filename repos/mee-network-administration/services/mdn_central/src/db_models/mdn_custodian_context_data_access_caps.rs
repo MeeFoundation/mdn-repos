@@ -18,6 +18,8 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::mdn_custodian_storage_caps::Entity")]
+    MdnCustodianStorageCaps,
     #[sea_orm(
         belongs_to = "super::mdn_custodians::Entity",
         from = "Column::ToMdnCustodianId",
@@ -34,8 +36,6 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     MdnIdentityContexts,
-    #[sea_orm(has_many = "super::mdn_node_caps::Entity")]
-    MdnNodeCaps,
     #[sea_orm(
         belongs_to = "super::mdn_users::Entity",
         from = "Column::FromMdnUserId",
@@ -44,6 +44,12 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     MdnUsers,
+}
+
+impl Related<super::mdn_custodian_storage_caps::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MdnCustodianStorageCaps.def()
+    }
 }
 
 impl Related<super::mdn_custodians::Entity> for Entity {
@@ -55,12 +61,6 @@ impl Related<super::mdn_custodians::Entity> for Entity {
 impl Related<super::mdn_identity_contexts::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MdnIdentityContexts.def()
-    }
-}
-
-impl Related<super::mdn_node_caps::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::MdnNodeCaps.def()
     }
 }
 

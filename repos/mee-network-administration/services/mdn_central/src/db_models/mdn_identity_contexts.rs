@@ -28,8 +28,8 @@ pub enum Relation {
         has_many = "super::mdn_custodian_context_data_access_caps::Entity"
     )]
     MdnCustodianContextDataAccessCaps,
-    #[sea_orm(has_many = "super::mdn_identity_contexts_on_nodes::Entity")]
-    MdnIdentityContextsOnNodes,
+    #[sea_orm(has_many = "super::mdn_identity_contexts_in_storages::Entity")]
+    MdnIdentityContextsInStorages,
 }
 
 impl Related<super::mdn_context_scoped_ids::Entity> for Entity {
@@ -44,9 +44,9 @@ impl Related<super::mdn_custodian_context_data_access_caps::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_identity_contexts_on_nodes::Entity> for Entity {
+impl Related<super::mdn_identity_contexts_in_storages::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnIdentityContextsOnNodes.def()
+        Relation::MdnIdentityContextsInStorages.def()
     }
 }
 

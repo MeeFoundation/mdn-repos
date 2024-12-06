@@ -1,4 +1,4 @@
-pub mod agent_node;
+pub mod identity_agent_controller;
 pub mod idm;
-pub mod mdn_node;
-pub mod storage;
+pub mod mdn_custodian_storage;
+pub mod device_storage;

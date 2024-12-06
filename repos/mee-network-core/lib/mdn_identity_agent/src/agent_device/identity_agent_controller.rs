@@ -1,12 +1,12 @@
 use super::{
     idm::user_auth::{MdnUserAccountManager, MdnUserAccountManagerDefault},
-    mdn_node::mdn_node_manager::{MdnUserNodesManager, MdnUserNodesManagerDefault},
-    storage::{local_kvdb::LocalKvDbRedb, user_local_db::MdnUserLocalDbDefault},
+    mdn_custodian_storage::storage_manager::{MdnCustodianStorageManager, MdnCustodianStorageManagerDefault},
+    device_storage::{local_kvdb::LocalKvDbRedb, user_local_db::MdnUserLocalDbDefault},
 };
 use crate::{
     error::MdnIdentityAgentResult,
     mdn_cloud::{
-        mdn_node_hosting_platforms::api_client::MdnNodesApiClientDefault,
+        mdn_custodian_storage::api_client::MdnCustodianStorageApiClientDefault,
         user_account::api_client::MdnUserAccountApiClientDefault,
     },
 };
@@ -14,23 +14,23 @@ use crate::{
 use std::sync::Arc;
 use url::Url;
 
-pub struct MdnAgentNodeConfig {
+pub struct MdnIdentityAgentControllerConfig {
     pub local_db_file_path: String,
     pub mdn_api_base_url: Url,
 }
 
-pub struct MdnAgentNode {
+pub struct MdnIdentityAgentController {
     // willow_peer: WillowPeer,
     pub mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
-    pub mdn_user_nodes_manager: Arc<dyn MdnUserNodesManager + Send + Sync>,
+    pub mdn_user_nodes_manager: Arc<dyn MdnCustodianStorageManager + Send + Sync>,
 }
 
-impl MdnAgentNode {
+impl MdnIdentityAgentController {
     pub async fn try_new(
-        MdnAgentNodeConfig {
+        MdnIdentityAgentControllerConfig {
             local_db_file_path,
             mdn_api_base_url,
-        }: MdnAgentNodeConfig,
+        }: MdnIdentityAgentControllerConfig,
     ) -> MdnIdentityAgentResult<Self> {
         let local_db = Arc::new(LocalKvDbRedb::try_new(local_db_file_path).await?);
 
@@ -41,8 +41,8 @@ impl MdnAgentNode {
             )?),
         ));
 
-        let mdn_user_nodes_manager = Arc::new(MdnUserNodesManagerDefault::new(
-            Arc::new(MdnNodesApiClientDefault::try_new(mdn_api_base_url)?),
+        let mdn_user_nodes_manager = Arc::new(MdnCustodianStorageManagerDefault::new(
+            Arc::new(MdnCustodianStorageApiClientDefault::try_new(mdn_api_base_url)?),
             mdn_user_account_manager.clone(),
         ));
 

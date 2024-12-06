@@ -1,7 +1,9 @@
 use super::{
-    api::types::{MdnNodeHostingPlatformResponse, RegisterMdnNodeHostingPlatformRequest},
-    repositories::mdn_node_hosting_platforms::MdnNodesRepositoryImpl,
-    services::mdn_nodes::MdnNodesService,
+    api::types::{
+        MdnCustodianStorageResponse, RegisterMdnCustodianStorageRequest,
+    },
+    repositories::mdn_custodian_storage::MdnCustodianStoragesRepositoryImpl,
+    services::mdn_custodian_storage::MdnNodesService,
 };
 use crate::{
     domain::{
@@ -23,13 +25,13 @@ use sea_orm::ConnectionTrait;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct MdnNodesController {
+pub struct MdnCustodianStoragesController {
     rdb_storage: RbdStorage,
     mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
-impl MdnNodesController {
+impl MdnCustodianStoragesController {
     pub fn new(
         rdb_storage: RbdStorage,
         mdn_central_authority_signature: Arc<
@@ -41,14 +43,14 @@ impl MdnNodesController {
             mdn_central_authority_signature,
         }
     }
-    pub fn mdn_node_service<'a, C: ConnectionTrait>(
+    pub fn mdn_custodian_storage_service<'a, C: ConnectionTrait>(
         mdn_central_authority_signature: Arc<
             dyn MdnSignaturesService + Send + Sync,
         >,
         tx: &'a C,
     ) -> MdnNodesService<'a> {
         MdnNodesService::new(
-            Box::new(MdnNodesRepositoryImpl::new(tx)),
+            Box::new(MdnCustodianStoragesRepositoryImpl::new(tx)),
             Box::new(MdnCustodiansRepositoryImpl::new(tx)),
             Box::new(MdnNodeSigningPubKeysRepositoryImpl::new(tx)),
             Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),
@@ -60,29 +62,29 @@ impl MdnNodesController {
         )
     }
 
-    pub async fn list_all_node_hosting_platforms(
+    pub async fn list_all_custodian_storages(
         &self,
         mdn_custodian_uid: &str,
-    ) -> MdnCentralResult<Vec<MdnNodeHostingPlatformResponse>> {
-        let res = Self::mdn_node_service(
+    ) -> MdnCentralResult<Vec<MdnCustodianStorageResponse>> {
+        let res = Self::mdn_custodian_storage_service(
             self.mdn_central_authority_signature.clone(),
             &*self.rdb_storage.connection(),
         )
-        .list_all_node_hosting_platforms(mdn_custodian_uid)
+        .list_all_custodian_storages(mdn_custodian_uid)
         .await?;
 
         Ok(res)
     }
-    pub async fn register_node_hosting_platform(
+    pub async fn register_custodian_storage(
         &self,
-        payload: RegisterMdnNodeHostingPlatformRequest,
+        payload: RegisterMdnCustodianStorageRequest,
         logged_in_mdn_user: LoggedInMdnUser,
     ) -> MdnCentralResult {
-        Self::mdn_node_service(
+        Self::mdn_custodian_storage_service(
             self.mdn_central_authority_signature.clone(),
             &*self.rdb_storage.connection(),
         )
-        .register_node_hosting_platform(payload, logged_in_mdn_user)
+        .register_custodian_storage(payload, logged_in_mdn_user)
         .await?;
 
         Ok(())

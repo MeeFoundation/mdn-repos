@@ -1,5 +1,5 @@
 use super::local_kvdb::LocalKvDbExt;
-use crate::{error::MdnIdentityAgentResult, agent_device::storage::local_kvdb::LocalKvDb};
+use crate::{error::MdnIdentityAgentResult, agent_device::device_storage::local_kvdb::LocalKvDb};
 use async_trait::async_trait;
 use mee_crypto::jwk::Jwk;
 use mee_data_sync::iroh::iroh_net;

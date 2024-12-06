@@ -3,16 +3,15 @@ use crate::{
         mdn_authority::utils::MdnSignaturesService,
         mdn_custodian::{
             account::repositories::mdn_custodians::MdnCustodiansRepository,
-            mdn_nodes::{
+            storage::{
                 api::types::{
-                    MdnNodeHostingPlatformResponse,
-                    RegisterMdnNodeHostingPlatformRequest,
+                    MdnCustodianStorageResponse,
+                    RegisterMdnCustodianStorageRequest,
                 },
-                repositories::mdn_node_hosting_platforms::{
-                    AddMdnNodeHostingPlatformDto,
-                    MdnNodeHostingPlatformsRepository,
+                repositories::mdn_custodian_storage::{
+                    AddMdnCustodianStorageDto, MdnCustodianStoragesRepository,
                 },
-                utils::node_auth_utils::verify_mdn_node_hoster_did_signature,
+                utils::custodian_storage_utils::verify_user_custodian_storage_did_signature,
             },
         },
         mdn_user::{
@@ -31,8 +30,8 @@ use crate::{
 use std::sync::Arc;
 
 pub struct MdnNodesService<'a> {
-    mdn_nodes_repository:
-        Box<dyn MdnNodeHostingPlatformsRepository + Send + Sync + 'a>,
+    mdn_custodian_storages_repository:
+        Box<dyn MdnCustodianStoragesRepository + Send + Sync + 'a>,
     mdn_custodians_repository:
         Box<dyn MdnCustodiansRepository + Send + Sync + 'a>,
     mdn_user_signing_pub_keys_repository:
@@ -46,8 +45,8 @@ pub struct MdnNodesService<'a> {
 
 impl<'a> MdnNodesService<'a> {
     pub fn new(
-        mdn_nodes_repository: Box<
-            dyn MdnNodeHostingPlatformsRepository + Send + Sync + 'a,
+        mdn_custodian_storages_repository: Box<
+            dyn MdnCustodianStoragesRepository + Send + Sync + 'a,
         >,
         mdn_custodians_repository: Box<
             dyn MdnCustodiansRepository + Send + Sync + 'a,
@@ -67,22 +66,22 @@ impl<'a> MdnNodesService<'a> {
             mdn_central_authority_signature,
             mdn_user_account_service,
             mdn_context_scoped_ids_repository,
-            mdn_nodes_repository,
+            mdn_custodian_storages_repository,
             mdn_custodians_repository,
             mdn_user_signing_pub_keys_repository,
         }
     }
-    pub async fn list_all_node_hosting_platforms(
+    pub async fn list_all_custodian_storages(
         &self,
         mdn_custodian_uid: &str,
-    ) -> MdnCentralResult<Vec<MdnNodeHostingPlatformResponse>> {
+    ) -> MdnCentralResult<Vec<MdnCustodianStorageResponse>> {
         let custodian = self
             .mdn_custodians_repository
             .get_custodian_by_uid_required(mdn_custodian_uid)
             .await?;
 
         let res = self
-            .mdn_nodes_repository
+            .mdn_custodian_storages_repository
             .list_all(custodian.mdn_custodian_id)
             .await?
             .into_iter()
@@ -91,32 +90,33 @@ impl<'a> MdnNodesService<'a> {
 
         Ok(res)
     }
-    pub async fn register_node_hosting_platform(
+    pub async fn register_custodian_storage(
         &self,
-        RegisterMdnNodeHostingPlatformRequest {
+        RegisterMdnCustodianStorageRequest {
             willow_peer_id,
             iroh_node_id,
-            node_hosting_platform_did,
-            node_hosting_platform_did_proof,
-        }: RegisterMdnNodeHostingPlatformRequest,
+            mdn_custodian_storage_did,
+            mdn_custodian_storage_did_proof,
+        }: RegisterMdnCustodianStorageRequest,
         logged_in_mdn_user: LoggedInMdnUser,
     ) -> MdnCentralResult {
-        let mdn_node_hosting_platform_uid = uuid::Uuid::new_v4().to_string();
+        let mdn_custodian_storage_uid = uuid::Uuid::new_v4().to_string();
         let mdn_custodian_uid = logged_in_mdn_user.mdn_custodian_uid();
 
-        let mdn_node_hoster_id_token = verify_mdn_node_hoster_did_signature(
-            &node_hosting_platform_did,
-            &node_hosting_platform_did_proof,
-        )
-        .await?;
+        let mdn_custodian_storage_id_token =
+            verify_user_custodian_storage_did_signature(
+                &mdn_custodian_storage_did,
+                &mdn_custodian_storage_did_proof,
+            )
+            .await?;
 
-        if mdn_node_hoster_id_token.iss != node_hosting_platform_did {
+        if mdn_custodian_storage_id_token.iss != mdn_custodian_storage_did {
             Err(MdnCentralErr::InvalidMdnNodeUserAuthToken(
                 "Issuer DID mismatch".to_string(),
             ))?;
         }
 
-        if mdn_node_hoster_id_token.aud
+        if mdn_custodian_storage_id_token.aud
             != self.mdn_central_authority_signature.mee_sig_did().await?
         {
             Err(MdnCentralErr::InvalidMdnNodeUserAuthToken(
@@ -126,7 +126,7 @@ impl<'a> MdnNodesService<'a> {
 
         match &logged_in_mdn_user {
             LoggedInMdnUser::DirectlyLoggedInMdnUser(token) => {
-                if mdn_node_hoster_id_token.sub != token.mdn_user_uid {
+                if mdn_custodian_storage_id_token.sub != token.mdn_user_uid {
                     Err(MdnCentralErr::InvalidMdnNodeUserAuthToken(
                         "MDN user uid mismatch".to_string(),
                     ))?;
@@ -142,34 +142,19 @@ impl<'a> MdnNodesService<'a> {
             .await?
             .mdn_custodian_id;
 
-        // let mdn_node_subject_id = match logged_in_mdn_user {
-        //     LoggedInMdnUser::DirectlyLoggedInMdnUser(token) => {
-        //         self.mdn_user_account_service
-        //             .get_account_by_uid_required(&token.mdn_user_uid)
-        //             .await?
-        //             .mdn_user_id
-        //     }
-        //     LoggedInMdnUser::OAuthLoggedInUser => {
-        //         self.mdn_context_scoped_ids_repository
-        //             .get_context_scoped_id_by_uid_required(&mdn_node_subject_id)
-        //             .await?
-        //             .mdn_user_id
-        //     }
-        // };
-
         let res = self
-            .mdn_nodes_repository
-            .register_node_platform(AddMdnNodeHostingPlatformDto {
+            .mdn_custodian_storages_repository
+            .register_custodian_storage(AddMdnCustodianStorageDto {
                 mdn_custodian_id,
-                mdn_node_hosting_platform_uid: format!(
-                    "mdn_node_hosting_platform-{mdn_node_hosting_platform_uid}"
+                mdn_custodian_storage_uid: format!(
+                    "mdn_custodian_storage-{mdn_custodian_storage_uid}"
                 ),
                 willow_peer_id,
                 iroh_node_id,
             })
             .await?;
 
-        // TODO handle both cases: user hosting platform (mobile device) and provider hosting platform (provider multi-tenant server)
+        // TODO handle both cases: user storage (mobile device) and provider storage (provider multi-tenant server)
         match &logged_in_mdn_user {
             LoggedInMdnUser::DirectlyLoggedInMdnUser(token) => {
                 let mdn_user_id = self
@@ -180,9 +165,9 @@ impl<'a> MdnNodesService<'a> {
 
                 self.mdn_user_signing_pub_keys_repository
                     .add_pub_key(AddPubKeyDto {
-                        mdn_user_signing_pub_key_did: node_hosting_platform_did,
-                        mdn_node_hosting_platform_id: Some(
-                            res.mdn_node_hosting_platform_id,
+                        mdn_user_signing_pub_key_did: mdn_custodian_storage_did,
+                        mdn_custodian_storage_id: Some(
+                            res.mdn_custodian_storage_id,
                         ),
                         mdn_user_id,
                     })

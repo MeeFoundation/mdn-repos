@@ -1,15 +1,15 @@
 use crate::error::MdnCentralResult;
-use mdn_identity_agent::mdn_common::mdn_node_auth::{
-    decode_user_node_id_token, MdnUserNodeIdToken,
+use mdn_identity_agent::mdn_common::mdn_custodian_storage_auth::{
+    decode_user_custodian_storage_id_token, MdnUserCustodianStorageIdToken,
 };
 use mee_did::universal_resolver::{
     DIDResolverExt, UniversalDidResolver, VerificationRelationship,
 };
 
-pub async fn verify_mdn_node_hoster_did_signature(
+pub async fn verify_user_custodian_storage_did_signature(
     device_did: &str,
     device_did_signature: &str,
-) -> MdnCentralResult<MdnUserNodeIdToken> {
+) -> MdnCentralResult<MdnUserCustodianStorageIdToken> {
     let auth_did_id = UniversalDidResolver
         .resolve_did_for_relation(
             device_did,
@@ -22,7 +22,7 @@ pub async fn verify_mdn_node_hoster_did_signature(
         .await?;
 
     let device_id_token =
-        decode_user_node_id_token(device_did_signature, auth_did_jwk)?;
+        decode_user_custodian_storage_id_token(device_did_signature, auth_did_jwk)?;
 
     Ok(device_id_token)
 }

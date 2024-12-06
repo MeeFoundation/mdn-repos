@@ -5,7 +5,7 @@ use crate::{
         api_types::{CreateUserAccountRequest, UserAccountLoginRequest},
         auth_utils::{decode_mdn_cloud_user_id_token, MdnCloudUserIdToken},
     },
-    agent_device::storage::user_local_db::MdnUserLocalDb,
+    agent_device::device_storage::user_local_db::MdnUserLocalDb,
 };
 use async_trait::async_trait;
 use mee_crypto::{

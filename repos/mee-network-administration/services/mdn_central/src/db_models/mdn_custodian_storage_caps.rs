@@ -4,15 +4,15 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
-#[sea_orm(table_name = "mdn_node_caps")]
+#[sea_orm(table_name = "mdn_custodian_storage_caps")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_node_cap_id: i64,
+    pub mdn_custodian_storage_cap_id: i64,
     #[sea_orm(unique)]
-    pub mdn_node_cap_uid: String,
-    pub mdn_node_willow_cap_token: String,
+    pub mdn_custodian_storage_cap_uid: String,
+    pub mdn_custodian_storage_willow_cap_token: String,
     pub mdn_custodian_context_data_access_cap_id: i64,
-    pub mdn_identity_context_on_node_id: i64,
+    pub mdn_identity_context_in_storage_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -26,13 +26,13 @@ pub enum Relation {
     )]
     MdnCustodianContextDataAccessCaps,
     #[sea_orm(
-        belongs_to = "super::mdn_identity_contexts_on_nodes::Entity",
-        from = "Column::MdnIdentityContextOnNodeId",
-        to = "super::mdn_identity_contexts_on_nodes::Column::MdnIdentityContextOnNodeId",
+        belongs_to = "super::mdn_identity_contexts_in_storages::Entity",
+        from = "Column::MdnIdentityContextInStorageId",
+        to = "super::mdn_identity_contexts_in_storages::Column::MdnIdentityContextInStorageId",
         on_update = "NoAction",
         on_delete = "NoAction"
     )]
-    MdnIdentityContextsOnNodes,
+    MdnIdentityContextsInStorages,
 }
 
 impl Related<super::mdn_custodian_context_data_access_caps::Entity> for Entity {
@@ -41,9 +41,9 @@ impl Related<super::mdn_custodian_context_data_access_caps::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_identity_contexts_on_nodes::Entity> for Entity {
+impl Related<super::mdn_identity_contexts_in_storages::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnIdentityContextsOnNodes.def()
+        Relation::MdnIdentityContextsInStorages.def()
     }
 }
 

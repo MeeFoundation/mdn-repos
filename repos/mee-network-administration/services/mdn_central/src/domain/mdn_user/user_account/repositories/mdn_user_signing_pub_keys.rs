@@ -4,7 +4,7 @@ use sea_orm::{entity::*, query::*};
 
 pub struct AddPubKeyDto {
     pub mdn_user_signing_pub_key_did: String,
-    pub mdn_node_hosting_platform_id: Option<i64>,
+    pub mdn_custodian_storage_id: Option<i64>,
     pub mdn_user_id: i64,
 }
 
@@ -34,14 +34,14 @@ impl<'a, C: ConnectionTrait> MdnUserSigningPubKeysRepository
         &self,
         AddPubKeyDto {
             mdn_user_signing_pub_key_did,
-            mdn_node_hosting_platform_id,
+            mdn_custodian_storage_id,
             mdn_user_id,
         }: AddPubKeyDto,
     ) -> MdnCentralResult<mdn_user_signing_pub_keys::Model> {
         let res = mdn_user_signing_pub_keys::ActiveModel {
             mdn_user_signing_pub_key_id: NotSet,
             mdn_user_signing_pub_key_did: Set(mdn_user_signing_pub_key_did),
-            mdn_node_hosting_platform_id: Set(mdn_node_hosting_platform_id),
+            mdn_custodian_storage_id: Set(mdn_custodian_storage_id),
             mdn_user_id: Set(mdn_user_id),
         }
         .insert(self.db_conn)

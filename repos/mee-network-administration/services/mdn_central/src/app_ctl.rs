@@ -6,8 +6,8 @@ use crate::{
         },
         mdn_custodian::{
             capabilities::api_router::mdn_capabilities_router,
-            mdn_nodes::{
-                api_router::mdn_nodes_router, controller::MdnNodesController,
+            storage::{
+                api_router::mdn_custodian_storages_router, controller::MdnCustodianStoragesController,
             },
         },
         mdn_user::{
@@ -40,7 +40,7 @@ const SWAGGER_PATH: &str = "/swagger-ui";
 pub struct AppCtl {
     pub(crate) app_config: AppConfig,
     pub(crate) mdn_user_account_controller: MdnUserAccountController,
-    pub(crate) mdn_nodes_controller: MdnNodesController,
+    pub(crate) mdn_custodian_storages_controller: MdnCustodianStoragesController,
     pub(crate) mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
 }
@@ -86,7 +86,7 @@ impl AppCtl {
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
             ),
-            mdn_nodes_controller: MdnNodesController::new(
+            mdn_custodian_storages_controller: MdnCustodianStoragesController::new(
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
             ),
@@ -97,7 +97,7 @@ impl AppCtl {
     pub async fn run(self) -> MdnCentralResult {
         let api_routes = Router::new()
             .nest("/mdn_users", mdn_users_router())
-            .nest("/mdn_nodes", mdn_nodes_router())
+            .nest("/mdn_custodian_storages", mdn_custodian_storages_router())
             .nest("/mdn_capabilities", mdn_capabilities_router());
 
         let mut app = Router::new()

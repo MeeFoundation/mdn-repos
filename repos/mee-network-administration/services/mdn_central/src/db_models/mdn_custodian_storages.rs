@@ -4,12 +4,12 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
-#[sea_orm(table_name = "mdn_node_hosting_platforms")]
+#[sea_orm(table_name = "mdn_custodian_storages")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_node_hosting_platform_id: i64,
+    pub mdn_custodian_storage_id: i64,
     #[sea_orm(unique)]
-    pub mdn_node_hosting_platform_uid: String,
+    pub mdn_custodian_storage_uid: String,
     pub willow_peer_id: String,
     pub iroh_node_id: String,
     pub mdn_custodian_id: i64,
@@ -25,8 +25,8 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     MdnCustodians,
-    #[sea_orm(has_many = "super::mdn_nodes_on_hosting_platforms::Entity")]
-    MdnNodesOnHostingPlatforms,
+    #[sea_orm(has_many = "super::mdn_identity_contexts_in_storages::Entity")]
+    MdnIdentityContextsInStorages,
     #[sea_orm(has_many = "super::mdn_user_signing_pub_keys::Entity")]
     MdnUserSigningPubKeys,
 }
@@ -37,9 +37,9 @@ impl Related<super::mdn_custodians::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_nodes_on_hosting_platforms::Entity> for Entity {
+impl Related<super::mdn_identity_contexts_in_storages::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnNodesOnHostingPlatforms.def()
+        Relation::MdnIdentityContextsInStorages.def()
     }
 }
 

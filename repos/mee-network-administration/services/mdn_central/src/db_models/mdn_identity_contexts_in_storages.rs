@@ -4,18 +4,20 @@ use sea_orm::entity::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize)]
-#[sea_orm(table_name = "mdn_user_signing_pub_keys")]
+#[sea_orm(table_name = "mdn_identity_contexts_in_storages")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub mdn_user_signing_pub_key_id: i64,
+    pub mdn_identity_context_in_storage_id: i64,
     #[sea_orm(unique)]
-    pub mdn_user_signing_pub_key_did: String,
-    pub mdn_custodian_storage_id: Option<i64>,
-    pub mdn_user_id: i64,
+    pub mdn_identity_context_in_storage_uid: String,
+    pub mdn_identity_context_id: i64,
+    pub mdn_custodian_storage_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::mdn_custodian_storage_caps::Entity")]
+    MdnCustodianStorageCaps,
     #[sea_orm(
         belongs_to = "super::mdn_custodian_storages::Entity",
         from = "Column::MdnCustodianStorageId",
@@ -25,13 +27,19 @@ pub enum Relation {
     )]
     MdnCustodianStorages,
     #[sea_orm(
-        belongs_to = "super::mdn_users::Entity",
-        from = "Column::MdnUserId",
-        to = "super::mdn_users::Column::MdnUserId",
+        belongs_to = "super::mdn_identity_contexts::Entity",
+        from = "Column::MdnIdentityContextId",
+        to = "super::mdn_identity_contexts::Column::MdnIdentityContextId",
         on_update = "NoAction",
         on_delete = "NoAction"
     )]
-    MdnUsers,
+    MdnIdentityContexts,
+}
+
+impl Related<super::mdn_custodian_storage_caps::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MdnCustodianStorageCaps.def()
+    }
 }
 
 impl Related<super::mdn_custodian_storages::Entity> for Entity {
@@ -40,9 +48,9 @@ impl Related<super::mdn_custodian_storages::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_users::Entity> for Entity {
+impl Related<super::mdn_identity_contexts::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnUsers.def()
+        Relation::MdnIdentityContexts.def()
     }
 }
 

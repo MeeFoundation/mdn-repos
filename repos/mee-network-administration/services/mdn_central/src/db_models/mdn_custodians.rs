@@ -26,10 +26,8 @@ pub enum Relation {
         has_many = "super::mdn_custodian_context_operation_caps::Entity"
     )]
     MdnCustodianContextOperationCaps,
-    #[sea_orm(has_many = "super::mdn_node_hosting_platforms::Entity")]
-    MdnNodeHostingPlatforms,
-    #[sea_orm(has_many = "super::mdn_nodes::Entity")]
-    MdnNodes,
+    #[sea_orm(has_many = "super::mdn_custodian_storages::Entity")]
+    MdnCustodianStorages,
     #[sea_orm(
         belongs_to = "super::mdn_providers::Entity",
         from = "Column::MdnProviderCustodianId",
@@ -66,15 +64,9 @@ impl Related<super::mdn_custodian_context_operation_caps::Entity> for Entity {
     }
 }
 
-impl Related<super::mdn_node_hosting_platforms::Entity> for Entity {
+impl Related<super::mdn_custodian_storages::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::MdnNodeHostingPlatforms.def()
-    }
-}
-
-impl Related<super::mdn_nodes::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::MdnNodes.def()
+        Relation::MdnCustodianStorages.def()
     }
 }
 

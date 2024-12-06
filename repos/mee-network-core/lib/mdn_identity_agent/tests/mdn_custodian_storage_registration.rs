@@ -1,9 +1,11 @@
-use mdn_identity_agent::agent_device::agent_node::{MdnAgentNode, MdnAgentNodeConfig};
+use mdn_identity_agent::agent_device::identity_agent_controller::{
+    MdnIdentityAgentController, MdnIdentityAgentControllerConfig,
+};
 use mee_test_utils::cargo_target_level_filename;
 use tracing_subscriber::{filter::LevelFilter, EnvFilter};
 
 #[tokio::test]
-async fn node_registration_flow() {
+async fn mdn_custodian_storage_registration_flow() {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::builder()
@@ -13,14 +15,15 @@ async fn node_registration_flow() {
         )
         .init();
 
-    let local_db_file_path = cargo_target_level_filename!("node_registration_flow_local_db1");
+    let local_db_file_path =
+        cargo_target_level_filename!("mdn_custodian_storage_registration_flow_local_db1");
 
     log::info!(
         "remove old db: {:?}",
         std::fs::remove_file(&local_db_file_path)
     );
 
-    let agent_node = MdnAgentNode::try_new(MdnAgentNodeConfig {
+    let agent_node = MdnIdentityAgentController::try_new(MdnIdentityAgentControllerConfig {
         local_db_file_path,
         mdn_api_base_url: "http://127.0.0.1:8899".parse().unwrap(),
     })

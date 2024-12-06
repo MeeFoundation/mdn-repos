@@ -32,31 +32,13 @@ CREATE TABLE IF NOT EXISTS mdn_custodians(
   FOREIGN KEY (mdn_provider_custodian_id) REFERENCES mdn_providers(mdn_provider_id)
 );
 
-CREATE TABLE IF NOT EXISTS mdn_node_hosting_platforms(
-  mdn_node_hosting_platform_id bigint generated always as identity primary key,
-  mdn_node_hosting_platform_uid varchar unique not null,
+CREATE TABLE IF NOT EXISTS mdn_custodian_storages(
+  mdn_custodian_storage_id bigint generated always as identity primary key,
+  mdn_custodian_storage_uid varchar unique not null,
   willow_peer_id varchar not null,
   iroh_node_id varchar not null,
   mdn_custodian_id bigint not null,
   FOREIGN KEY (mdn_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
-);
-
-CREATE TABLE IF NOT EXISTS mdn_nodes(
-  mdn_node_id bigint generated always as identity primary key,
-  mdn_node_uid varchar unique not null,
-  mdn_node_subject_id bigint not null,
-  FOREIGN KEY (mdn_node_subject_id) REFERENCES mdn_users(mdn_user_id),
-  mdn_node_custodian_id bigint not null,
-  FOREIGN KEY (mdn_node_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
-);
-
-CREATE TABLE IF NOT EXISTS mdn_nodes_on_hosting_platforms(
-  mdn_nodes_on_hosting_platform_id bigint generated always as identity primary key,
-  mdn_nodes_on_hosting_platform_uid varchar unique not null,
-  mdn_node_id bigint not null,
-  FOREIGN KEY (mdn_node_id) REFERENCES mdn_nodes(mdn_node_id),
-  mdn_node_hosting_platform_id bigint not null,
-  FOREIGN KEY (mdn_node_hosting_platform_id) REFERENCES mdn_node_hosting_platforms(mdn_node_hosting_platform_id)
 );
 
 CREATE TABLE IF NOT EXISTS mdn_context_scoped_ids(
@@ -71,8 +53,8 @@ CREATE TABLE IF NOT EXISTS mdn_context_scoped_ids(
 CREATE TABLE IF NOT EXISTS mdn_user_signing_pub_keys(
   mdn_user_signing_pub_key_id bigint generated always as identity primary key,
   mdn_user_signing_pub_key_did varchar unique not null,
-  mdn_node_hosting_platform_id bigint,
-  FOREIGN KEY (mdn_node_hosting_platform_id) REFERENCES mdn_node_hosting_platforms(mdn_node_hosting_platform_id),
+  mdn_custodian_storage_id bigint,
+  FOREIGN KEY (mdn_custodian_storage_id) REFERENCES mdn_custodian_storages(mdn_custodian_storage_id),
   mdn_user_id bigint not null,
   FOREIGN KEY (mdn_user_id) REFERENCES mdn_users(mdn_user_id)
 );
@@ -107,21 +89,21 @@ CREATE TABLE IF NOT EXISTS mdn_custodian_context_data_access_caps(
   FOREIGN KEY (to_mdn_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id)
 );
 
-CREATE TABLE IF NOT EXISTS mdn_identity_contexts_on_nodes(
-  mdn_identity_context_on_node_id bigint generated always as identity primary key,
-  mdn_identity_context_on_node_uid varchar unique not null,
+CREATE TABLE IF NOT EXISTS mdn_identity_contexts_in_storages(
+  mdn_identity_context_in_storage_id bigint generated always as identity primary key,
+  mdn_identity_context_in_storage_uid varchar unique not null,
   mdn_identity_context_id bigint not null,
   FOREIGN KEY (mdn_identity_context_id) REFERENCES mdn_identity_contexts(mdn_identity_context_id),
-  mdn_node_id bigint not null,
-  FOREIGN KEY (mdn_node_id) REFERENCES mdn_nodes(mdn_node_id)
+  mdn_custodian_storage_id bigint not null,
+  FOREIGN KEY (mdn_custodian_storage_id) REFERENCES mdn_custodian_storages(mdn_custodian_storage_id)
 );
 
-CREATE TABLE IF NOT EXISTS mdn_node_caps(
-  mdn_node_cap_id bigint generated always as identity primary key,
-  mdn_node_cap_uid varchar unique not null,
-  mdn_node_willow_cap_token varchar not null,
+CREATE TABLE IF NOT EXISTS mdn_custodian_storage_caps(
+  mdn_custodian_storage_cap_id bigint generated always as identity primary key,
+  mdn_custodian_storage_cap_uid varchar unique not null,
+  mdn_custodian_storage_willow_cap_token varchar not null,
   mdn_custodian_context_data_access_cap_id bigint not null,
   FOREIGN KEY (mdn_custodian_context_data_access_cap_id) REFERENCES mdn_custodian_context_data_access_caps(mdn_custodian_context_data_access_cap_id),
-  mdn_identity_context_on_node_id bigint not null,
-  FOREIGN KEY (mdn_identity_context_on_node_id) REFERENCES mdn_identity_contexts_on_nodes(mdn_identity_context_on_node_id)
+  mdn_identity_context_in_storage_id bigint not null,
+  FOREIGN KEY (mdn_identity_context_in_storage_id) REFERENCES mdn_identity_contexts_in_storages(mdn_identity_context_in_storage_id)
 );

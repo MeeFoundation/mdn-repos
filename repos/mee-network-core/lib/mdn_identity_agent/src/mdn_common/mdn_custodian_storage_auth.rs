@@ -8,7 +8,7 @@ use mee_crypto::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MdnUserNodeIdToken {
+pub struct MdnUserCustodianStorageIdToken {
     pub iss: String,
     pub sub: String,
     pub aud: String,
@@ -16,21 +16,21 @@ pub struct MdnUserNodeIdToken {
     pub iat: i64,
 }
 
-pub fn decode_user_node_id_token(
+pub fn decode_user_custodian_storage_id_token(
     encoded_token: &str,
     sign_key: Jwk,
-) -> anyhow::Result<MdnUserNodeIdToken> {
+) -> anyhow::Result<MdnUserCustodianStorageIdToken> {
     // TODO derive algo from input jwk
     let algo = EddsaJwsAlgorithm::Eddsa;
 
     let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
 
-    let (claims, _header) = decode_token::<MdnUserNodeIdToken>(&verifier, &encoded_token)?;
+    let (claims, _header) = decode_token::<MdnUserCustodianStorageIdToken>(&verifier, &encoded_token)?;
 
     Ok(claims)
 }
 
-pub struct EncodeMdnNodeUserIdTokenParams {
+pub struct EncodeMdnUserCustodianStorageIdTokenParams {
     pub iss: String,
     pub sub: String,
     pub aud: String,
@@ -38,14 +38,14 @@ pub struct EncodeMdnNodeUserIdTokenParams {
     pub kid: Option<String>,
 }
 
-pub fn encode_user_node_id_token(
-    EncodeMdnNodeUserIdTokenParams {
+pub fn encode_user_custodian_storage_id_token(
+    EncodeMdnUserCustodianStorageIdTokenParams {
         iss,
         sub,
         aud,
         sign_key,
         kid,
-    }: EncodeMdnNodeUserIdTokenParams,
+    }: EncodeMdnUserCustodianStorageIdTokenParams,
 ) -> anyhow::Result<String> {
     let now = Utc::now();
     let iat = now.timestamp();
@@ -54,7 +54,7 @@ pub fn encode_user_node_id_token(
         .context("chrono time manipulation issue")?
         .timestamp();
 
-    let claims = MdnUserNodeIdToken {
+    let claims = MdnUserCustodianStorageIdToken {
         iss,
         aud,
         sub,
