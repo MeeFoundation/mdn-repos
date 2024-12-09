@@ -6,7 +6,7 @@ use crate::{
         api_types::{MdnCustodianStorageResponse, RegisterMdnCustodianStorageRequest},
     },
     mdn_common::mdn_custodian_storage_auth::{
-        encode_user_custodian_storage_id_token, EncodeMdnUserCustodianStorageIdTokenParams,
+        EncodeMdnUserCustodianStorageIdTokenParams, MdnUserCustodianStorageIdToken,
     },
 };
 use async_trait::async_trait;
@@ -59,7 +59,7 @@ impl MdnCustodianStorageManager for MdnCustodianStorageManagerDefault {
             .await?;
 
         let mdn_custodian_storage_did_proof =
-            encode_user_custodian_storage_id_token(EncodeMdnUserCustodianStorageIdTokenParams {
+            MdnUserCustodianStorageIdToken::encode(EncodeMdnUserCustodianStorageIdTokenParams {
                 iss: mdn_custodian_storage_did.clone(),
                 sub: mdn_user_auth_token.sub.clone(),
                 aud: mdn_user_auth_token.iss,

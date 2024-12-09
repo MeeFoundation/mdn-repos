@@ -23,41 +23,65 @@ async fn mdn_custodian_storage_registration_flow() {
         std::fs::remove_file(&local_db_file_path)
     );
 
-    let agent_node = MdnIdentityAgentController::try_new(MdnIdentityAgentControllerConfig {
-        local_db_file_path,
-        mdn_api_base_url: "http://127.0.0.1:8899".parse().unwrap(),
-    })
-    .await
-    .unwrap();
+    let identity_agent_ctl =
+        MdnIdentityAgentController::try_new(MdnIdentityAgentControllerConfig {
+            local_db_file_path,
+            mdn_api_base_url: "http://127.0.0.1:8899".parse().unwrap(),
+        })
+        .await
+        .unwrap();
 
     let email = "alice@email.com";
     let password = "alice_password";
 
-    let res = agent_node
+    let res = identity_agent_ctl
         .mdn_user_account_manager
         .register(email.to_string(), password.to_string())
         .await;
 
     log::info!("Registration result: {res:#?}");
 
-    agent_node
+    identity_agent_ctl
         .mdn_user_account_manager
         .login(email.to_string(), password.to_string())
         .await
         .unwrap();
 
-    assert!(agent_node
+    identity_agent_ctl
         .mdn_user_account_manager
-        .get_user_auth_token()
+        .get_user_auth_decoded_token_required()
         .await
-        .unwrap()
-        .is_some());
+        .unwrap();
 
-    agent_node.mdn_user_nodes_manager.register().await.unwrap();
+    identity_agent_ctl
+        .mdn_user_nodes_manager
+        .register()
+        .await
+        .unwrap();
 
-    let nodes = agent_node.mdn_user_nodes_manager.list_all().await.unwrap();
+    let custodian_storages = identity_agent_ctl
+        .mdn_user_nodes_manager
+        .list_all()
+        .await
+        .unwrap();
 
-    assert!(nodes.len() > 0);
+    assert!(custodian_storages.len() > 0);
 
-    log::info!("devices: {nodes:#?}");
+    log::info!("custodian_storages: {custodian_storages:#?}");
+
+    identity_agent_ctl
+        .mdn_capabilities_manager
+        .issue_owner_context_ops_cap()
+        .await
+        .unwrap();
+
+    let ctx_ops_caps = identity_agent_ctl
+        .mdn_capabilities_manager
+        .context_ops_caps()
+        .await
+        .unwrap();
+
+    assert!(ctx_ops_caps.len() > 0);
+
+    log::info!("ctx_ops_caps: {ctx_ops_caps:#?}");
 }

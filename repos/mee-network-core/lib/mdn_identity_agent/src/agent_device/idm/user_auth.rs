@@ -1,11 +1,11 @@
 use crate::{
+    agent_device::device_storage::user_local_db::MdnUserLocalDb,
     error::{MdnIdentityAgentErr, MdnIdentityAgentResult},
     mdn_cloud::user_account::{
         api_client::MdnUserAccountApiClient,
         api_types::{CreateUserAccountRequest, UserAccountLoginRequest},
-        auth_utils::{decode_mdn_cloud_user_id_token, MdnCloudUserIdToken},
+        auth_utils::MdnCloudUserIdToken,
     },
-    agent_device::device_storage::user_local_db::MdnUserLocalDb,
 };
 use async_trait::async_trait;
 use mee_crypto::{
@@ -37,7 +37,7 @@ pub trait MdnUserAccountManager {
     ) -> MdnIdentityAgentResult<MdnCloudUserIdToken> {
         let token = self.get_user_auth_token_required().await?;
         let jwk = self.get_mdn_central_signature_key().await?;
-        let token = decode_mdn_cloud_user_id_token(&token, jwk)?;
+        let token = MdnCloudUserIdToken::decode(&token, jwk)?;
 
         Ok(token)
     }

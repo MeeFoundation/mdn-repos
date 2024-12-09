@@ -16,18 +16,48 @@ pub struct MdnUserCustodianStorageIdToken {
     pub iat: i64,
 }
 
-pub fn decode_user_custodian_storage_id_token(
-    encoded_token: &str,
-    sign_key: Jwk,
-) -> anyhow::Result<MdnUserCustodianStorageIdToken> {
-    // TODO derive algo from input jwk
-    let algo = EddsaJwsAlgorithm::Eddsa;
+impl MdnUserCustodianStorageIdToken {
+    pub fn decode(encoded_token: &str, sign_key: Jwk) -> anyhow::Result<Self> {
+        // TODO derive algo from input jwk
+        let algo = EddsaJwsAlgorithm::Eddsa;
 
-    let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
+        let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
 
-    let (claims, _header) = decode_token::<MdnUserCustodianStorageIdToken>(&verifier, &encoded_token)?;
+        let (claims, _header) = decode_token::<Self>(&verifier, &encoded_token)?;
 
-    Ok(claims)
+        Ok(claims)
+    }
+    pub fn encode(
+        EncodeMdnUserCustodianStorageIdTokenParams {
+            iss,
+            sub,
+            aud,
+            sign_key,
+            kid,
+        }: EncodeMdnUserCustodianStorageIdTokenParams,
+    ) -> anyhow::Result<String> {
+        let now = Utc::now();
+        let iat = now.timestamp();
+        let exp = now
+            .checked_add_months(Months::new(1))
+            .context("chrono time manipulation issue")?
+            .timestamp();
+
+        let claims = MdnUserCustodianStorageIdToken {
+            iss,
+            aud,
+            sub,
+            exp,
+            iat,
+        };
+
+        // TODO derive algo from input jwk
+        let algo = EddsaJwsAlgorithm::Eddsa;
+        let signer = algo.signer_from_jwk(&sign_key.try_into()?)?;
+        let encoded_token = encode_token(&signer, &claims, kid)?;
+
+        Ok(encoded_token)
+    }
 }
 
 pub struct EncodeMdnUserCustodianStorageIdTokenParams {
@@ -36,36 +66,4 @@ pub struct EncodeMdnUserCustodianStorageIdTokenParams {
     pub aud: String,
     pub sign_key: Jwk,
     pub kid: Option<String>,
-}
-
-pub fn encode_user_custodian_storage_id_token(
-    EncodeMdnUserCustodianStorageIdTokenParams {
-        iss,
-        sub,
-        aud,
-        sign_key,
-        kid,
-    }: EncodeMdnUserCustodianStorageIdTokenParams,
-) -> anyhow::Result<String> {
-    let now = Utc::now();
-    let iat = now.timestamp();
-    let exp = now
-        .checked_add_months(Months::new(1))
-        .context("chrono time manipulation issue")?
-        .timestamp();
-
-    let claims = MdnUserCustodianStorageIdToken {
-        iss,
-        aud,
-        sub,
-        exp,
-        iat,
-    };
-
-    // TODO derive algo from input jwk
-    let algo = EddsaJwsAlgorithm::Eddsa;
-    let signer = algo.signer_from_jwk(&sign_key.try_into()?)?;
-    let encoded_token = encode_token(&signer, &claims, kid)?;
-
-    Ok(encoded_token)
 }

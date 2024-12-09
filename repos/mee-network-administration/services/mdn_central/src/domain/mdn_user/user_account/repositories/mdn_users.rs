@@ -35,11 +35,11 @@ pub trait MdnUsersRepository {
     ) -> MdnCentralResult<Option<mdn_users::Model>>;
 }
 
-pub struct MdnUserAccountRepositoryImpl<'a, C: ConnectionTrait> {
+pub struct MdnUsersRepositoryImpl<'a, C: ConnectionTrait> {
     db_conn: &'a C,
 }
 
-impl<'a, C: ConnectionTrait> MdnUserAccountRepositoryImpl<'a, C> {
+impl<'a, C: ConnectionTrait> MdnUsersRepositoryImpl<'a, C> {
     pub fn new(db_conn: &'a C) -> Self {
         Self { db_conn }
     }
@@ -47,7 +47,7 @@ impl<'a, C: ConnectionTrait> MdnUserAccountRepositoryImpl<'a, C> {
 
 #[async_trait]
 impl<'a, C: ConnectionTrait> MdnUsersRepository
-    for MdnUserAccountRepositoryImpl<'a, C>
+    for MdnUsersRepositoryImpl<'a, C>
 {
     async fn create_account(
         &self,
@@ -70,6 +70,7 @@ impl<'a, C: ConnectionTrait> MdnUsersRepository
             mdn_user_phone: Set(mdn_user_phone),
             mdn_user_name: Set(mdn_user_name),
             mdn_user_role: Set(mdn_user_role.to_string()),
+            mdn_user_created_at: Set(chrono::Utc::now().into()),
             is_user_active: Set(is_user_active),
             is_user_verified: Set(is_user_verified),
             salt: Set(salt),

@@ -11,6 +11,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub mdn_custodian_context_data_access_cap_uid: String,
     pub mdn_custodian_context_data_access_cap_token: String,
+    pub mdn_custodian_context_data_access_cap_expires: DateTimeWithTimeZone,
     pub mdn_identity_context_id: i64,
     pub from_mdn_user_id: Option<i64>,
     pub to_mdn_custodian_id: i64,

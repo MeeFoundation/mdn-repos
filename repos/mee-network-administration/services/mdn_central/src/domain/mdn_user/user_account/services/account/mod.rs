@@ -27,8 +27,7 @@ use argon2::{
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
 use mdn_identity_agent::mdn_cloud::user_account::auth_utils::{
-    decode_mdn_cloud_user_id_token, encode_mdn_cloud_user_id_token,
-    EncodeMdnCloudUserIdTokenParams,
+    EncodeMdnCloudUserIdTokenParams, MdnCloudUserIdToken,
 };
 use mee_did::universal_resolver::{
     DIDResolverExt, UniversalDidResolver, VerificationRelationship,
@@ -83,7 +82,7 @@ impl<'a> MdnUserAccountService<'a> {
             .mdn_custodian_uid;
 
         let auth_token =
-            encode_mdn_cloud_user_id_token(EncodeMdnCloudUserIdTokenParams {
+            MdnCloudUserIdToken::encode(EncodeMdnCloudUserIdTokenParams {
                 mdn_user_custodian_uid,
                 sub: user.mdn_user_uid.clone(),
                 aud: device_did,
@@ -221,7 +220,7 @@ impl<'a> MdnUserAccountService<'a> {
     ) -> MdnCentralResult<DirectlyLoggedInMdnUser> {
         let mee_sig = self.mdn_central_authority_signature.mee_sig().await?;
 
-        let mdn_user_id_token = decode_mdn_cloud_user_id_token(token, mee_sig)?;
+        let mdn_user_id_token = MdnCloudUserIdToken::decode(token, mee_sig)?;
 
         let user = DirectlyLoggedInMdnUser {
             mdn_user_uid: mdn_user_id_token.sub,

@@ -4,7 +4,7 @@ use super::{
         AuthorizeUserRequest, AuthorizeUserResponse, CreateUserAccountRequest,
         UserAccountLoginRequest, UserAccountLoginResponse,
     },
-    repositories::mdn_users::MdnUserAccountRepositoryImpl,
+    repositories::mdn_users::MdnUsersRepositoryImpl,
     services::account::MdnUserAccountService,
 };
 use crate::{
@@ -48,7 +48,7 @@ impl MdnUserAccountController {
         >,
     ) -> MdnUserAccountService<'a> {
         MdnUserAccountService::new(
-            Box::new(MdnUserAccountRepositoryImpl::new(tx)),
+            Box::new(MdnUsersRepositoryImpl::new(tx)),
             mdn_central_authority_signature.clone(),
             Self::mdn_custodians_service(tx),
             Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),

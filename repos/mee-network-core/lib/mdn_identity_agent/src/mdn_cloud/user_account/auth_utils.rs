@@ -1,3 +1,4 @@
+use crate::error::MdnIdentityAgentResult;
 use anyhow::Context;
 use chrono::{Months, Utc};
 use mee_crypto::{
@@ -6,8 +7,6 @@ use mee_crypto::{
     jwt::{decode_token, encode_token},
 };
 use serde::{Deserialize, Serialize};
-
-use crate::error::MdnIdentityAgentResult;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MdnCloudUserIdToken {
@@ -21,18 +20,52 @@ pub struct MdnCloudUserIdToken {
     pub mdn_user_custodian_uid: String,
 }
 
-pub fn decode_mdn_cloud_user_id_token(
-    encoded_token: &str,
-    sign_key: Jwk,
-) -> MdnIdentityAgentResult<MdnCloudUserIdToken> {
-    // TODO derive algo from input jwk
-    let algo = EddsaJwsAlgorithm::Eddsa;
+impl MdnCloudUserIdToken {
+    pub fn decode(encoded_token: &str, sign_key: Jwk) -> MdnIdentityAgentResult<Self> {
+        // TODO derive algo from input jwk
+        let algo = EddsaJwsAlgorithm::Eddsa;
 
-    let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
+        let verifier = algo.verifier_from_jwk(&sign_key.to_public_key()?.try_into()?)?;
 
-    let (claims, _header) = decode_token::<MdnCloudUserIdToken>(&verifier, &encoded_token)?;
+        let (claims, _header) = decode_token::<Self>(&verifier, &encoded_token)?;
 
-    Ok(claims)
+        Ok(claims)
+    }
+    pub fn encode(
+        EncodeMdnCloudUserIdTokenParams {
+            iss,
+            sub,
+            aud,
+            mdn_user_role,
+            mdn_user_custodian_uid,
+            sign_key,
+            kid,
+        }: EncodeMdnCloudUserIdTokenParams,
+    ) -> MdnIdentityAgentResult<String> {
+        let now = Utc::now();
+        let iat = now.timestamp();
+        let exp = now
+            .checked_add_months(Months::new(1))
+            .context("chrono time manipulation issue")?
+            .timestamp();
+
+        let claims = MdnCloudUserIdToken {
+            iss,
+            aud,
+            sub,
+            exp,
+            iat,
+            mdn_user_role,
+            mdn_user_custodian_uid,
+        };
+
+        // TODO derive algo from input jwk
+        let algo = EddsaJwsAlgorithm::Eddsa;
+        let signer = algo.signer_from_jwk(&sign_key.try_into()?)?;
+        let encoded_token = encode_token(&signer, &claims, kid)?;
+
+        Ok(encoded_token)
+    }
 }
 
 pub struct EncodeMdnCloudUserIdTokenParams {
@@ -43,40 +76,4 @@ pub struct EncodeMdnCloudUserIdTokenParams {
     pub mdn_user_custodian_uid: String,
     pub sign_key: Jwk,
     pub kid: Option<String>,
-}
-
-pub fn encode_mdn_cloud_user_id_token(
-    EncodeMdnCloudUserIdTokenParams {
-        iss,
-        sub,
-        aud,
-        mdn_user_role,
-        mdn_user_custodian_uid,
-        sign_key,
-        kid,
-    }: EncodeMdnCloudUserIdTokenParams,
-) -> MdnIdentityAgentResult<String> {
-    let now = Utc::now();
-    let iat = now.timestamp();
-    let exp = now
-        .checked_add_months(Months::new(1))
-        .context("chrono time manipulation issue")?
-        .timestamp();
-
-    let claims = MdnCloudUserIdToken {
-        iss,
-        aud,
-        sub,
-        exp,
-        iat,
-        mdn_user_role,
-        mdn_user_custodian_uid,
-    };
-
-    // TODO derive algo from input jwk
-    let algo = EddsaJwsAlgorithm::Eddsa;
-    let signer = algo.signer_from_jwk(&sign_key.try_into()?)?;
-    let encoded_token = encode_token(&signer, &claims, kid)?;
-
-    Ok(encoded_token)
 }

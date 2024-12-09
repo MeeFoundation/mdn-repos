@@ -14,13 +14,13 @@ pub async fn list_all_custodian_storages(
     Ok(Json(
         app_ctl
             .mdn_custodian_storages_controller
-            .list_all_custodian_storages(
-                logged_in_mdn_user.mdn_custodian_uid(),
-            )
+            .list_all_custodian_storages(logged_in_mdn_user.mdn_custodian_uid())
             .await?,
     ))
 }
 
+// TODO handle both cases: user storage (mobile device) and provider storage (provider multi-tenant server) storage registration
+// as in a single REST API handler or in different ones
 pub async fn register_custodian_storage(
     logged_in_mdn_user: LoggedInMdnUser,
     State(app_ctl): State<AppCtl>,

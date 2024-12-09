@@ -5,9 +5,13 @@ use crate::{
             api_router::mdn_authority_router, utils::MdnSignaturesService,
         },
         mdn_custodian::{
-            capabilities::api_router::mdn_capabilities_router,
+            capabilities::{
+                api_router::mdn_capabilities_router,
+                controller::MdnCapabilitiesController,
+            },
             storage::{
-                api_router::mdn_custodian_storages_router, controller::MdnCustodianStoragesController,
+                api_router::mdn_custodian_storages_router,
+                controller::MdnCustodianStoragesController,
             },
         },
         mdn_user::{
@@ -40,9 +44,11 @@ const SWAGGER_PATH: &str = "/swagger-ui";
 pub struct AppCtl {
     pub(crate) app_config: AppConfig,
     pub(crate) mdn_user_account_controller: MdnUserAccountController,
-    pub(crate) mdn_custodian_storages_controller: MdnCustodianStoragesController,
+    pub(crate) mdn_custodian_storages_controller:
+        MdnCustodianStoragesController,
     pub(crate) mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
+    pub(crate) mdn_capabilities_controller: MdnCapabilitiesController,
 }
 
 impl AppCtl {
@@ -86,7 +92,12 @@ impl AppCtl {
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
             ),
-            mdn_custodian_storages_controller: MdnCustodianStoragesController::new(
+            mdn_custodian_storages_controller:
+                MdnCustodianStoragesController::new(
+                    rdb_storage.clone(),
+                    mdn_central_authority_signature.clone(),
+                ),
+            mdn_capabilities_controller: MdnCapabilitiesController::new(
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
             ),

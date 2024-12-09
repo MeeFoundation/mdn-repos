@@ -14,15 +14,12 @@ use crate::{
                 utils::custodian_storage_utils::verify_user_custodian_storage_did_signature,
             },
         },
-        mdn_user::{
-            identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepository,
-            user_account::{
-                api::middlewares::LoggedInMdnUser,
-                repositories::mdn_user_signing_pub_keys::{
-                    AddPubKeyDto, MdnUserSigningPubKeysRepository,
-                },
-                services::account::MdnUserAccountService,
+        mdn_user::user_account::{
+            api::middlewares::LoggedInMdnUser,
+            repositories::mdn_user_signing_pub_keys::{
+                AddPubKeyDto, MdnUserSigningPubKeysRepository,
             },
+            services::account::MdnUserAccountService,
         },
     },
     error::{MdnCentralErr, MdnCentralResult},
@@ -36,8 +33,6 @@ pub struct MdnNodesService<'a> {
         Box<dyn MdnCustodiansRepository + Send + Sync + 'a>,
     mdn_user_signing_pub_keys_repository:
         Box<dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a>,
-    mdn_context_scoped_ids_repository:
-        Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
     mdn_user_account_service: MdnUserAccountService<'a>,
     mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
@@ -54,9 +49,6 @@ impl<'a> MdnNodesService<'a> {
         mdn_user_signing_pub_keys_repository: Box<
             dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a,
         >,
-        mdn_context_scoped_ids_repository: Box<
-            dyn MdnContextScopedIdsRepository + Send + Sync + 'a,
-        >,
         mdn_user_account_service: MdnUserAccountService<'a>,
         mdn_central_authority_signature: Arc<
             dyn MdnSignaturesService + Send + Sync,
@@ -65,7 +57,6 @@ impl<'a> MdnNodesService<'a> {
         Self {
             mdn_central_authority_signature,
             mdn_user_account_service,
-            mdn_context_scoped_ids_repository,
             mdn_custodian_storages_repository,
             mdn_custodians_repository,
             mdn_user_signing_pub_keys_repository,
@@ -154,7 +145,6 @@ impl<'a> MdnNodesService<'a> {
             })
             .await?;
 
-        // TODO handle both cases: user storage (mobile device) and provider storage (provider multi-tenant server)
         match &logged_in_mdn_user {
             LoggedInMdnUser::DirectlyLoggedInMdnUser(token) => {
                 let mdn_user_id = self

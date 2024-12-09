@@ -73,6 +73,9 @@ pub enum MdnCentralErr {
 
     #[error("User node auth token error: {0}")]
     InvalidMdnNodeUserAuthToken(String),
+
+    #[error("MDN capabilities error: {0}")]
+    MdnCapabilities(String),
 }
 
 impl From<TransactionError<MdnCentralErr>> for MdnCentralErr {
