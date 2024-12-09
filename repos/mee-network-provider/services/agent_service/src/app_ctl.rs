@@ -14,7 +14,9 @@ use mee_http_utils::{
 };
 use mee_secrets_manager::{
     client::SimpleFileSecretsManagerClient,
-    signatures_service::SignaturesServiceDefault,
+    signatures_service::{
+        SignaturesServiceConfigBuilder, SignaturesServiceDefault,
+    },
 };
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -45,10 +47,20 @@ impl AppCtl {
         // )
         // .await?;
 
+        let signatures_service_config =
+            SignaturesServiceConfigBuilder::default()
+                .jwk_secret_path(Some(
+                    app_config.jwk_auth_signature_secret_path.clone(),
+                ))
+                .iroh_key_secret_path(Some(
+                    app_config.iroh_signature_secret_path.clone(),
+                ))
+                .build()
+                .map_err(anyhow::Error::from)?;
+
         let provider_authority_signatures =
             Arc::new(SignaturesServiceDefault::new(
-                app_config.jwk_auth_signature_secret_path.clone(),
-                Some(app_config.iroh_signature_secret_path.clone()),
+                signatures_service_config,
                 // TODO replace with real world secure secret manager
                 Arc::new(SimpleFileSecretsManagerClient::new("".to_string())),
             ));

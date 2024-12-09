@@ -8,6 +8,7 @@ members = [
   "oidc_provider",
   "service_utils",
   "mee_dev_secrets",
+  "mdn_central",
 ]
 
 [workspace.package]
