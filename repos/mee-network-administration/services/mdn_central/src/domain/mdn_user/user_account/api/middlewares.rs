@@ -13,6 +13,7 @@ use axum_extra::headers::authorization::{Bearer, Credentials};
 pub struct DirectlyLoggedInMdnUser {
     pub mdn_user_uid: String,
     pub mdn_user_custodian_uid: String,
+    pub mdn_user_context_scoped_uid: String,
     pub _mdn_user_account_role: MdnUserAccountRole,
 }
 

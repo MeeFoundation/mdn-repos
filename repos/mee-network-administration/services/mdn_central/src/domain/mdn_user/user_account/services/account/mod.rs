@@ -1,22 +1,22 @@
 use crate::{
     domain::{
         mdn_authority::utils::MdnSignaturesService,
-        mdn_custodian::account::services::account::MdnCustodiansService,
-        mdn_user::{
+        mdn_custodian::{
+            account::services::account::MdnCustodiansService,
             identity_context::repositories::mdn_context_scoped_ids::{
                 CreateScopedIdDto, MdnContextScopedIdsRepository,
             },
-            user_account::{
-                api::{
-                    middlewares::DirectlyLoggedInMdnUser,
-                    types::{
-                        AuthorizeUserResponse, CreateUserAccountRequest,
-                        UserAccountLoginRequest, UserAccountLoginResponse,
-                    },
+        },
+        mdn_user::user_account::{
+            api::{
+                middlewares::DirectlyLoggedInMdnUser,
+                types::{
+                    AuthorizeUserResponse, CreateUserAccountRequest,
+                    UserAccountLoginRequest, UserAccountLoginResponse,
                 },
-                repositories::mdn_users::{
-                    CreateUserAccountDto, MdnUsersRepository,
-                },
+            },
+            repositories::mdn_users::{
+                CreateUserAccountDto, MdnUsersRepository,
             },
         },
     },
@@ -26,7 +26,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
 };
-use mdn_identity_agent::mdn_cloud::user_account::auth_utils::{
+use mdn_identity_agent::mdn_cloud::mdn_user::auth_utils::{
     EncodeMdnCloudUserIdTokenParams, MdnCloudUserIdToken,
 };
 use mee_did::universal_resolver::{
@@ -67,7 +67,7 @@ impl<'a> MdnUserAccountService<'a> {
     async fn make_login_response(
         &self,
         user: UserAccountDomainModel,
-        device_did: String,
+        custodian_storage_did: String,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
         let mdn_did =
             self.mdn_central_authority_signature.mee_sig_did().await?;
@@ -75,17 +75,33 @@ impl<'a> MdnUserAccountService<'a> {
         let db_user =
             self.get_account_by_uid_required(&user.mdn_user_uid).await?;
 
-        let mdn_user_custodian_uid = self
+        let mdn_user_custodian = self
             .mdn_custodians_service
             .get_user_custodian(db_user.mdn_user_id)
+            .await?;
+
+        let mdn_user_context_scoped_uid = self
+            .mdn_context_scoped_ids_repository
+            .get_context_scoped_id_by_custodian_uid(
+                db_user.mdn_user_id,
+                mdn_user_custodian.mdn_custodian_id,
+            )
             .await?
-            .mdn_custodian_uid;
+            .ok_or_else(|| {
+                MdnCentralErr::MdnUserAccountManagement(format!(
+                    "missing connection between user({}) and custodian({})",
+                    &db_user.mdn_user_uid,
+                    &mdn_user_custodian.mdn_custodian_uid,
+                ))
+            })?
+            .mdn_context_scoped_uid;
 
         let auth_token =
             MdnCloudUserIdToken::encode(EncodeMdnCloudUserIdTokenParams {
-                mdn_user_custodian_uid,
+                mdn_user_custodian_uid: mdn_user_custodian.mdn_custodian_uid,
+                mdn_user_context_scoped_uid,
                 sub: user.mdn_user_uid.clone(),
-                aud: device_did,
+                aud: custodian_storage_did,
                 mdn_user_role: user.mdn_user_role.to_string(),
                 sign_key: self
                     .mdn_central_authority_signature
@@ -115,7 +131,7 @@ impl<'a> MdnUserAccountService<'a> {
         UserAccountLoginRequest {
             email,
             password,
-            device_did,
+            custodian_storage_did,
         }: UserAccountLoginRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
         let Some(user) = self
@@ -136,7 +152,7 @@ impl<'a> MdnUserAccountService<'a> {
         }
 
         let res = self
-            .make_login_response(user.try_into()?, device_did)
+            .make_login_response(user.try_into()?, custodian_storage_did)
             .await?;
 
         Ok(res)
@@ -147,7 +163,7 @@ impl<'a> MdnUserAccountService<'a> {
             email,
             phone,
             password,
-            device_did,
+            custodian_storage_did,
         }: CreateUserAccountRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
         if self
@@ -190,7 +206,7 @@ impl<'a> MdnUserAccountService<'a> {
         self.mdn_context_scoped_ids_repository
             .create_context_scoped_id(CreateScopedIdDto {
                 mdn_context_scoped_uid: format!(
-                    "mdn_user_csi_self-${}",
+                    "mdn_user_csi-${}",
                     uuid::Uuid::new_v4()
                 ),
                 mdn_user_id: res.mdn_user_id,
@@ -198,7 +214,8 @@ impl<'a> MdnUserAccountService<'a> {
             })
             .await?;
 
-        self.make_login_response(res.try_into()?, device_did).await
+        self.make_login_response(res.try_into()?, custodian_storage_did)
+            .await
     }
     pub async fn _authorize_user_account(
         &self,
@@ -226,6 +243,8 @@ impl<'a> MdnUserAccountService<'a> {
             mdn_user_uid: mdn_user_id_token.sub,
             _mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
             mdn_user_custodian_uid: mdn_user_id_token.mdn_user_custodian_uid,
+            mdn_user_context_scoped_uid: mdn_user_id_token
+                .mdn_user_context_scoped_uid,
         };
 
         Ok(user)

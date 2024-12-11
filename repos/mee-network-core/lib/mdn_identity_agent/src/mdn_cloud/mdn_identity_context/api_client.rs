@@ -1,28 +1,28 @@
-use super::api_types::{MdnCustodianStorageResponse, RegisterMdnCustodianStorageRequest};
+use super::api_types::{CreateMdnIdentityContextRequest, MdnIdentityContextResponse};
 use crate::error::MdnIdentityAgentResult;
 use async_trait::async_trait;
 use mee_http_utils::requests::{any_response_handle_error, json_response_handle_error};
 use url::Url;
 
 #[async_trait]
-pub trait MdnCustodianStorageApiClient {
-    async fn register_storage(
+pub trait MdnIdentityContextApiClient {
+    async fn create_context(
         &self,
-        payload: RegisterMdnCustodianStorageRequest,
+        payload: CreateMdnIdentityContextRequest,
         auth_token: &str,
     ) -> MdnIdentityAgentResult<()>;
-    async fn list_all_storages(
+    async fn list_contexts(
         &self,
         auth_token: &str,
-    ) -> MdnIdentityAgentResult<Vec<MdnCustodianStorageResponse>>;
+    ) -> MdnIdentityAgentResult<Vec<MdnIdentityContextResponse>>;
 }
 
-pub struct MdnCustodianStorageApiClientDefault {
+pub struct MdnIdentityContextApiClientDefault {
     api_base_url: Url,
     http_client: reqwest::Client,
 }
 
-impl MdnCustodianStorageApiClientDefault {
+impl MdnIdentityContextApiClientDefault {
     pub fn try_new(api_base_url: Url) -> MdnIdentityAgentResult<Self> {
         Ok(Self {
             api_base_url,
@@ -30,20 +30,20 @@ impl MdnCustodianStorageApiClientDefault {
         })
     }
     fn make_api_v1_path_url(&self, path: &str) -> MdnIdentityAgentResult<Url> {
-        Ok(format!("{}api/v1/mdn_custodian_storages{}", self.api_base_url, path).parse()?)
+        Ok(format!("{}api/v1/mdn_identity_contexts{}", self.api_base_url, path).parse()?)
     }
 }
 
 #[async_trait]
-impl MdnCustodianStorageApiClient for MdnCustodianStorageApiClientDefault {
-    async fn register_storage(
+impl MdnIdentityContextApiClient for MdnIdentityContextApiClientDefault {
+    async fn create_context(
         &self,
-        payload: RegisterMdnCustodianStorageRequest,
+        payload: CreateMdnIdentityContextRequest,
         auth_token: &str,
     ) -> MdnIdentityAgentResult<()> {
         any_response_handle_error(
             self.http_client
-                .post(self.make_api_v1_path_url("/register")?)
+                .post(self.make_api_v1_path_url("/create_context")?)
                 .json(&payload)
                 .bearer_auth(auth_token)
                 .send()
@@ -54,13 +54,13 @@ impl MdnCustodianStorageApiClient for MdnCustodianStorageApiClientDefault {
 
         Ok(())
     }
-    async fn list_all_storages(
+    async fn list_contexts(
         &self,
         auth_token: &str,
-    ) -> MdnIdentityAgentResult<Vec<MdnCustodianStorageResponse>> {
+    ) -> MdnIdentityAgentResult<Vec<MdnIdentityContextResponse>> {
         let res = json_response_handle_error(
             self.http_client
-                .get(self.make_api_v1_path_url("/list_all")?)
+                .get(self.make_api_v1_path_url("/list_contexts")?)
                 .bearer_auth(auth_token)
                 .send()
                 .await?,

@@ -11,14 +11,14 @@ pub struct Model {
     #[sea_orm(unique)]
     pub mdn_identity_context_uid: String,
     pub willow_namespace_id: String,
-    pub mdn_subject_id: i64,
+    pub context_scoped_subject_id: i64,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
         belongs_to = "super::mdn_context_scoped_ids::Entity",
-        from = "Column::MdnSubjectId",
+        from = "Column::ContextScopedSubjectId",
         to = "super::mdn_context_scoped_ids::Column::MdnContextScopedId",
         on_update = "NoAction",
         on_delete = "NoAction"

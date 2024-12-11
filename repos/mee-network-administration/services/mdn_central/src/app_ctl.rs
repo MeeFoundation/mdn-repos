@@ -5,18 +5,21 @@ use crate::{
             api_router::mdn_authority_router, utils::MdnSignaturesService,
         },
         mdn_custodian::{
-            capabilities::{
-                api_router::mdn_capabilities_router,
+            capabilities::api::{
                 controller::MdnCapabilitiesController,
+                router::mdn_capabilities_router,
             },
-            storage::{
-                api_router::mdn_custodian_storages_router,
+            identity_context::api::{
+                controller::MdnIdentityContextController,
+                router::mdn_identity_context_router,
+            },
+            storage::api::{
                 controller::MdnCustodianStoragesController,
+                router::mdn_custodian_storages_router,
             },
         },
-        mdn_user::{
-            api_router::mdn_users_router,
-            user_account::controller::MdnUserAccountController,
+        mdn_user::user_account::api::{
+            controller::MdnUserAccountController, router::mdn_users_router,
         },
     },
     error::MdnCentralResult,
@@ -49,6 +52,7 @@ pub struct AppCtl {
     pub(crate) mdn_central_authority_signature:
         Arc<dyn MdnSignaturesService + Send + Sync>,
     pub(crate) mdn_capabilities_controller: MdnCapabilitiesController,
+    pub(crate) mdn_identity_context_controller: MdnIdentityContextController,
 }
 
 impl AppCtl {
@@ -88,6 +92,9 @@ impl AppCtl {
             ));
 
         Ok(Self {
+            mdn_identity_context_controller: MdnIdentityContextController::new(
+                rdb_storage.clone(),
+            ),
             mdn_user_account_controller: MdnUserAccountController::new(
                 rdb_storage.clone(),
                 mdn_central_authority_signature.clone(),
@@ -109,15 +116,16 @@ impl AppCtl {
         let api_routes = Router::new()
             .nest("/mdn_users", mdn_users_router())
             .nest("/mdn_custodian_storages", mdn_custodian_storages_router())
-            .nest("/mdn_capabilities", mdn_capabilities_router());
+            .nest("/mdn_capabilities", mdn_capabilities_router())
+            .nest("/mdn_identity_contexts", mdn_identity_context_router());
 
         let mut app = Router::new()
             .merge(SwaggerUi::new(SWAGGER_PATH).url(
                 format!(
                     "{API_V1_PATH}{}",
-                    crate::domain::mdn_user::api_schema::OPEN_API_PATH
+                    crate::domain::mdn_user::user_account::api::openapi_schema::OPEN_API_PATH
                 ),
-                crate::domain::mdn_user::api_schema::ApiDoc::openapi(),
+                crate::domain::mdn_user::user_account::api::openapi_schema::ApiDoc::openapi(),
             ))
             .merge(mdn_authority_router())
             .merge(health_check_router())

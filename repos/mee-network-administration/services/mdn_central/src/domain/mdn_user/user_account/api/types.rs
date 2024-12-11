@@ -1,5 +1,5 @@
 use crate::db_models;
-pub use mdn_identity_agent::mdn_cloud::user_account::api_types::*;
+pub use mdn_identity_agent::mdn_cloud::mdn_user::api_types::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

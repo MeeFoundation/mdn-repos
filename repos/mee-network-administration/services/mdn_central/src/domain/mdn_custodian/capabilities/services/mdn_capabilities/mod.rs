@@ -12,6 +12,7 @@ use crate::{
                     CustodianContextOperationCapsRepository,
                 },
             },
+            identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepository,
         },
         mdn_user::user_account::{
             api::middlewares::{DirectlyLoggedInMdnUser, LoggedInMdnUser},
@@ -29,6 +30,8 @@ pub struct MdnCapabilitiesService<'a> {
         Box<dyn CustodianContextOperationCapsRepository + Send + Sync + 'a>,
     mdn_custodians_repository:
         Box<dyn MdnCustodiansRepository + Send + Sync + 'a>,
+    mdn_context_scoped_ids_repository:
+        Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
     mdn_user_account_service: MdnUserAccountService<'a>,
 }
 
@@ -41,8 +44,12 @@ impl<'a> MdnCapabilitiesService<'a> {
             dyn MdnCustodiansRepository + Send + Sync + 'a,
         >,
         mdn_user_account_service: MdnUserAccountService<'a>,
+        mdn_context_scoped_ids_repository: Box<
+            dyn MdnContextScopedIdsRepository + Send + Sync + 'a,
+        >,
     ) -> Self {
         Self {
+            mdn_context_scoped_ids_repository,
             mdn_custodians_repository,
             custodian_context_operation_caps_repository,
             mdn_user_account_service,
