@@ -7,6 +7,6 @@ use axum::{
 
 pub fn mdn_identity_context_router() -> Router<AppCtl> {
     Router::new()
-        .route("create_context", post(create_context))
-        .route("list_contexts", get(list_contexts))
+        .route("/create_context", post(create_context))
+        .route("/list_contexts", get(list_contexts))
 }

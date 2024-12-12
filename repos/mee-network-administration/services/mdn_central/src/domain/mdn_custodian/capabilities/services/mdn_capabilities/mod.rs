@@ -12,7 +12,6 @@ use crate::{
                     CustodianContextOperationCapsRepository,
                 },
             },
-            identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepository,
         },
         mdn_user::user_account::{
             api::middlewares::{DirectlyLoggedInMdnUser, LoggedInMdnUser},
@@ -21,17 +20,13 @@ use crate::{
     },
     error::{MdnCentralErr, MdnCentralResult},
 };
-use anyhow::Context;
 use mdn_identity_agent::mdn_common::cap_definitions::MdnCapability;
-use mee_did::universal_resolver::{DIDResolverExt, UniversalDidResolver};
 
 pub struct MdnCapabilitiesService<'a> {
     custodian_context_operation_caps_repository:
         Box<dyn CustodianContextOperationCapsRepository + Send + Sync + 'a>,
     mdn_custodians_repository:
         Box<dyn MdnCustodiansRepository + Send + Sync + 'a>,
-    mdn_context_scoped_ids_repository:
-        Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
     mdn_user_account_service: MdnUserAccountService<'a>,
 }
 
@@ -44,42 +39,12 @@ impl<'a> MdnCapabilitiesService<'a> {
             dyn MdnCustodiansRepository + Send + Sync + 'a,
         >,
         mdn_user_account_service: MdnUserAccountService<'a>,
-        mdn_context_scoped_ids_repository: Box<
-            dyn MdnContextScopedIdsRepository + Send + Sync + 'a,
-        >,
     ) -> Self {
         Self {
-            mdn_context_scoped_ids_repository,
             mdn_custodians_repository,
             custodian_context_operation_caps_repository,
             mdn_user_account_service,
         }
-    }
-    async fn validate_cap_token(
-        &self,
-        token: &str,
-    ) -> MdnCentralResult<MdnCapability> {
-        let token_header = MdnCapability::decode_header(&token)?;
-        let sign_did_id = token_header
-            .claim("kid")
-            .context("missing 'kid' in the MDN cap token")?
-            .as_str()
-            .context("invalid 'kid' format of the MDN cap token")?;
-
-        let auth_did_jwk = UniversalDidResolver
-            .get_verification_method_jwk_by_id(
-                sign_did_id
-                    .split("#")
-                    .collect::<Vec<_>>()
-                    .first()
-                    .context("missing ctx ops cap token did")?,
-                &sign_did_id,
-            )
-            .await?;
-
-        let token = MdnCapability::decode(&token, auth_did_jwk)?;
-
-        Ok(token)
     }
     async fn issue_context_ops_cap_for_provider_custodian(
         &self,
@@ -108,7 +73,7 @@ impl<'a> MdnCapabilitiesService<'a> {
             .await?
             .mdn_user_id;
 
-        let token = self.validate_cap_token(&user_issued_cap_token).await?;
+        let (token, _) = MdnCapability::decode(&user_issued_cap_token).await?;
 
         let exp = chrono::DateTime::from_timestamp(token.exp, 0).ok_or_else(
             || {

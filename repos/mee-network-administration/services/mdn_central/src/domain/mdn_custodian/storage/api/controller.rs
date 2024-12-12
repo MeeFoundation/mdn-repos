@@ -11,7 +11,7 @@ use crate::{
         mdn_user::user_account::{
             api::controller::MdnUserAccountController,
             api::middlewares::LoggedInMdnUser,
-            repositories::mdn_user_signing_pub_keys::MdnNodeSigningPubKeysRepositoryImpl,
+            repositories::mdn_user_signing_pub_keys::MdnUserSigningPubKeysRepositoryImpl,
         },
     },
     error::MdnCentralResult,
@@ -51,8 +51,8 @@ impl MdnCustodianStoragesController {
         MdnNodesService::new(
             Box::new(MdnCustodianStoragesRepositoryImpl::new(tx)),
             Box::new(MdnCustodiansRepositoryImpl::new(tx)),
-            Box::new(MdnNodeSigningPubKeysRepositoryImpl::new(tx)),
-            MdnUserAccountController::user_account_service(
+            Box::new(MdnUserSigningPubKeysRepositoryImpl::new(tx)),
+            MdnUserAccountController::user_account_service_factory(
                 tx,
                 mdn_central_authority_signature.clone(),
             ),

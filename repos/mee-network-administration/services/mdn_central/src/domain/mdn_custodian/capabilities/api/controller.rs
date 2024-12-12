@@ -11,7 +11,6 @@ use crate::{
                 repositories::mdn_custodian_context_operation_caps::CustodianContextOperationCapsRepositoryImpl,
                 services::mdn_capabilities::MdnCapabilitiesService,
             },
-            identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepositoryImpl,
         },
         mdn_user::user_account::api::{
             controller::MdnUserAccountController, middlewares::LoggedInMdnUser,
@@ -51,11 +50,10 @@ impl MdnCapabilitiesController {
         MdnCapabilitiesService::new(
             Box::new(CustodianContextOperationCapsRepositoryImpl::new(tx)),
             Box::new(MdnCustodiansRepositoryImpl::new(tx)),
-            MdnUserAccountController::user_account_service(
+            MdnUserAccountController::user_account_service_factory(
                 tx,
                 mdn_central_authority_signature,
             ),
-            Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),
         )
     }
     fn mdn_capabilities_service<'a, C: ConnectionTrait>(

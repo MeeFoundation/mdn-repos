@@ -15,8 +15,9 @@ use crate::{
                     UserAccountLoginRequest, UserAccountLoginResponse,
                 },
             },
-            repositories::mdn_users::{
-                CreateUserAccountDto, MdnUsersRepository,
+            repositories::{
+                mdn_user_signing_pub_keys::MdnUserSigningPubKeysRepository,
+                mdn_users::{CreateUserAccountDto, MdnUsersRepository},
             },
         },
     },
@@ -44,6 +45,8 @@ pub struct MdnUserAccountService<'a> {
     mdn_custodians_service: MdnCustodiansService<'a>,
     mdn_context_scoped_ids_repository:
         Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
+    mdn_user_signing_pub_keys_repository:
+        Box<dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a>,
 }
 
 impl<'a> MdnUserAccountService<'a> {
@@ -56,13 +59,36 @@ impl<'a> MdnUserAccountService<'a> {
         mdn_context_scoped_ids_repository: Box<
             dyn MdnContextScopedIdsRepository + Send + Sync + 'a,
         >,
+        mdn_user_signing_pub_keys_repository: Box<
+            dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a,
+        >,
     ) -> Self {
         Self {
             mdn_custodians_service,
             user_account_repository,
             mdn_central_authority_signature,
             mdn_context_scoped_ids_repository,
+            mdn_user_signing_pub_keys_repository,
         }
+    }
+    pub async fn check_user_did(
+        &self,
+        user_did: &str,
+        user_account_uid: &str,
+    ) -> MdnCentralResult<bool> {
+        let user_account_id = self
+            .get_account_by_uid_required(user_account_uid)
+            .await?
+            .mdn_user_id;
+
+        let res = self
+            .mdn_user_signing_pub_keys_repository
+            .list_pub_keys(user_account_id)
+            .await?
+            .into_iter()
+            .any(|k| k.mdn_user_signing_pub_key_did == user_did);
+
+        Ok(res)
     }
     async fn make_login_response(
         &self,
@@ -82,7 +108,7 @@ impl<'a> MdnUserAccountService<'a> {
 
         let mdn_user_context_scoped_uid = self
             .mdn_context_scoped_ids_repository
-            .get_context_scoped_id_by_custodian_uid(
+            .get_context_scoped_id_by_custodian_id(
                 db_user.mdn_user_id,
                 mdn_user_custodian.mdn_custodian_id,
             )
@@ -205,10 +231,6 @@ impl<'a> MdnUserAccountService<'a> {
 
         self.mdn_context_scoped_ids_repository
             .create_context_scoped_id(CreateScopedIdDto {
-                mdn_context_scoped_uid: format!(
-                    "mdn_user_csi-${}",
-                    uuid::Uuid::new_v4()
-                ),
                 mdn_user_id: res.mdn_user_id,
                 for_mdn_custodian_id: user_custodian.mdn_custodian_id,
             })
@@ -243,8 +265,6 @@ impl<'a> MdnUserAccountService<'a> {
             mdn_user_uid: mdn_user_id_token.sub,
             _mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
             mdn_user_custodian_uid: mdn_user_id_token.mdn_user_custodian_uid,
-            mdn_user_context_scoped_uid: mdn_user_id_token
-                .mdn_user_context_scoped_uid,
         };
 
         Ok(user)

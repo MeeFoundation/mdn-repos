@@ -1,4 +1,7 @@
-use crate::{db_models::mdn_user_signing_pub_keys, error::MdnCentralResult};
+use crate::{
+    db_models::{mdn_user_signing_pub_keys, prelude::*},
+    error::MdnCentralResult,
+};
 use async_trait::async_trait;
 use sea_orm::{entity::*, query::*};
 
@@ -14,13 +17,17 @@ pub trait MdnUserSigningPubKeysRepository {
         &self,
         add_pub_key: AddPubKeyDto,
     ) -> MdnCentralResult<mdn_user_signing_pub_keys::Model>;
+    async fn list_pub_keys(
+        &self,
+        mdn_user_id: i64,
+    ) -> MdnCentralResult<Vec<mdn_user_signing_pub_keys::Model>>;
 }
 
-pub struct MdnNodeSigningPubKeysRepositoryImpl<'a, C: ConnectionTrait> {
+pub struct MdnUserSigningPubKeysRepositoryImpl<'a, C: ConnectionTrait> {
     db_conn: &'a C,
 }
 
-impl<'a, C: ConnectionTrait> MdnNodeSigningPubKeysRepositoryImpl<'a, C> {
+impl<'a, C: ConnectionTrait> MdnUserSigningPubKeysRepositoryImpl<'a, C> {
     pub fn new(db_conn: &'a C) -> Self {
         Self { db_conn }
     }
@@ -28,8 +35,19 @@ impl<'a, C: ConnectionTrait> MdnNodeSigningPubKeysRepositoryImpl<'a, C> {
 
 #[async_trait]
 impl<'a, C: ConnectionTrait> MdnUserSigningPubKeysRepository
-    for MdnNodeSigningPubKeysRepositoryImpl<'a, C>
+    for MdnUserSigningPubKeysRepositoryImpl<'a, C>
 {
+    async fn list_pub_keys(
+        &self,
+        mdn_user_id: i64,
+    ) -> MdnCentralResult<Vec<mdn_user_signing_pub_keys::Model>> {
+        Ok(MdnUserSigningPubKeys::find()
+            .filter(
+                mdn_user_signing_pub_keys::Column::MdnUserId.eq(mdn_user_id),
+            )
+            .all(self.db_conn)
+            .await?)
+    }
     async fn add_pub_key(
         &self,
         AddPubKeyDto {

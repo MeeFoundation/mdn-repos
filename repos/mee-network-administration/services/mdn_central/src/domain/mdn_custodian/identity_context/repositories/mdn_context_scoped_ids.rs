@@ -6,7 +6,6 @@ use async_trait::async_trait;
 use sea_orm::{entity::*, query::*};
 
 pub struct CreateScopedIdDto {
-    pub mdn_context_scoped_uid: String,
     pub mdn_user_id: i64,
     pub for_mdn_custodian_id: i64,
 }
@@ -16,12 +15,12 @@ pub trait MdnContextScopedIdsRepository {
     async fn create_context_scoped_id(
         &self,
         create_id_dto: CreateScopedIdDto,
-    ) -> MdnCentralResult;
+    ) -> MdnCentralResult<mdn_context_scoped_ids::Model>;
     async fn get_context_scoped_id_by_uid(
         &self,
         csi_uid: &str,
     ) -> MdnCentralResult<Option<mdn_context_scoped_ids::Model>>;
-    async fn get_context_scoped_id_by_custodian_uid(
+    async fn get_context_scoped_id_by_custodian_id(
         &self,
         mdn_user_id: i64,
         for_custodian_id: i64,
@@ -56,12 +55,14 @@ impl<'a, C: ConnectionTrait> MdnContextScopedIdsRepository
     async fn create_context_scoped_id(
         &self,
         CreateScopedIdDto {
-            mdn_context_scoped_uid,
             mdn_user_id,
             for_mdn_custodian_id,
         }: CreateScopedIdDto,
-    ) -> MdnCentralResult {
-        mdn_context_scoped_ids::ActiveModel {
+    ) -> MdnCentralResult<mdn_context_scoped_ids::Model> {
+        let mdn_context_scoped_uid =
+            format!("mdn_user_csi-${}", uuid::Uuid::new_v4());
+
+        let res = mdn_context_scoped_ids::ActiveModel {
             mdn_context_scoped_id: NotSet,
             mdn_context_scoped_uid: Set(mdn_context_scoped_uid),
             mdn_user_id: Set(mdn_user_id),
@@ -70,7 +71,7 @@ impl<'a, C: ConnectionTrait> MdnContextScopedIdsRepository
         .insert(self.db_conn)
         .await?;
 
-        Ok(())
+        Ok(res)
     }
     async fn get_context_scoped_id_by_uid(
         &self,
@@ -85,7 +86,7 @@ impl<'a, C: ConnectionTrait> MdnContextScopedIdsRepository
 
         Ok(res)
     }
-    async fn get_context_scoped_id_by_custodian_uid(
+    async fn get_context_scoped_id_by_custodian_id(
         &self,
         mdn_user_id: i64,
         for_custodian_id: i64,

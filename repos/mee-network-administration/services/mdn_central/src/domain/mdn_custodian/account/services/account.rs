@@ -54,4 +54,12 @@ impl<'a> MdnCustodiansService<'a> {
 
         Ok(res)
     }
+    pub async fn get_custodian_by_uid(
+        &self,
+        mdn_custodian_uid: &str,
+    ) -> MdnCentralResult<mdn_custodians::Model> {
+        self.mdn_custodians_repository
+            .get_custodian_by_uid_required(mdn_custodian_uid)
+            .await
+    }
 }

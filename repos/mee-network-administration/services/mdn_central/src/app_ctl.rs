@@ -28,7 +28,6 @@ use axum::Router;
 use clap::Parser;
 use mee_db_utils::sql_storage::RbdStorage;
 use mee_http_utils::monitoring::health_check_router;
-
 use mee_secrets_manager::{
     client::SimpleFileSecretsManagerClient,
     signatures_service::{
@@ -94,6 +93,7 @@ impl AppCtl {
         Ok(Self {
             mdn_identity_context_controller: MdnIdentityContextController::new(
                 rdb_storage.clone(),
+                mdn_central_authority_signature.clone(),
             ),
             mdn_user_account_controller: MdnUserAccountController::new(
                 rdb_storage.clone(),

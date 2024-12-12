@@ -16,7 +16,10 @@ use crate::{
             identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepositoryImpl,
         },
         mdn_user::user_account::{
-            repositories::mdn_users::MdnUsersRepositoryImpl,
+            repositories::{
+                mdn_user_signing_pub_keys::MdnUserSigningPubKeysRepositoryImpl,
+                mdn_users::MdnUsersRepositoryImpl,
+            },
             services::account::MdnUserAccountService,
         },
     },
@@ -45,7 +48,7 @@ impl MdnUserAccountController {
             mdn_central_authority_signature,
         }
     }
-    pub fn user_account_service<'a, C: ConnectionTrait>(
+    pub fn user_account_service_factory<'a, C: ConnectionTrait>(
         tx: &'a C,
         mdn_central_authority_signature: Arc<
             dyn MdnSignaturesService + Send + Sync,
@@ -54,11 +57,12 @@ impl MdnUserAccountController {
         MdnUserAccountService::new(
             Box::new(MdnUsersRepositoryImpl::new(tx)),
             mdn_central_authority_signature.clone(),
-            Self::mdn_custodians_service(tx),
+            Self::mdn_custodians_service_factory(tx),
             Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),
+            Box::new(MdnUserSigningPubKeysRepositoryImpl::new(tx)),
         )
     }
-    pub fn mdn_custodians_service<'a, C: ConnectionTrait>(
+    pub fn mdn_custodians_service_factory<'a, C: ConnectionTrait>(
         tx: &'a C,
     ) -> MdnCustodiansService<'a> {
         MdnCustodiansService::new(Box::new(MdnCustodiansRepositoryImpl::new(
@@ -70,7 +74,7 @@ impl MdnUserAccountController {
         &self,
         payload: CreateUserAccountRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
-        let res = Self::user_account_service(
+        let res = Self::user_account_service_factory(
             &*self.rdb_storage.connection(),
             self.mdn_central_authority_signature.clone(),
         )
@@ -84,7 +88,7 @@ impl MdnUserAccountController {
         &self,
         payload: UserAccountLoginRequest,
     ) -> MdnCentralResult<UserAccountLoginResponse> {
-        let res = Self::user_account_service(
+        let res = Self::user_account_service_factory(
             &*self.rdb_storage.connection(),
             self.mdn_central_authority_signature.clone(),
         )
@@ -98,7 +102,7 @@ impl MdnUserAccountController {
         &self,
         payload: AuthorizeUserRequest,
     ) -> MdnCentralResult<AuthorizeUserResponse> {
-        let res = Self::user_account_service(
+        let res = Self::user_account_service_factory(
             &*self.rdb_storage.connection(),
             self.mdn_central_authority_signature.clone(),
         )
@@ -112,7 +116,7 @@ impl MdnUserAccountController {
         &self,
         token: String,
     ) -> MdnCentralResult<DirectlyLoggedInMdnUser> {
-        let res = Self::user_account_service(
+        let res = Self::user_account_service_factory(
             &*self.rdb_storage.connection(),
             self.mdn_central_authority_signature.clone(),
         )
