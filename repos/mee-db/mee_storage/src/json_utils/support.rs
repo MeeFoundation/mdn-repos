@@ -196,3 +196,48 @@ pub(super) fn get_property_pattern<'a>(current: &'a Value, k: &'a str) -> Option
         Some(current_obj.clone())
     }
 }
+
+pub(super) fn delete_property(current: &mut Value, k: &str) {
+    if !k.is_empty() {
+        let parts = k
+            .split(PATH_SEPARATOR)
+            .filter(|x| !x.is_empty())
+            .collect::<Vec<&str>>();
+
+        if !parts.is_empty() && !current.is_null() {
+            let mut current_obj = current;
+
+            for i in 0..parts.len() - 1 {
+                match parts[i].parse::<usize>() {
+                    Ok(index) if current_obj.is_array() => {
+                        let array = current_obj.as_array_mut().unwrap();
+                        if array.len() <= index {
+                            return;
+                        }
+                        current_obj = &mut array[index];
+                    }
+                    _ if current_obj.is_object() => {
+                        if let Some(obj) = current_obj.as_object_mut().unwrap().get_mut(parts[i]) {
+                            current_obj = obj;
+                        } else {
+                            return;
+                        }
+                    }
+                    _ => {
+                        return;
+                    }
+                }
+            }
+
+            match current_obj {
+                Value::Array(array) => {
+                    array.remove(parts[parts.len() - 1].parse::<usize>().unwrap());
+                }
+                Value::Object(obj) => {
+                    obj.remove(parts[parts.len() - 1]);
+                }
+                _ => {}
+            }
+        }
+    }
+}

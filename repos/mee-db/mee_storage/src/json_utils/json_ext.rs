@@ -1,4 +1,6 @@
-use super::support::{apply_property, get_property, get_property_pattern, inner_set, merge_json};
+use super::support::{
+    apply_property, delete_property, get_property, get_property_pattern, inner_set, merge_json,
+};
 use super::ID_PROPERTY;
 #[allow(unused_imports)]
 use crate::binary_kv_store::PATH_SEPARATOR;
@@ -12,6 +14,8 @@ pub trait JsonExt: Serialize {
     fn x_get_id(&self) -> Option<&str>;
 
     fn x_set_property(&mut self, key: &str, value: Value) -> &mut Self;
+
+    fn x_delete_property(&mut self, key: &str) -> &mut Self;
 
     fn x_get_property<'a>(&'a self, key: &'a str) -> Option<&'a Value>;
 
@@ -38,6 +42,11 @@ impl JsonExt for Value {
 
     fn x_set_property(&mut self, key: &str, value: Value) -> &mut Self {
         apply_property(self, key, value);
+        self
+    }
+
+    fn x_delete_property(&mut self, key: &str) -> &mut Self {
+        delete_property(self, key);
         self
     }
 

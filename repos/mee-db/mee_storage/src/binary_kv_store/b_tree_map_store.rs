@@ -1,10 +1,11 @@
-use super::{BinaryKVStore, KVStream, Result, KV, PATH_SEPARATOR};
+use super::{BinaryKVStore, KVStream, KeysStream, Result, KV, PATH_SEPARATOR};
 
 use async_stream::stream;
 
 use futures::StreamExt;
 use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
+use std::ops::RangeFrom;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -101,5 +102,29 @@ impl BinaryKVStore for BTreeMapStore {
         .boxed();
 
         Ok(s)
+    }
+
+    async fn keys(&self, path: String) -> Result<KeysStream> {
+        let db = self.db.clone();
+        let s = stream! {
+            let db = db.read().await;
+            let excluded = Excluded(format!("{path}{}", char::MAX));
+            let range = db.range((Included(path.clone()), excluded));
+            for (k, _) in range {
+                yield k.clone();
+            }
+        }
+        .boxed();
+        Ok(s)
+    }
+
+    async fn next_key(&self, path: String) -> Result<Option<String>> {
+        let db = self.db.read().await;
+        let from = RangeFrom {
+            start: format!("{path}{}", char::MAX),
+        };
+        let mut range = db.range(from);
+        let next_key = range.next().map(|(k, _)| k.clone());
+        Ok(next_key)
     }
 }

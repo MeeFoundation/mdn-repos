@@ -1,5 +1,4 @@
 use thiserror::Error;
-use tokio::sync::TryLockError;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -12,12 +11,8 @@ pub enum Error {
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
 
-    #[error("Store error: {0}")]
-    Store(String),
-
-    //remove to provide more information
-    #[error("Lock error: {0}")]
-    LockError(#[from] TryLockError),
+    #[error("Invalid key format: {0}")]
+    InvalidKeyFormat(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
