@@ -55,7 +55,7 @@ impl MdnCapabilitiesManager for MdnCapabilitiesManagerDefault {
             return Ok(());
         }
 
-        let mdn_central_auth_token = self
+        let mdn_cloud_controller_auth_token = self
             .mdn_user_account_manager
             .get_user_auth_token_required()
             .await?;
@@ -99,7 +99,7 @@ impl MdnCapabilitiesManager for MdnCapabilitiesManagerDefault {
                 IssueContextOpsCapTokenRequest {
                     cap_token: cap_token.clone(),
                 },
-                &mdn_central_auth_token,
+                &mdn_cloud_controller_auth_token,
             )
             .await?;
 

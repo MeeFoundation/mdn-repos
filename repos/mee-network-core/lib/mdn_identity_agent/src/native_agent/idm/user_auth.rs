@@ -23,7 +23,7 @@ pub trait MdnUserAccountManager {
     async fn get_user_auth_token(&self) -> MdnIdentityAgentResult<Option<String>>;
     async fn get_user_device_did(&self) -> MdnIdentityAgentResult<String>;
     async fn get_user_device_secret_key(&self) -> MdnIdentityAgentResult<Jwk>;
-    async fn get_mdn_central_signature_key(&self) -> MdnIdentityAgentResult<Jwk>;
+    async fn get_mdn_cloud_controller_signature_key(&self) -> MdnIdentityAgentResult<Jwk>;
     async fn get_iroh_node_key(&self) -> MdnIdentityAgentResult<iroh_net::key::SecretKey>;
 
     // defaults
@@ -36,7 +36,7 @@ pub trait MdnUserAccountManager {
         &self,
     ) -> MdnIdentityAgentResult<MdnCloudUserIdToken> {
         let token = self.get_user_auth_token_required().await?;
-        let jwk = self.get_mdn_central_signature_key().await?;
+        let jwk = self.get_mdn_cloud_controller_signature_key().await?;
         let token = MdnCloudUserIdToken::decode(&token, jwk)?;
 
         Ok(token)
@@ -143,7 +143,7 @@ impl MdnUserAccountManager for MdnUserAccountManagerDefault {
             },
         )
     }
-    async fn get_mdn_central_signature_key(&self) -> MdnIdentityAgentResult<Jwk> {
+    async fn get_mdn_cloud_controller_signature_key(&self) -> MdnIdentityAgentResult<Jwk> {
         // TODO check JWK key operation
         let jwk = self
             .mdn_user_account_api_client
