@@ -8,7 +8,7 @@ use crate::binary_kv_store;
 use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
 
-use error::*;
+pub use error::*;
 pub type Store = Arc<dyn JsonStore + Send + Sync + 'static>;
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
 pub type RecordStream = futures::stream::BoxStream<'static, Box<dyn Record>>;

@@ -1,5 +1,5 @@
 use crate::ast::Position;
-use mee_storage::Error as StorageError;
+use mee_storage::json_kv_store::Error as StorageError;
 use thiserror::Error;
 use tree_sitter::LanguageError;
 

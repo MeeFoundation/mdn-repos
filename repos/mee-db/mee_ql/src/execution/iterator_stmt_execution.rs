@@ -4,7 +4,7 @@ use async_stream::try_stream;
 use futures::pin_mut;
 use futures::stream::{Stream, StreamExt};
 use mee_storage::binary_kv_store::PATH_SEPARATOR;
-use mee_storage::json_kv_store::FieldFilter;
+use mee_storage::json_kv_store::RecordStream;
 use mee_storage::json_kv_store::Store;
 use serde_json::Value;
 use std::sync::Arc;
@@ -24,8 +24,8 @@ impl IteratorExecutorImpl {
         Self { store }
     }
 
-    async fn users(store: Store) -> Result<impl Stream<Item = Value> + Send> {
-        let res = store.range("".to_string(), FieldFilter::All).await?;
+    async fn users(store: Store) -> Result<RecordStream> {
+        let res = store.stream().await?;
         Ok(res)
     }
 }
@@ -79,9 +79,7 @@ impl IteratorExecutor for IteratorExecutorImpl {
                     pin_mut!(users);
                     for await user in users {
                         let mut new_ctx: RuntimeContext = ctx.clone();
-                        let id = user.x_get_id().ok_or(Error::UnexpectedStateError(
-                            "User id is not set".to_string(),
-                        ))?;
+                        let id = user.id();
                         new_ctx.insert(
                             format!("{item_name}.$path"),
                             Value::String(object_key(id)),

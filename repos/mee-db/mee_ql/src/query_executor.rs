@@ -14,6 +14,8 @@ use mee_storage::json_utils::*;
 #[allow(unused)]
 use serde_json::json;
 
+use futures::future::try_join_all;
+
 pub type DB = Arc<dyn QueryExecutor + Send + Sync>;
 
 fn object_key(id: &str) -> String {
@@ -72,14 +74,8 @@ impl QueryExecutor for QueryExecutorImpl {
     }
 
     async fn insert_many(&self, values: Vec<Value>) -> Result<Vec<String>> {
-        let mut ids = Vec::with_capacity(values.len());
-
-        for v in values.into_iter() {
-            let id = generate_id();
-            self.store.set(object_key(&id).clone(), v).await?;
-            ids.push(id);
-        }
-
+        let futures = values.into_iter().map(|v| self.store.insert(v));
+        let ids = try_join_all(futures).await?;
         Ok(ids)
     }
 }
