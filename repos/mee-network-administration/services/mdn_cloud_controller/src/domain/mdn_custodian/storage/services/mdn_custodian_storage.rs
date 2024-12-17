@@ -1,4 +1,5 @@
 use crate::{
+    db_models::mdn_custodian_storages,
     domain::{
         mdn_authority::utils::MdnSignaturesService,
         mdn_custodian::{
@@ -11,7 +12,7 @@ use crate::{
                 repositories::mdn_custodian_storage::{
                     AddMdnCustodianStorageDto, MdnCustodianStoragesRepository,
                 },
-                utils::custodian_storage_utils::verify_user_custodian_storage_did_signature,
+                utils::custodian_storage_utils::verify_custodian_storage_did_signature,
             },
         },
         mdn_user::user_account::{
@@ -26,7 +27,7 @@ use crate::{
 };
 use std::sync::Arc;
 
-pub struct MdnNodesService<'a> {
+pub struct MdnCustodianStorageService<'a> {
     mdn_custodian_storages_repository:
         Box<dyn MdnCustodianStoragesRepository + Send + Sync + 'a>,
     mdn_custodians_repository:
@@ -38,7 +39,7 @@ pub struct MdnNodesService<'a> {
         Arc<dyn MdnSignaturesService + Send + Sync>,
 }
 
-impl<'a> MdnNodesService<'a> {
+impl<'a> MdnCustodianStorageService<'a> {
     pub fn new(
         mdn_custodian_storages_repository: Box<
             dyn MdnCustodianStoragesRepository + Send + Sync + 'a,
@@ -91,34 +92,40 @@ impl<'a> MdnNodesService<'a> {
         }: RegisterMdnCustodianStorageRequest,
         logged_in_mdn_user: LoggedInMdnUser,
     ) -> MdnCloudControllerResult {
-        let mdn_custodian_storage_uid = uuid::Uuid::new_v4().to_string();
         let mdn_custodian_uid = logged_in_mdn_user.mdn_custodian_uid();
 
         let mdn_custodian_storage_id_token =
-            verify_user_custodian_storage_did_signature(
+            verify_custodian_storage_did_signature(
                 &mdn_custodian_storage_did,
                 &mdn_custodian_storage_did_proof,
             )
             .await?;
 
         if mdn_custodian_storage_id_token.iss != mdn_custodian_storage_did {
-            Err(MdnCloudControllerErr::InvalidMdnNodeUserAuthToken(
-                "Issuer DID mismatch".to_string(),
-            ))?;
+            Err(
+                MdnCloudControllerErr::InvalidMdnCustodianStorageUserAuthToken(
+                    "Issuer DID mismatch".to_string(),
+                ),
+            )?;
         }
 
         if mdn_custodian_storage_id_token.aud
-            != self.mdn_cloud_controller_authority_signature.mee_sig_did().await?
+            != self
+                .mdn_cloud_controller_authority_signature
+                .mee_sig_did()
+                .await?
         {
-            Err(MdnCloudControllerErr::InvalidMdnNodeUserAuthToken(
-                "Audience mismatch".to_string(),
-            ))?;
+            Err(
+                MdnCloudControllerErr::InvalidMdnCustodianStorageUserAuthToken(
+                    "Audience mismatch".to_string(),
+                ),
+            )?;
         }
 
         match &logged_in_mdn_user {
             LoggedInMdnUser::DirectlyLoggedInMdnUser(token) => {
                 if mdn_custodian_storage_id_token.sub != token.mdn_user_uid {
-                    Err(MdnCloudControllerErr::InvalidMdnNodeUserAuthToken(
+                    Err(MdnCloudControllerErr::InvalidMdnCustodianStorageUserAuthToken(
                         "MDN user uid mismatch".to_string(),
                     ))?;
                 }
@@ -136,10 +143,8 @@ impl<'a> MdnNodesService<'a> {
         let res = self
             .mdn_custodian_storages_repository
             .register_custodian_storage(AddMdnCustodianStorageDto {
+                mdn_custodian_storage_did: mdn_custodian_storage_did.clone(),
                 mdn_custodian_id,
-                mdn_custodian_storage_uid: format!(
-                    "mdn_custodian_storage-{mdn_custodian_storage_uid}"
-                ),
                 willow_peer_id,
                 iroh_node_id,
             })
@@ -167,5 +172,23 @@ impl<'a> MdnNodesService<'a> {
         };
 
         Ok(())
+    }
+    pub async fn get_custodian_storage_by_did(
+        &self,
+        custodian_uid: &str,
+        custodian_storage_did: &str,
+    ) -> MdnCloudControllerResult<mdn_custodian_storages::Model> {
+        let custodian_id = self
+            .mdn_custodians_repository
+            .get_custodian_by_uid_required(custodian_uid)
+            .await?
+            .mdn_custodian_id;
+
+        self.mdn_custodian_storages_repository
+            .get_custodian_storage_by_did_required(
+                custodian_id,
+                custodian_storage_did,
+            )
+            .await
     }
 }

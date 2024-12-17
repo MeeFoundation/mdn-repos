@@ -6,6 +6,7 @@ use crate::{
             identity_context::repositories::mdn_context_scoped_ids::{
                 CreateScopedIdDto, MdnContextScopedIdsRepository,
             },
+            storage::services::mdn_custodian_storage::MdnCustodianStorageService,
         },
         mdn_user::user_account::{
             api::{
@@ -47,6 +48,7 @@ pub struct MdnUserAccountService<'a> {
         Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
     mdn_user_signing_pub_keys_repository:
         Box<dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a>,
+    mdn_custodian_storage_service: Box<MdnCustodianStorageService<'a>>,
 }
 
 impl<'a> MdnUserAccountService<'a> {
@@ -62,6 +64,7 @@ impl<'a> MdnUserAccountService<'a> {
         mdn_user_signing_pub_keys_repository: Box<
             dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a,
         >,
+        mdn_custodian_storage_service: Box<MdnCustodianStorageService<'a>>,
     ) -> Self {
         Self {
             mdn_custodians_service,
@@ -69,6 +72,7 @@ impl<'a> MdnUserAccountService<'a> {
             mdn_cloud_controller_authority_signature,
             mdn_context_scoped_ids_repository,
             mdn_user_signing_pub_keys_repository,
+            mdn_custodian_storage_service,
         }
     }
     pub async fn check_user_did(
@@ -93,10 +97,13 @@ impl<'a> MdnUserAccountService<'a> {
     async fn make_login_response(
         &self,
         user: UserAccountDomainModel,
+        // TODO validate DID key material possession proof?
         custodian_storage_did: String,
     ) -> MdnCloudControllerResult<UserAccountLoginResponse> {
-        let mdn_did =
-            self.mdn_cloud_controller_authority_signature.mee_sig_did().await?;
+        let mdn_did = self
+            .mdn_cloud_controller_authority_signature
+            .mee_sig_did()
+            .await?;
 
         let db_user =
             self.get_account_by_uid_required(&user.mdn_user_uid).await?;
@@ -122,9 +129,19 @@ impl<'a> MdnUserAccountService<'a> {
             })?
             .mdn_context_scoped_uid;
 
+        let custodian_storage = self
+            .mdn_custodian_storage_service
+            .get_custodian_storage_by_did(
+                &mdn_user_custodian.mdn_custodian_uid,
+                &custodian_storage_did,
+            )
+            .await?;
+
         let auth_token =
             MdnCloudUserIdToken::encode(EncodeMdnCloudUserIdTokenParams {
                 mdn_user_custodian_uid: mdn_user_custodian.mdn_custodian_uid,
+                mdn_custodian_storage_did: custodian_storage
+                    .mdn_custodian_storage_did,
                 mdn_user_context_scoped_uid,
                 sub: user.mdn_user_uid.clone(),
                 aud: custodian_storage_did,
@@ -198,7 +215,9 @@ impl<'a> MdnUserAccountService<'a> {
             .await?
             .is_some()
         {
-            return Err(MdnCloudControllerErr::MdnUserAccountAlreadyExists(email));
+            return Err(MdnCloudControllerErr::MdnUserAccountAlreadyExists(
+                email,
+            ));
         }
 
         let password_salt = SaltString::generate(&mut OsRng);
@@ -212,7 +231,6 @@ impl<'a> MdnUserAccountService<'a> {
         let res = self
             .user_account_repository
             .create_account(CreateUserAccountDto {
-                mdn_user_uid: format!("mdn_user-{}", uuid::Uuid::new_v4()),
                 mdn_user_email: email,
                 mdn_user_role: MdnUserAccountRole::Customer,
                 mdn_user_phone: phone,
@@ -249,7 +267,9 @@ impl<'a> MdnUserAccountService<'a> {
             .user_account_repository
             .get_account_by_uid(&user.mdn_user_uid)
             .await?
-            .ok_or(MdnCloudControllerErr::MdnUserAccountNotFound(user.mdn_user_uid))?;
+            .ok_or(MdnCloudControllerErr::MdnUserAccountNotFound(
+                user.mdn_user_uid,
+            ))?;
 
         Ok(user.into())
     }
@@ -257,7 +277,10 @@ impl<'a> MdnUserAccountService<'a> {
         &self,
         token: &str,
     ) -> MdnCloudControllerResult<DirectlyLoggedInMdnUser> {
-        let mee_sig = self.mdn_cloud_controller_authority_signature.mee_sig().await?;
+        let mee_sig = self
+            .mdn_cloud_controller_authority_signature
+            .mee_sig()
+            .await?;
 
         let mdn_user_id_token = MdnCloudUserIdToken::decode(token, mee_sig)?;
 
@@ -265,6 +288,8 @@ impl<'a> MdnUserAccountService<'a> {
             mdn_user_uid: mdn_user_id_token.sub,
             _mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
             mdn_user_custodian_uid: mdn_user_id_token.mdn_user_custodian_uid,
+            mdn_custodian_storage_did: mdn_user_id_token
+                .mdn_custodian_storage_did,
         };
 
         Ok(user)
@@ -273,7 +298,8 @@ impl<'a> MdnUserAccountService<'a> {
     pub async fn get_account_by_uid(
         &self,
         uid: &str,
-    ) -> MdnCloudControllerResult<Option<crate::db_models::mdn_users::Model>> {
+    ) -> MdnCloudControllerResult<Option<crate::db_models::mdn_users::Model>>
+    {
         self.user_account_repository.get_account_by_uid(uid).await
     }
 
@@ -281,8 +307,8 @@ impl<'a> MdnUserAccountService<'a> {
         &self,
         uid: &str,
     ) -> MdnCloudControllerResult<crate::db_models::mdn_users::Model> {
-        self.get_account_by_uid(uid)
-            .await?
-            .ok_or_else(|| MdnCloudControllerErr::MissingDbEntity(format!("{uid}")))
+        self.get_account_by_uid(uid).await?.ok_or_else(|| {
+            MdnCloudControllerErr::MissingDbEntity(format!("{uid}"))
+        })
     }
 }

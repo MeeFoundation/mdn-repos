@@ -3,7 +3,7 @@ use crate::{
         mdn_context_scoped_ids, mdn_custodians, mdn_identity_contexts,
         mdn_providers, mdn_users, prelude::*,
     },
-    error::MdnCloudControllerResult,
+    error::{MdnCloudControllerErr, MdnCloudControllerResult},
 };
 use async_trait::async_trait;
 use migrations::IntoCondition;
@@ -26,8 +26,20 @@ pub trait MdnIdentityContextsRepository {
     ) -> MdnCloudControllerResult<Vec<MdnIdentityContextWithCustodianName>>;
     async fn get_context_with_custodian_name(
         &self,
-        ctx_id: i64,
+        ctx_uid: &str,
+        mdn_user_id: Option<i64>,
     ) -> MdnCloudControllerResult<Option<MdnIdentityContextWithCustodianName>>;
+    async fn get_context_with_custodian_name_required(
+        &self,
+        ctx_uid: &str,
+        mdn_user_id: Option<i64>,
+    ) -> MdnCloudControllerResult<MdnIdentityContextWithCustodianName> {
+        self.get_context_with_custodian_name(ctx_uid, mdn_user_id)
+            .await?
+            .ok_or_else(|| {
+                MdnCloudControllerErr::MissingDbEntity(format!("{ctx_uid}"))
+            })
+    }
 }
 
 pub struct MdnIdentityContextsRepositoryImpl<'a, C: ConnectionTrait> {
@@ -42,6 +54,7 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepositoryImpl<'a, C> {
 
 #[derive(FromQueryResult)]
 pub struct MdnIdentityContextWithCustodianName {
+    pub mdn_identity_context_id: i64,
     pub mdn_identity_context_uid: String,
     pub willow_namespace_id: String,
     pub context_scoped_subject_uid: String,
@@ -54,6 +67,7 @@ fn select_context_with_custodian_name(
     MdnIdentityContexts::find()
         .select_only()
         .column(mdn_identity_contexts::Column::WillowNamespaceId)
+        .column(mdn_identity_contexts::Column::MdnIdentityContextId)
         .column(mdn_identity_contexts::Column::MdnIdentityContextUid)
         .expr_as(
             sea_query::Func::coalesce([
@@ -99,7 +113,8 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepository
     async fn list_contexts_with_custodian_name(
         &self,
         mdn_user_id: i64,
-    ) -> MdnCloudControllerResult<Vec<MdnIdentityContextWithCustodianName>> {
+    ) -> MdnCloudControllerResult<Vec<MdnIdentityContextWithCustodianName>>
+    {
         let res = select_context_with_custodian_name(Some(mdn_user_id))
             .into_model()
             .all(self.db_conn)
@@ -109,11 +124,14 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepository
     }
     async fn get_context_with_custodian_name(
         &self,
-        ctx_id: i64,
-    ) -> MdnCloudControllerResult<Option<MdnIdentityContextWithCustodianName>> {
-        let res = select_context_with_custodian_name(None)
+        ctx_uid: &str,
+        mdn_user_id: Option<i64>,
+    ) -> MdnCloudControllerResult<Option<MdnIdentityContextWithCustodianName>>
+    {
+        let res = select_context_with_custodian_name(mdn_user_id)
             .filter(
-                mdn_identity_contexts::Column::MdnIdentityContextId.eq(ctx_id),
+                mdn_identity_contexts::Column::MdnIdentityContextUid
+                    .eq(ctx_uid),
             )
             .into_model()
             .one(self.db_conn)

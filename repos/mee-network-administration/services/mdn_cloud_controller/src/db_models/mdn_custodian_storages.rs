@@ -10,6 +10,8 @@ pub struct Model {
     pub mdn_custodian_storage_id: i64,
     #[sea_orm(unique)]
     pub mdn_custodian_storage_uid: String,
+    #[sea_orm(unique)]
+    pub mdn_custodian_storage_did: String,
     pub willow_peer_id: String,
     pub iroh_node_id: String,
     pub mdn_custodian_id: i64,

@@ -8,7 +8,7 @@ use mee_crypto::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MdnUserCustodianStorageIdToken {
+pub struct MdnCustodianStorageIdToken {
     pub iss: String,
     pub sub: String,
     pub aud: String,
@@ -16,7 +16,7 @@ pub struct MdnUserCustodianStorageIdToken {
     pub iat: i64,
 }
 
-impl MdnUserCustodianStorageIdToken {
+impl MdnCustodianStorageIdToken {
     pub fn decode(encoded_token: &str, sign_key: Jwk) -> anyhow::Result<Self> {
         // TODO derive algo from input jwk
         let algo = EddsaJwsAlgorithm::Eddsa;
@@ -28,13 +28,13 @@ impl MdnUserCustodianStorageIdToken {
         Ok(claims)
     }
     pub fn encode(
-        EncodeMdnUserCustodianStorageIdTokenParams {
+        EncodeMdnCustodianStorageIdTokenParams {
             iss,
             sub,
             aud,
             sign_key,
             kid,
-        }: EncodeMdnUserCustodianStorageIdTokenParams,
+        }: EncodeMdnCustodianStorageIdTokenParams,
     ) -> anyhow::Result<String> {
         let now = Utc::now();
         let iat = now.timestamp();
@@ -43,7 +43,7 @@ impl MdnUserCustodianStorageIdToken {
             .context("chrono time manipulation issue")?
             .timestamp();
 
-        let claims = MdnUserCustodianStorageIdToken {
+        let claims = MdnCustodianStorageIdToken {
             iss,
             aud,
             sub,
@@ -60,7 +60,7 @@ impl MdnUserCustodianStorageIdToken {
     }
 }
 
-pub struct EncodeMdnUserCustodianStorageIdTokenParams {
+pub struct EncodeMdnCustodianStorageIdTokenParams {
     pub iss: String,
     pub sub: String,
     pub aud: String,

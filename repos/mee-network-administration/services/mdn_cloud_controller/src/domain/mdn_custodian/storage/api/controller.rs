@@ -5,7 +5,7 @@ use crate::{
             account::repositories::mdn_custodians::MdnCustodiansRepositoryImpl,
             storage::{
                 repositories::mdn_custodian_storage::MdnCustodianStoragesRepositoryImpl,
-                services::mdn_custodian_storage::MdnNodesService,
+                services::mdn_custodian_storage::MdnCustodianStorageService,
             },
         },
         mdn_user::user_account::{
@@ -42,13 +42,13 @@ impl MdnCustodianStoragesController {
             mdn_cloud_controller_authority_signature,
         }
     }
-    pub fn mdn_custodian_storage_service<'a, C: ConnectionTrait>(
+    pub fn mdn_custodian_storage_service_factory<'a, C: ConnectionTrait>(
         mdn_cloud_controller_authority_signature: Arc<
             dyn MdnSignaturesService + Send + Sync,
         >,
         tx: &'a C,
-    ) -> MdnNodesService<'a> {
-        MdnNodesService::new(
+    ) -> MdnCustodianStorageService<'a> {
+        MdnCustodianStorageService::new(
             Box::new(MdnCustodianStoragesRepositoryImpl::new(tx)),
             Box::new(MdnCustodiansRepositoryImpl::new(tx)),
             Box::new(MdnUserSigningPubKeysRepositoryImpl::new(tx)),
@@ -64,7 +64,7 @@ impl MdnCustodianStoragesController {
         &self,
         mdn_custodian_uid: &str,
     ) -> MdnCloudControllerResult<Vec<MdnCustodianStorageResponse>> {
-        let res = Self::mdn_custodian_storage_service(
+        let res = Self::mdn_custodian_storage_service_factory(
             self.mdn_cloud_controller_authority_signature.clone(),
             &*self.rdb_storage.connection(),
         )
@@ -78,7 +78,7 @@ impl MdnCustodianStoragesController {
         payload: RegisterMdnCustodianStorageRequest,
         logged_in_mdn_user: LoggedInMdnUser,
     ) -> MdnCloudControllerResult {
-        Self::mdn_custodian_storage_service(
+        Self::mdn_custodian_storage_service_factory(
             self.mdn_cloud_controller_authority_signature.clone(),
             &*self.rdb_storage.connection(),
         )

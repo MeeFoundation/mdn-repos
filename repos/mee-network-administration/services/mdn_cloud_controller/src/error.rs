@@ -72,7 +72,7 @@ pub enum MdnCloudControllerErr {
     MdnUserAccountManagement(String),
 
     #[error("User node auth token error: {0}")]
-    InvalidMdnNodeUserAuthToken(String),
+    InvalidMdnCustodianStorageUserAuthToken(String),
 
     #[error("MDN capabilities error: {0}")]
     MdnCapabilities(String),

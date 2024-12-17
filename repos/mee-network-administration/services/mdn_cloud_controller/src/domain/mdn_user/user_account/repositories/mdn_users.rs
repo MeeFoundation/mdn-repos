@@ -8,7 +8,6 @@ use sea_orm::{entity::*, query::*};
 
 #[derive(Debug)]
 pub struct CreateUserAccountDto {
-    pub mdn_user_uid: String,
     pub mdn_user_email: String,
     pub mdn_user_phone: Option<String>,
     pub mdn_user_name: Option<String>,
@@ -52,7 +51,6 @@ impl<'a, C: ConnectionTrait> MdnUsersRepository
     async fn create_account(
         &self,
         CreateUserAccountDto {
-            mdn_user_uid,
             mdn_user_email,
             mdn_user_phone,
             mdn_user_name,
@@ -65,7 +63,7 @@ impl<'a, C: ConnectionTrait> MdnUsersRepository
     ) -> MdnCloudControllerResult<mdn_users::Model> {
         let acc = mdn_users::ActiveModel {
             mdn_user_id: NotSet,
-            mdn_user_uid: Set(mdn_user_uid),
+            mdn_user_uid: Set(format!("mdn_user-{}", uuid::Uuid::new_v4())),
             mdn_user_email: Set(mdn_user_email),
             mdn_user_phone: Set(mdn_user_phone),
             mdn_user_name: Set(mdn_user_name),

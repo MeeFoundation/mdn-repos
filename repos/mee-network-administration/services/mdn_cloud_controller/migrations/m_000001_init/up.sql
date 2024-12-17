@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS mdn_custodians(
 CREATE TABLE IF NOT EXISTS mdn_custodian_storages(
   mdn_custodian_storage_id bigint generated always as identity primary key,
   mdn_custodian_storage_uid varchar unique not null,
+  mdn_custodian_storage_did varchar unique not null,
   willow_peer_id varchar not null,
   iroh_node_id varchar not null,
   mdn_custodian_id bigint not null,

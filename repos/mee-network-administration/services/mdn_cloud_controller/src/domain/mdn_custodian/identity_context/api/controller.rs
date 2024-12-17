@@ -1,12 +1,16 @@
 use crate::{
     domain::{
         mdn_authority::utils::MdnSignaturesService,
-        mdn_custodian::identity_context::{
-            repositories::{
-                mdn_context_scoped_ids::MdnContextScopedIdsRepositoryImpl,
-                mdn_identity_contexts::MdnIdentityContextsRepositoryImpl,
+        mdn_custodian::{
+            identity_context::{
+                repositories::{
+                    mdn_context_scoped_ids::MdnContextScopedIdsRepositoryImpl,
+                    mdn_identity_contexts::MdnIdentityContextsRepositoryImpl,
+                    mdn_identity_contexts_in_storages::MdnContextInStorageRepositoryImpl,
+                },
+                services::mdn_identity_context::MdnIdentityContextService,
             },
-            services::mdn_identity_context::MdnIdentityContextService,
+            storage::api::controller::MdnCustodianStoragesController,
         },
         mdn_user::user_account::api::{
             controller::MdnUserAccountController, middlewares::LoggedInMdnUser,
@@ -61,9 +65,11 @@ impl MdnIdentityContextController {
             Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),
             MdnUserAccountController::user_account_service_factory(
                 tx,
-                mdn_cloud_controller_authority_signature,
+                mdn_cloud_controller_authority_signature.clone(),
             ),
             MdnUserAccountController::mdn_custodians_service_factory(tx),
+            Box::new(MdnContextInStorageRepositoryImpl::new(tx)),
+            MdnCustodianStoragesController::mdn_custodian_storage_service_factory(mdn_cloud_controller_authority_signature.clone(), tx)
         )
     }
     pub async fn create_context(

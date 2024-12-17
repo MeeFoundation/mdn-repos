@@ -13,6 +13,7 @@ use axum_extra::headers::authorization::{Bearer, Credentials};
 pub struct DirectlyLoggedInMdnUser {
     pub mdn_user_uid: String,
     pub mdn_user_custodian_uid: String,
+    pub mdn_custodian_storage_did: String,
     pub _mdn_user_account_role: MdnUserAccountRole,
 }
 
@@ -35,6 +36,14 @@ impl LoggedInMdnUser {
         match self {
             LoggedInMdnUser::DirectlyLoggedInMdnUser(logged_in_mdn_user) => {
                 &logged_in_mdn_user.mdn_user_uid
+            }
+            LoggedInMdnUser::OAuthLoggedInUser => todo!(),
+        }
+    }
+    pub fn mdn_custodian_storage_did(&self) -> &str {
+        match self {
+            LoggedInMdnUser::DirectlyLoggedInMdnUser(logged_in_mdn_user) => {
+                &logged_in_mdn_user.mdn_custodian_storage_did
             }
             LoggedInMdnUser::OAuthLoggedInUser => todo!(),
         }
