@@ -18,7 +18,6 @@ pub struct MdnCloudUserIdToken {
 
     pub mdn_user_role: String,
     pub mdn_user_custodian_uid: String,
-    pub mdn_custodian_storage_did: String,
     pub mdn_user_context_scoped_uid: String,
 }
 
@@ -40,7 +39,6 @@ impl MdnCloudUserIdToken {
             aud,
             mdn_user_role,
             mdn_user_custodian_uid,
-            mdn_custodian_storage_did,
             mdn_user_context_scoped_uid,
             sign_key,
             kid,
@@ -61,7 +59,6 @@ impl MdnCloudUserIdToken {
             iat,
             mdn_user_role,
             mdn_user_custodian_uid,
-            mdn_custodian_storage_did,
             mdn_user_context_scoped_uid,
         };
 
@@ -80,7 +77,6 @@ pub struct EncodeMdnCloudUserIdTokenParams {
     pub aud: String,
     pub mdn_user_role: String,
     pub mdn_user_custodian_uid: String,
-    pub mdn_custodian_storage_did: String,
     pub mdn_user_context_scoped_uid: String,
     pub sign_key: Jwk,
     pub kid: Option<String>,

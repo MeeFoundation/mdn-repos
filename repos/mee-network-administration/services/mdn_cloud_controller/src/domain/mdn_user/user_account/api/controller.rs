@@ -14,7 +14,6 @@ use crate::{
                 services::account::MdnCustodiansService,
             },
             identity_context::repositories::mdn_context_scoped_ids::MdnContextScopedIdsRepositoryImpl,
-            storage::api::controller::MdnCustodianStoragesController,
         },
         mdn_user::user_account::{
             repositories::{
@@ -61,12 +60,6 @@ impl MdnUserAccountController {
             Self::mdn_custodians_service_factory(tx),
             Box::new(MdnContextScopedIdsRepositoryImpl::new(tx)),
             Box::new(MdnUserSigningPubKeysRepositoryImpl::new(tx)),
-            Box::new(
-                MdnCustodianStoragesController::mdn_custodian_storage_service_factory(
-                    mdn_cloud_controller_authority_signature.clone(),
-                    tx,
-                ),
-            ),
         )
     }
     pub fn mdn_custodians_service_factory<'a, C: ConnectionTrait>(

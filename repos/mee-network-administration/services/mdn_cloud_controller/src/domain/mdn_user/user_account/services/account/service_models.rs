@@ -31,7 +31,7 @@ pub struct UserAccountDomainModel {
     pub mdn_user_role: MdnUserAccountRole,
     pub _mdn_user_email: String,
     pub _mdn_user_phone: Option<String>,
-    pub _mdn_user_name: Option<String>,
+    pub _mdn_user_name: String,
 }
 
 impl TryFrom<db_models::mdn_users::Model> for UserAccountDomainModel {

@@ -12,7 +12,7 @@ pub struct Model {
     pub mdn_provider_uid: String,
     #[sea_orm(unique)]
     pub mdn_provider_email: String,
-    pub mdn_provider_name: Option<String>,
+    pub mdn_provider_name: String,
     pub mdn_provider_role: String,
     pub mdn_provider_created_at: DateTimeWithTimeZone,
     pub is_provider_active: bool,

@@ -5,12 +5,14 @@ use super::{
     mdn_custodian_storage::manager::{
         MdnCustodianStorageManager, MdnCustodianStorageManagerDefault,
     },
+    mdn_identity_context::manager::{MdnIdentityContextManager, MdnIdentityContextManagerDefault},
 };
 use crate::{
     error::MdnIdentityAgentResult,
     mdn_cloud::{
         mdn_capabilities::api_client::MdnCapabilitiesApiClientDefault,
         mdn_custodian_storage::api_client::MdnCustodianStorageApiClientDefault,
+        mdn_identity_context::api_client::MdnIdentityContextApiClientDefault,
         mdn_user::api_client::MdnUserAccountApiClientDefault,
     },
 };
@@ -28,6 +30,7 @@ pub struct MdnIdentityAgentController {
     pub mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
     pub mdn_user_custodian_storage_manager: Arc<dyn MdnCustodianStorageManager + Send + Sync>,
     pub mdn_capabilities_manager: Arc<dyn MdnCapabilitiesManager + Send + Sync>,
+    pub mdn_identity_context_manager: Arc<dyn MdnIdentityContextManager + Send + Sync>,
 }
 
 impl MdnIdentityAgentController {
@@ -61,11 +64,20 @@ impl MdnIdentityAgentController {
             mdn_user_account_manager.clone(),
         ));
 
+        let mdn_identity_context_manager = Arc::new(MdnIdentityContextManagerDefault::new(
+            Arc::new(MdnIdentityContextApiClientDefault::try_new(
+                mdn_api_base_url.clone(),
+            )?),
+            mdn_user_account_manager.clone(),
+            mdn_capabilities_manager.clone(),
+        ));
+
         Ok(Self {
             // willow_peer: WillowPeer::new(mdn_user_account_manager.get_iroh_node_key().await?).await?,
             mdn_user_account_manager,
             mdn_user_custodian_storage_manager,
             mdn_capabilities_manager,
+            mdn_identity_context_manager,
         })
     }
 }

@@ -1,7 +1,8 @@
 use crate::{
     error::MdnIdentityAgentResult,
     mdn_cloud::mdn_identity_context::{
-        api_client::MdnIdentityContextApiClient, api_types::MdnIdentityContextResponse,
+        api_client::MdnIdentityContextApiClient,
+        api_types::{CreateMdnIdentityContextRequest, MdnIdentityContextResponse},
     },
     native_agent::{
         idm::user_auth::MdnUserAccountManager, mdn_capabilities::manager::MdnCapabilitiesManager,
@@ -14,9 +15,10 @@ use std::sync::Arc;
 pub trait MdnIdentityContextManager {
     async fn create_context(
         &self,
-        custodian_uid: &str,
-        willow_namespace_id: &str,
+        custodian_uid: String,
+        willow_namespace_id: String,
     ) -> MdnIdentityAgentResult<MdnIdentityContextResponse>;
+    async fn list_contexts(&self) -> MdnIdentityAgentResult<Vec<MdnIdentityContextResponse>>;
 }
 
 pub struct MdnIdentityContextManagerDefault {
@@ -43,9 +45,42 @@ impl MdnIdentityContextManagerDefault {
 impl MdnIdentityContextManager for MdnIdentityContextManagerDefault {
     async fn create_context(
         &self,
-        custodian_uid: &str,
-        willow_namespace_id: &str,
+        custodian_uid: String,
+        willow_namespace_id: String,
     ) -> MdnIdentityAgentResult<MdnIdentityContextResponse> {
-        todo!()
+        let auth_token = self
+            .mdn_user_account_manager
+            .get_user_auth_token_required()
+            .await?;
+
+        let context_ops_cap_token = self
+            .mdn_capabilities_manager
+            .context_ops_cap_local()
+            .await?;
+
+        let res = self
+            .mdn_identity_context_api_client
+            .create_context(
+                CreateMdnIdentityContextRequest {
+                    // TODO provide real willow ns
+                    willow_namespace_id,
+                    custodian_uid,
+                    context_ops_cap_token,
+                },
+                &auth_token,
+            )
+            .await?;
+
+        Ok(res)
+    }
+    async fn list_contexts(&self) -> MdnIdentityAgentResult<Vec<MdnIdentityContextResponse>> {
+        let auth_token = self
+            .mdn_user_account_manager
+            .get_user_auth_token_required()
+            .await?;
+
+        self.mdn_identity_context_api_client
+            .list_contexts(&auth_token)
+            .await
     }
 }

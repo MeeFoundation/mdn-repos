@@ -10,7 +10,7 @@ use sea_orm::{entity::*, query::*};
 pub struct CreateUserAccountDto {
     pub mdn_user_email: String,
     pub mdn_user_phone: Option<String>,
-    pub mdn_user_name: Option<String>,
+    pub mdn_user_name: String,
     pub mdn_user_role: MdnUserAccountRole,
     pub is_user_active: bool,
     pub is_user_verified: bool,

@@ -55,4 +55,7 @@ pub enum MdnIdentityAgentErr {
     // domain error
     #[error("MDN user identity sub-system error: {0}")]
     MdnUserIdm(String),
+
+    #[error("MDN capabilities sub-system error: {0}")]
+    MdnCapabilities(String),
 }

@@ -93,15 +93,11 @@ impl MdnCapability {
             .as_str()
             .context("invalid 'kid' format of the MDN cap token")?;
 
+        let collect = sign_did_id.split("#").collect::<Vec<_>>();
+        let sign_did = collect.first().context("missing ctx cap token did")?;
+
         let auth_did_jwk = UniversalDidResolver
-            .get_verification_method_jwk_by_id(
-                sign_did_id
-                    .split("#")
-                    .collect::<Vec<_>>()
-                    .first()
-                    .context("missing ctx cap token did")?,
-                &sign_did_id,
-            )
+            .get_verification_method_jwk_by_id(&sign_did, &sign_did_id)
             .await?;
 
         // TODO derive algo from input jwk
@@ -111,6 +107,6 @@ impl MdnCapability {
 
         let (claims, _header) = decode_token::<Self>(&verifier, &encoded_token)?;
 
-        Ok((claims, sign_did_id.to_string()))
+        Ok((claims, sign_did.to_string()))
     }
 }

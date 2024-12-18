@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MdnIdentityContextResponse {
     pub mdn_identity_context_uid: String,
     pub willow_namespace_id: String,

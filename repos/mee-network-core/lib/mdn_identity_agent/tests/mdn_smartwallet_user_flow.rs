@@ -46,7 +46,7 @@ async fn mdn_smartwallet_user_flow() {
         .await
         .unwrap();
 
-    identity_agent_ctl
+    let auth_token = identity_agent_ctl
         .mdn_user_account_manager
         .get_user_auth_decoded_token_required()
         .await
@@ -76,11 +76,32 @@ async fn mdn_smartwallet_user_flow() {
 
     let ctx_ops_caps = identity_agent_ctl
         .mdn_capabilities_manager
-        .context_ops_caps()
+        .context_ops_caps_remote()
         .await
         .unwrap();
 
     assert!(ctx_ops_caps.len() > 0);
 
     log::info!("ctx_ops_caps: {ctx_ops_caps:#?}");
+
+    // creates context for itself
+    identity_agent_ctl
+        .mdn_identity_context_manager
+        // TODO provide real willow ns
+        .create_context(
+            auth_token.mdn_user_custodian_uid,
+            "willow_namespace_id".to_string(),
+        )
+        .await
+        .unwrap();
+
+    let ctxs = identity_agent_ctl
+        .mdn_identity_context_manager
+        .list_contexts()
+        .await
+        .unwrap();
+
+    assert!(ctxs.len() > 0);
+
+    log::info!("ctxs: {ctxs:#?}");
 }

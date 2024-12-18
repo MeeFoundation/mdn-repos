@@ -14,7 +14,7 @@ pub struct Model {
     pub mdn_user_email: String,
     #[sea_orm(unique)]
     pub mdn_user_phone: Option<String>,
-    pub mdn_user_name: Option<String>,
+    pub mdn_user_name: String,
     pub mdn_user_role: String,
     pub mdn_user_created_at: DateTimeWithTimeZone,
     pub is_user_active: bool,

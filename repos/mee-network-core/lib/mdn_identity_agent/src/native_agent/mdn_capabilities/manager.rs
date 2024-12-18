@@ -1,14 +1,14 @@
 use crate::{
-    native_agent::{
-        device_storage::user_local_db::MdnUserLocalDb, idm::user_auth::MdnUserAccountManager,
-    },
-    error::MdnIdentityAgentResult,
+    error::{MdnIdentityAgentErr, MdnIdentityAgentResult},
     mdn_cloud::mdn_capabilities::{
         api_client::MdnCapabilitiesApiClient,
         api_types::{IssueContextOpsCapTokenRequest, MdnCustodianContextOperationCapsResponse},
     },
     mdn_common::cap_definitions::{
         ContextOperationsCapabilityDefinition, MdnCapability, MdnCapabilityDefinition,
+    },
+    native_agent::{
+        device_storage::user_local_db::MdnUserLocalDb, idm::user_auth::MdnUserAccountManager,
     },
 };
 use anyhow::Context;
@@ -20,9 +20,10 @@ use std::sync::Arc;
 #[async_trait]
 pub trait MdnCapabilitiesManager {
     async fn issue_owner_context_ops_cap(&self) -> MdnIdentityAgentResult<()>;
-    async fn context_ops_caps(
+    async fn context_ops_caps_remote(
         &self,
     ) -> MdnIdentityAgentResult<Vec<MdnCustodianContextOperationCapsResponse>>;
+    async fn context_ops_cap_local(&self) -> MdnIdentityAgentResult<String>;
 }
 
 pub struct MdnCapabilitiesManagerDefault {
@@ -109,7 +110,20 @@ impl MdnCapabilitiesManager for MdnCapabilitiesManagerDefault {
 
         Ok(())
     }
-    async fn context_ops_caps(
+    async fn context_ops_cap_local(&self) -> MdnIdentityAgentResult<String> {
+        let res = self
+            .user_local_db
+            .read_mdn_user_ctx_ops_cap_token()
+            .await?
+            .ok_or_else(|| {
+                MdnIdentityAgentErr::MdnCapabilities(
+                    "Missing context operations cap token".to_string(),
+                )
+            })?;
+
+        Ok(res)
+    }
+    async fn context_ops_caps_remote(
         &self,
     ) -> MdnIdentityAgentResult<Vec<MdnCustodianContextOperationCapsResponse>> {
         self.mdn_capabilities_api_client

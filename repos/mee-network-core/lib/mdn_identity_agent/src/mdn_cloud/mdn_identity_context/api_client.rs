@@ -1,7 +1,7 @@
 use super::api_types::{CreateMdnIdentityContextRequest, MdnIdentityContextResponse};
 use crate::error::MdnIdentityAgentResult;
 use async_trait::async_trait;
-use mee_http_utils::requests::{any_response_handle_error, json_response_handle_error};
+use mee_http_utils::requests::json_response_handle_error;
 use url::Url;
 
 #[async_trait]
@@ -10,7 +10,7 @@ pub trait MdnIdentityContextApiClient {
         &self,
         payload: CreateMdnIdentityContextRequest,
         auth_token: &str,
-    ) -> MdnIdentityAgentResult<()>;
+    ) -> MdnIdentityAgentResult<MdnIdentityContextResponse>;
     async fn list_contexts(
         &self,
         auth_token: &str,
@@ -40,8 +40,8 @@ impl MdnIdentityContextApiClient for MdnIdentityContextApiClientDefault {
         &self,
         payload: CreateMdnIdentityContextRequest,
         auth_token: &str,
-    ) -> MdnIdentityAgentResult<()> {
-        any_response_handle_error(
+    ) -> MdnIdentityAgentResult<MdnIdentityContextResponse> {
+        let res = json_response_handle_error(
             self.http_client
                 .post(self.make_api_v1_path_url("/create_context")?)
                 .json(&payload)
@@ -52,7 +52,7 @@ impl MdnIdentityContextApiClient for MdnIdentityContextApiClientDefault {
         )
         .await?;
 
-        Ok(())
+        Ok(res)
     }
     async fn list_contexts(
         &self,

@@ -6,7 +6,6 @@ use crate::{
             identity_context::repositories::mdn_context_scoped_ids::{
                 CreateScopedIdDto, MdnContextScopedIdsRepository,
             },
-            storage::services::mdn_custodian_storage::MdnCustodianStorageService,
         },
         mdn_user::user_account::{
             api::{
@@ -48,7 +47,6 @@ pub struct MdnUserAccountService<'a> {
         Box<dyn MdnContextScopedIdsRepository + Send + Sync + 'a>,
     mdn_user_signing_pub_keys_repository:
         Box<dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a>,
-    mdn_custodian_storage_service: Box<MdnCustodianStorageService<'a>>,
 }
 
 impl<'a> MdnUserAccountService<'a> {
@@ -64,7 +62,6 @@ impl<'a> MdnUserAccountService<'a> {
         mdn_user_signing_pub_keys_repository: Box<
             dyn MdnUserSigningPubKeysRepository + Send + Sync + 'a,
         >,
-        mdn_custodian_storage_service: Box<MdnCustodianStorageService<'a>>,
     ) -> Self {
         Self {
             mdn_custodians_service,
@@ -72,7 +69,6 @@ impl<'a> MdnUserAccountService<'a> {
             mdn_cloud_controller_authority_signature,
             mdn_context_scoped_ids_repository,
             mdn_user_signing_pub_keys_repository,
-            mdn_custodian_storage_service,
         }
     }
     pub async fn check_user_did(
@@ -129,19 +125,9 @@ impl<'a> MdnUserAccountService<'a> {
             })?
             .mdn_context_scoped_uid;
 
-        let custodian_storage = self
-            .mdn_custodian_storage_service
-            .get_custodian_storage_by_did(
-                &mdn_user_custodian.mdn_custodian_uid,
-                &custodian_storage_did,
-            )
-            .await?;
-
         let auth_token =
             MdnCloudUserIdToken::encode(EncodeMdnCloudUserIdTokenParams {
                 mdn_user_custodian_uid: mdn_user_custodian.mdn_custodian_uid,
-                mdn_custodian_storage_did: custodian_storage
-                    .mdn_custodian_storage_did,
                 mdn_user_context_scoped_uid,
                 sub: user.mdn_user_uid.clone(),
                 aud: custodian_storage_did,
@@ -231,12 +217,14 @@ impl<'a> MdnUserAccountService<'a> {
         let res = self
             .user_account_repository
             .create_account(CreateUserAccountDto {
+                // TODO currently used as context custodian name,
+                // because we somehow need to show some readable name for custodian holding the context
+                mdn_user_name: format!("Custodian public name for {}", &email),
                 mdn_user_email: email,
                 mdn_user_role: MdnUserAccountRole::Customer,
                 mdn_user_phone: phone,
                 is_user_active: true,
                 is_user_verified: false,
-                mdn_user_name: None,
                 salt: password_salt.to_string(),
                 password: password_hash,
             })
@@ -288,8 +276,7 @@ impl<'a> MdnUserAccountService<'a> {
             mdn_user_uid: mdn_user_id_token.sub,
             _mdn_user_account_role: mdn_user_id_token.mdn_user_role.parse()?,
             mdn_user_custodian_uid: mdn_user_id_token.mdn_user_custodian_uid,
-            mdn_custodian_storage_did: mdn_user_id_token
-                .mdn_custodian_storage_did,
+            mdn_custodian_storage_did: mdn_user_id_token.aud,
         };
 
         Ok(user)
