@@ -93,4 +93,10 @@ impl WillowNode {
     pub fn iroh_node_id(&self) -> NodeId {
         self.endpoint.node_id()
     }
+    pub fn endpoint(&self) -> Endpoint {
+        self.endpoint.clone()
+    }
+    pub fn engine(&self) -> Engine {
+        self.engine.clone()
+    }
 }

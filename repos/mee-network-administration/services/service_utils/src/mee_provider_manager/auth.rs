@@ -63,7 +63,7 @@ pub trait MeeProviderAuthorizer {
     ) -> MeeProviderAuthorizerResult<LoggedInProvider> {
         let pkey = self
             .mee_authority_signature()
-            .get_biscuit_signature()
+            .get_biscuit_signature_from_source_jwk()
             .await?
             .ok_or(MeeProviderAuthorizerError::MissingMeeAuthoritySignature)?;
 
