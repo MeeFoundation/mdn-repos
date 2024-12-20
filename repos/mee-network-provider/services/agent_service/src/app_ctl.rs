@@ -102,9 +102,7 @@ impl AppCtl {
                 .local_testing_cors_port
                 .iter()
                 .map(|port| {
-                    format!("http://127.0.0.1:{port}")
-                        .parse::<HeaderValue>()
-                        .unwrap()
+                    format!("http://127.0.0.1:{port}").parse::<HeaderValue>()?
                 })
                 .collect::<Vec<_>>();
 

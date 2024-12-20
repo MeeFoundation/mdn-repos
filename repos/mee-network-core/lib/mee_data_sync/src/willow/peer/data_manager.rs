@@ -21,7 +21,7 @@ pub enum WillowDataManagerLocalTask {
     ReadEntryPayload {
         willow_node: WillowNode,
         entry: Entry,
-        reply_tx: oneshot::Sender<Option<Bytes>>,
+        reply_tx: oneshot::Sender<MeeDataSyncResult<Option<Bytes>>>,
     },
 }
 
@@ -34,28 +34,25 @@ impl TaskRunner for WillowDataManagerLocalTask {
                 entry,
                 reply_tx,
             } => {
-                let blob_entry = willow_node
-                    .blobs
-                    .get(&entry.payload_digest().0)
-                    .await
-                    .unwrap();
+                let res = async move {
+                    let blob_entry = willow_node.blobs.get(&entry.payload_digest().0).await?;
 
-                if let Some(blob_entry) = blob_entry {
-                    let mut reader = blob_entry.data_reader().await.unwrap();
-                    let data = reader
-                        .read_at(0, entry.payload_length().try_into().unwrap())
-                        .await
-                        .unwrap();
+                    let data = if let Some(blob_entry) = blob_entry {
+                        let mut reader = blob_entry.data_reader().await?;
+                        let data = reader
+                            .read_at(0, entry.payload_length().try_into()?)
+                            .await?;
 
-                    reply_tx
-                        .send(Some(data))
-                        .map_err(|_| anyhow::Error::msg("read entry send error"))
-                        .unwrap();
-                } else {
-                    reply_tx
-                        .send(None)
-                        .map_err(|_| anyhow::Error::msg("read entry send error"))
-                        .unwrap();
+                        Some(data)
+                    } else {
+                        None
+                    };
+
+                    MeeDataSyncResult::Ok(data)
+                };
+
+                if reply_tx.send(res.await).is_err() {
+                    log::error!("Read entry payload channel send error");
                 }
             }
         }
@@ -70,12 +67,15 @@ pub struct WillowDataManager {
 }
 
 impl WillowDataManager {
-    pub fn new(willow_node: WillowNode, willow_user_manager: WillowUserManager) -> Self {
-        Self {
+    pub fn try_new(
+        willow_node: WillowNode,
+        willow_user_manager: WillowUserManager,
+    ) -> MeeDataSyncResult<Self> {
+        Ok(Self {
             willow_node,
             willow_user_manager,
-            local_spawner: LocalSpawner::new(),
-        }
+            local_spawner: LocalSpawner::try_new()?,
+        })
     }
     pub async fn insert_entry(
         &self,
@@ -176,8 +176,10 @@ impl WillowDataManager {
                 willow_node: self.willow_node.clone(),
                 entry,
                 reply_tx,
-            });
+            })?;
 
-        Ok(reply_rx.await.unwrap())
+        Ok(reply_rx
+            .await
+            .map_err(|_| anyhow::anyhow!("Read entry payload receiving channel error"))??)
     }
 }

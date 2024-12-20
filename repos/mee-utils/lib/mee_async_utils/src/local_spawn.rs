@@ -18,10 +18,10 @@ impl<T> Clone for LocalSpawner<T> {
 }
 
 impl<T: TaskRunner + Send + 'static> LocalSpawner<T> {
-    pub fn new() -> Self {
+    pub fn try_new() -> anyhow::Result<Self> {
         let (send, mut recv) = mpsc::unbounded_channel::<T>();
 
-        let rt = Builder::new_current_thread().enable_all().build().unwrap();
+        let rt = Builder::new_current_thread().enable_all().build()?;
 
         std::thread::spawn(move || {
             let local = LocalSet::new();
@@ -35,13 +35,15 @@ impl<T: TaskRunner + Send + 'static> LocalSpawner<T> {
             rt.block_on(local);
         });
 
-        Self { send }
+        Ok(Self { send })
     }
 
-    pub fn spawn(&self, task: T) {
+    pub fn spawn(&self, task: T) -> anyhow::Result<()> {
         self.send
             .send(task)
-            .expect("Thread with LocalSet has shut down.");
+            .map_err(|_| anyhow::anyhow!("Thread with LocalSet has shut down."))?;
+
+        Ok(())
     }
 }
 
@@ -69,12 +71,12 @@ async fn enum_task() {
         }
     }
 
-    let spawner = LocalSpawner::new();
+    let spawner = LocalSpawner::try_new().unwrap();
 
     let (send, response) = oneshot::channel();
 
-    spawner.spawn(Task::AddOne(10, send));
-    spawner.spawn(Task::PrintNumber(123));
+    spawner.spawn(Task::AddOne(10, send)).unwrap();
+    spawner.spawn(Task::PrintNumber(123)).unwrap();
 
     let eleven = response.await.unwrap();
     assert_eq!(eleven, 11);

@@ -8,6 +8,7 @@ license.workspace = true
 tokio = { workspace = true, features = ["sync", "rt"] }
 async-trait = { workspace = true }
 futures = { workspace = true }
+anyhow = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }

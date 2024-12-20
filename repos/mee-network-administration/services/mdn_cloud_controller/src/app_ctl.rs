@@ -72,13 +72,17 @@ impl AppCtl {
         let signatures_service_config =
             SignaturesServiceConfigBuilder::default()
                 .jwk_secret_path(Some(
-                    app_config.mdn_cloud_controller_jwk_signature_secret_path.clone(),
+                    app_config
+                        .mdn_cloud_controller_jwk_signature_secret_path
+                        .clone(),
                 ))
                 .did_id_secret_path(Some(
                     app_config.mdn_cloud_controller_did_secret_path.clone(),
                 ))
                 .iroh_key_secret_path(Some(
-                    app_config.mdn_cloud_controller_iroh_signature_secret_path.clone(),
+                    app_config
+                        .mdn_cloud_controller_iroh_signature_secret_path
+                        .clone(),
                 ))
                 .build()
                 .map_err(anyhow::Error::from)?;
@@ -144,7 +148,7 @@ impl AppCtl {
                     .allow_headers([CONTENT_TYPE])
                     .allow_credentials(true)
                     .allow_origin(
-                        "http://127.0.0.1:8003".parse::<HeaderValue>().unwrap(),
+                        "http://127.0.0.1:8003".parse::<HeaderValue>()?,
                     )
                     .allow_methods([Method::GET]),
             );

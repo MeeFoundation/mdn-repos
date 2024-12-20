@@ -20,7 +20,7 @@ impl MdnVirtualAgentNodeService {
     pub async fn new(
         iroh_node_secret_key: SecretKey,
     ) -> MeeDirectoryServiceResult<Self> {
-        let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
+        let willow_peer = WillowPeer::try_new(iroh_node_secret_key).await?;
 
         let provider_mdn_node =
             Arc::new(VirtualAgentWillowNodeImpl::new(willow_peer).await?);
