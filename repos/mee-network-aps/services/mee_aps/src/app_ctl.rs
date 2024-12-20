@@ -46,8 +46,7 @@ impl AppCtl {
         })
     }
     pub async fn run(self) -> ApsServiceResult {
-        let api_routes =
-            Router::new().nest("/", ad_profiles_router());
+        let api_routes = Router::new().nest("/", ad_profiles_router());
 
         let mut app = Router::new()
             .merge(SwaggerUi::new(SWAGGER_PATH).url(
@@ -73,7 +72,9 @@ impl AppCtl {
                     .allow_headers([CONTENT_TYPE])
                     .allow_credentials(true)
                     .allow_origin(
-                        "http://127.0.0.1:8003".parse::<HeaderValue>()?,
+                        "http://127.0.0.1:8003"
+                            .parse::<HeaderValue>()
+                            .map_err(anyhow::Error::msg)?,
                     )
                     .allow_methods([Method::GET]),
             );

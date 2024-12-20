@@ -2035,17 +2035,9 @@ name = "dev_secrets_keygen"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
- "biscuit-auth",
  "clap 4.5.9",
- "identity_jose",
- "mee_crypto",
- "mee_data_sync",
  "mee_secrets_manager",
- "serde_json",
- "thiserror 1.0.61",
  "tokio",
- "uuid",
 ]
 
 [[package]]
@@ -5042,8 +5034,7 @@ checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
 [[package]]
 name = "meadowcap"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6c907f59abe643b213bcfa7678ec3d30b77ade25a14f7407cab44ae61e37f0"
+source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
 dependencies = [
  "either",
  "signature 2.2.0",
@@ -10028,8 +10019,7 @@ checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
 [[package]]
 name = "willow-data-model"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e863548ad595bd78a685cf8c6b67f8e4ed18495ebf6a4880a736bdcddd852a3f"
+source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
 dependencies = [
  "bytes",
  "either",
@@ -10041,8 +10031,7 @@ dependencies = [
 [[package]]
 name = "willow-encoding"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae2d2e7c2311d390342410de632f39c7f83e628dd2a2f531780bb3a6dc34d924"
+source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
 dependencies = [
  "either",
  "syncify",
@@ -10624,19 +10613,3 @@ dependencies = [
  "thiserror 1.0.61",
  "zeroize",
 ]
-
-[[patch.unused]]
-name = "iroh-base"
-version = "0.24.0"
-
-[[patch.unused]]
-name = "iroh-blobs"
-version = "0.24.0"
-
-[[patch.unused]]
-name = "iroh-net"
-version = "0.24.0"
-
-[[patch.unused]]
-name = "iroh-willow"
-version = "0.24.0"

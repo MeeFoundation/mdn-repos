@@ -148,7 +148,9 @@ impl AppCtl {
                     .allow_headers([CONTENT_TYPE])
                     .allow_credentials(true)
                     .allow_origin(
-                        "http://127.0.0.1:8003".parse::<HeaderValue>()?,
+                        "http://127.0.0.1:8003"
+                            .parse::<HeaderValue>()
+                            .map_err(anyhow::Error::msg)?,
                     )
                     .allow_methods([Method::GET]),
             );

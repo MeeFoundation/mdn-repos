@@ -102,9 +102,11 @@ impl AppCtl {
                 .local_testing_cors_port
                 .iter()
                 .map(|port| {
-                    format!("http://127.0.0.1:{port}").parse::<HeaderValue>()?
+                    format!("http://127.0.0.1:{port}")
+                        .parse::<HeaderValue>()
+                        .map_err(anyhow::Error::msg)
                 })
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>, _>>()?;
 
             let cors_layer = CorsLayer::new()
                 .allow_headers([CONTENT_TYPE])

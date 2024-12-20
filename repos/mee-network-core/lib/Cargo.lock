@@ -9838,19 +9838,3 @@ dependencies = [
  "thiserror 1.0.69",
  "zeroize",
 ]
-
-[[patch.unused]]
-name = "iroh-base"
-version = "0.24.0"
-
-[[patch.unused]]
-name = "iroh-blobs"
-version = "0.24.0"
-
-[[patch.unused]]
-name = "iroh-net"
-version = "0.24.0"
-
-[[patch.unused]]
-name = "iroh-willow"
-version = "0.24.0"

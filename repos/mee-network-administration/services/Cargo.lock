@@ -4919,8 +4919,7 @@ dependencies = [
 [[package]]
 name = "meadowcap"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6c907f59abe643b213bcfa7678ec3d30b77ade25a14f7407cab44ae61e37f0"
+source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
 dependencies = [
  "either",
  "signature 2.2.0",
@@ -10210,8 +10209,7 @@ checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
 [[package]]
 name = "willow-data-model"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e863548ad595bd78a685cf8c6b67f8e4ed18495ebf6a4880a736bdcddd852a3f"
+source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
 dependencies = [
  "bytes",
  "either",
@@ -10223,8 +10221,7 @@ dependencies = [
 [[package]]
 name = "willow-encoding"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae2d2e7c2311d390342410de632f39c7f83e628dd2a2f531780bb3a6dc34d924"
+source = "git+https://github.com/n0-computer/willow-rs.git?branch=main#1e9943e39d08f9ec8b79fc6a5805be449a19f5d0"
 dependencies = [
  "either",
  "syncify",
