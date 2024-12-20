@@ -3,7 +3,7 @@ use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
     willow::node::WillowNode,
 };
-use iroh_net::ticket::NodeTicket;
+use iroh::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo},
     proto::{

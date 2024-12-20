@@ -1,9 +1,7 @@
 use super::node::MdnAgentProviderNodeWillowImpl;
 use crate::{
-    async_move,
     error::MeeDataSyncResult,
     mdn::common::store::{data_entry_path_from_key_path, MdnAgentDataNodeKvStore},
-    utils::try_stream_dedup,
     willow::utils::empty_entry_payload,
 };
 use async_trait::async_trait;
@@ -12,6 +10,7 @@ use iroh_willow::proto::{
     data_model::{Entry, NamespaceId},
     grouping::Range3d,
 };
+use mee_async_utils::{async_move, streams::try_stream_dedup};
 use mee_macro_utils::let_clone;
 
 #[async_trait]

@@ -1,18 +1,18 @@
 use crate::{
-    native_agent::device_storage::user_local_db::MdnUserLocalDb,
     error::{MdnIdentityAgentErr, MdnIdentityAgentResult},
     mdn_cloud::mdn_user::{
         api_client::MdnUserAccountApiClient,
         api_types::{CreateUserAccountRequest, UserAccountLoginRequest},
         auth_utils::MdnCloudUserIdToken,
     },
+    native_agent::device_storage::user_local_db::MdnUserLocalDb,
 };
 use async_trait::async_trait;
 use mee_crypto::{
     jwk::{Jwk, JwkOps},
     jwt::ToJwk,
 };
-use mee_data_sync::iroh::{iroh_net, utils::create_iroh_secret_key};
+use mee_data_sync::iroh::{key::SecretKey, utils::create_iroh_secret_key};
 use std::sync::Arc;
 
 #[async_trait]
@@ -24,7 +24,7 @@ pub trait MdnUserAccountManager {
     async fn get_user_device_did(&self) -> MdnIdentityAgentResult<String>;
     async fn get_user_device_secret_key(&self) -> MdnIdentityAgentResult<Jwk>;
     async fn get_mdn_cloud_controller_signature_key(&self) -> MdnIdentityAgentResult<Jwk>;
-    async fn get_iroh_node_key(&self) -> MdnIdentityAgentResult<iroh_net::key::SecretKey>;
+    async fn get_iroh_node_key(&self) -> MdnIdentityAgentResult<SecretKey>;
 
     // defaults
     async fn get_user_auth_token_required(&self) -> MdnIdentityAgentResult<String> {
@@ -128,7 +128,7 @@ impl MdnUserAccountManager for MdnUserAccountManagerDefault {
             },
         )
     }
-    async fn get_iroh_node_key(&self) -> MdnIdentityAgentResult<iroh_net::key::SecretKey> {
+    async fn get_iroh_node_key(&self) -> MdnIdentityAgentResult<SecretKey> {
         Ok(
             if let Some(res) = self.user_local_db.read_iroh_node_secret_key().await? {
                 res

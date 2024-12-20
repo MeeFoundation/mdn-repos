@@ -1,5 +1,5 @@
 use crate::error::MeeDataSyncResult;
-use iroh_net::{ticket::NodeTicket, Endpoint, NodeId};
+use iroh::{key::SecretKey, ticket::NodeTicket, Endpoint, NodeId, RelayMode};
 use iroh_willow::{
     engine::{AcceptOpts, Engine},
     ALPN,
@@ -12,30 +12,32 @@ use tokio::task::JoinHandle;
 pub struct WillowNode {
     pub(crate) endpoint: Endpoint,
     pub(crate) engine: Engine,
+    pub(crate) blobs: iroh_blobs::store::mem::Store,
     accept_task: Arc<Mutex<Option<JoinHandle<MeeDataSyncResult<()>>>>>,
 }
 
 impl WillowNode {
     pub async fn run(
-        iroh_node_secret_key: iroh_net::key::SecretKey,
+        iroh_node_secret_key: SecretKey,
         accept_opts: AcceptOpts,
     ) -> MeeDataSyncResult<Self> {
         let endpoint = Endpoint::builder()
             .secret_key(iroh_node_secret_key)
-            .relay_mode(iroh_net::relay::RelayMode::Disabled)
+            .relay_mode(RelayMode::Disabled)
             .alpns(vec![ALPN.to_vec()])
             .bind()
             .await?;
 
         let addr = endpoint.node_addr().await?;
-        let node_ticket = NodeTicket::new(addr.clone())?;
+        let node_ticket = NodeTicket::new(addr.clone());
 
         log::info!(
             "iroh node ({}) has started. Node ticket: {node_ticket}",
             addr.node_id
         );
 
-        let payloads = iroh_blobs::store::mem::Store::default();
+        let blobs = iroh_blobs::store::mem::Store::default();
+        let payloads = blobs.clone();
         let create_store = move || iroh_willow::store::memory::Store::new(payloads);
         let engine = Engine::spawn(endpoint.clone(), create_store, accept_opts);
 
@@ -64,6 +66,7 @@ impl WillowNode {
         });
 
         Ok(Self {
+            blobs,
             endpoint,
             engine,
             accept_task: Arc::new(Mutex::new(Some(accept_task))),
@@ -85,7 +88,7 @@ impl WillowNode {
         }
 
         self.engine.shutdown().await?;
-        self.endpoint.close(0u8.into(), b"").await?;
+        self.endpoint.close().await?;
 
         Ok(())
     }

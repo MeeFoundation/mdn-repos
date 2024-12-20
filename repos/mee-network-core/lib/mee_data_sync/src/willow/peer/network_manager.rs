@@ -1,5 +1,5 @@
 use crate::{error::MeeDataSyncResult, willow::node::WillowNode};
-use iroh_net::{ticket::NodeTicket, NodeAddr};
+use iroh::{ticket::NodeTicket, NodeAddr};
 
 #[derive(Clone)]
 pub struct WillowNetworkManager {
@@ -26,7 +26,7 @@ impl WillowNetworkManager {
         Ok(())
     }
     pub async fn iroh_node_ticket(&self) -> MeeDataSyncResult<NodeTicket> {
-        let node_ticket = NodeTicket::new(self.willow_node.endpoint.node_addr().await?)?;
+        let node_ticket = NodeTicket::new(self.willow_node.endpoint.node_addr().await?);
 
         Ok(node_ticket)
     }

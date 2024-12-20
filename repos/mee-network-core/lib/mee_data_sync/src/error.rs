@@ -1,6 +1,8 @@
-use iroh_net::endpoint::ConnectionError;
+use iroh::{endpoint::ConnectionError, ticket};
 use iroh_willow::proto::data_model::{InvalidPathError, InvalidPathError2};
-use std::{array::TryFromSliceError, string::FromUtf8Error, sync::PoisonError};
+use std::{
+    array::TryFromSliceError, num::TryFromIntError, string::FromUtf8Error, sync::PoisonError,
+};
 use tokio::task::JoinError;
 
 pub type MeeDataSyncResult<T = ()> = Result<T, MeeDataSyncErr>;
@@ -15,7 +17,7 @@ pub enum MeeDataSyncErr {
     IrohQuinnProtocol(#[from] ConnectionError),
 
     #[error("iroh-base ticket error: {0}")]
-    IrohBaseTicket(#[from] iroh_base::ticket::Error),
+    IrohBaseTicket(#[from] ticket::Error),
 
     #[error("tokio task join error: {0}")]
     TokioJoinError(#[from] JoinError),
@@ -32,11 +34,17 @@ pub enum MeeDataSyncErr {
     #[error("std::sync::Mutex error: {0}")]
     StdMutex(String),
 
-    #[error("std TryFromSliceError: {0}")]
+    #[error("std::array::TryFromSliceError: {0}")]
     StdTryFromSliceError(#[from] TryFromSliceError),
+
+    #[error("std::num::TryFromIntError: {0}")]
+    StdTryFromIntError(#[from] TryFromIntError),
 
     #[error("std FromUtf8Error: {0}")]
     StdFromUtf8Error(#[from] FromUtf8Error),
+
+    #[error("std::io::Error : {0}")]
+    StdIoError(#[from] std::io::Error),
 
     // domain errors
     #[error("Error during synced KV-storage operation: {0}")]

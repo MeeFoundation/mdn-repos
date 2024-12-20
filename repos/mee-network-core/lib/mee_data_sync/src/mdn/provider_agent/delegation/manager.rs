@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use super::MdnProviderDelegationManagerImpl;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
@@ -16,7 +14,7 @@ use crate::{
 use anyhow::Context;
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use iroh_net::ticket::NodeTicket;
+use iroh::ticket::NodeTicket;
 use iroh_willow::{
     interest::{
         AreaSelector, CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea,
@@ -32,6 +30,7 @@ use iroh_willow::{
 };
 use mee_macro_utils::let_clone;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tokio::{task::JoinHandle, time::sleep};
 use utoipa::ToSchema;
 

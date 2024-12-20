@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils" }
+mee_async_utils = { path = "../../../mee-utils/lib/mee_async_utils" }
 
 async-trait = { workspace = true }
 thiserror = { workspace = true }
@@ -23,11 +24,11 @@ bytes = { version = "1.4", features = ["serde"] }
 tokio-stream = "0.1"
 rand = "0.8"
 
-iroh-willow = { package = "iroh-willow", git = "https://github.com/Voronar/iroh", branch = "willow-experiments" }
-iroh-net = { package = "iroh-net", git = "https://github.com/Voronar/iroh", branch = "willow-experiments" }
-iroh-blobs = { package = "iroh-blobs", git = "https://github.com/Voronar/iroh", branch = "willow-experiments" }
-iroh-base = { package = "iroh-base", git = "https://github.com/Voronar/iroh", branch = "willow-experiments" }
+iroh = { version = "0.29" }
+iroh-blobs = { git = "https://github.com/n0-computer/iroh-blobs", branch = "matheus23/verified-streams" }
+iroh-willow = { git = "https://github.com/MeeFoundation/iroh-willow.git", branch = "willow-experiments" }
 
 [dev-dependencies]
 env_logger = "0.11"
-iroh-test = { package = "iroh-test", git = "https://github.com/Voronar/iroh", branch = "willow-experiments" }
+iroh-test = { version = "0.28" }
+tokio = { workspace = true, features = ["macros"] }

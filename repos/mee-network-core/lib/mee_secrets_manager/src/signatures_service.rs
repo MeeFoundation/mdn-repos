@@ -4,7 +4,7 @@ use biscuit_auth::KeyPair;
 use derive_builder::Builder;
 use identity_jose::jwk::Jwk;
 use mee_crypto::biscuit_auth::biscuit_ed_keypair_from_jwk;
-use mee_data_sync::iroh::iroh_net::key::SecretKey;
+use mee_data_sync::iroh::key::SecretKey;
 use std::sync::Arc;
 
 #[async_trait::async_trait]

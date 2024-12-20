@@ -1,6 +1,6 @@
 use crate::{error::MeeDataSyncResult, willow::peer::WillowPeer};
 use async_trait::async_trait;
-use iroh_net::{ticket::NodeTicket, NodeAddr};
+use iroh::{ticket::NodeTicket, NodeAddr};
 
 #[async_trait]
 pub trait MdnAgentDataNodeNetworkOps {

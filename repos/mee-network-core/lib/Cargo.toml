@@ -60,3 +60,13 @@ thiserror = "1"
 strum = "0.26"
 strum_macros = "0.26"
 derive_builder = "0.20"
+
+[patch.crates-io]
+
+willow-data-model = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+willow-encoding = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+meadowcap = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+
+# [patch.'https://github.com/MeeFoundation/iroh-willow']
+
+# iroh-willow = { path = "../../../../iroh-willow" }

@@ -1,6 +1,5 @@
 use super::namespace::MdnDataOwnerNamespaceStoreManager;
 use crate::{
-    async_move,
     error::{MeeDataSyncErr, MeeDataSyncResult},
     mdn::{
         common::delegation::{
@@ -18,7 +17,7 @@ use crate::{
     },
 };
 use futures::TryStreamExt;
-use iroh_net::ticket::NodeTicket;
+use iroh::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
     proto::{
@@ -29,6 +28,7 @@ use iroh_willow::{
     },
     session::{SessionInit, SessionMode},
 };
+use mee_async_utils::async_move;
 use mee_macro_utils::let_clone;
 use std::{sync::Arc, time::Duration};
 use tokio::{task::JoinHandle, time::sleep};

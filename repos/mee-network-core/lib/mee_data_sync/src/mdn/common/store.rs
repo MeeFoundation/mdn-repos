@@ -1,5 +1,4 @@
 use crate::{
-    async_move,
     error::MeeDataSyncResult,
     willow::{peer::WillowPeer, utils::is_deleted_entry_payload},
 };
@@ -9,6 +8,7 @@ use iroh_willow::proto::{
     data_model::{Entry, NamespaceId, Path, PathExt},
     grouping::Range3d,
 };
+use mee_async_utils::async_move;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

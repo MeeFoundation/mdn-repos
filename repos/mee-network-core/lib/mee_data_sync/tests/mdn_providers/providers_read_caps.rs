@@ -15,7 +15,8 @@ async fn providers_read_access_sharing() -> anyhow::Result<()> {
     // iroh_test::logging::setup_multithreaded();
     let _ = env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
-        .filter_module("iroh_net", log::LevelFilter::Warn)
+        .filter_module("iroh", log::LevelFilter::Warn)
+        .filter_module("iroh-willow", log::LevelFilter::Warn)
         .filter_module("tracing::span", log::LevelFilter::Warn)
         .try_init();
 

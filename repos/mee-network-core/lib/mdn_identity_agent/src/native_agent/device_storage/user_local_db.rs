@@ -1,8 +1,8 @@
 use super::local_kvdb::LocalKvDbExt;
-use crate::{native_agent::device_storage::local_kvdb::LocalKvDb, error::MdnIdentityAgentResult};
+use crate::{error::MdnIdentityAgentResult, native_agent::device_storage::local_kvdb::LocalKvDb};
 use async_trait::async_trait;
 use mee_crypto::jwk::Jwk;
-use mee_data_sync::iroh::iroh_net;
+use mee_data_sync::iroh::key::SecretKey;
 use std::sync::Arc;
 
 #[async_trait]
@@ -19,13 +19,8 @@ pub trait MdnUserLocalDb {
     async fn read_mdn_user_ctx_ops_cap_token(&self) -> MdnIdentityAgentResult<Option<String>>;
     async fn write_mdn_user_ctx_ops_cap_token(&self, cap_token: &str) -> MdnIdentityAgentResult;
 
-    async fn read_iroh_node_secret_key(
-        &self,
-    ) -> MdnIdentityAgentResult<Option<iroh_net::key::SecretKey>>;
-    async fn write_iroh_node_secret_key(
-        &self,
-        secret_key: iroh_net::key::SecretKey,
-    ) -> MdnIdentityAgentResult;
+    async fn read_iroh_node_secret_key(&self) -> MdnIdentityAgentResult<Option<SecretKey>>;
+    async fn write_iroh_node_secret_key(&self, secret_key: SecretKey) -> MdnIdentityAgentResult;
 }
 
 const MDN_USER_CTX_OPS_CAP_TOKEN: &str = "MDN_USER_CTX_OPS_CAP_TOKEN";
@@ -96,18 +91,13 @@ impl MdnUserLocalDb for MdnUserLocalDbDefault {
             .await?)
     }
 
-    async fn read_iroh_node_secret_key(
-        &self,
-    ) -> MdnIdentityAgentResult<Option<iroh_net::key::SecretKey>> {
+    async fn read_iroh_node_secret_key(&self) -> MdnIdentityAgentResult<Option<SecretKey>> {
         Ok(self
             .local_kvdb
             .get_json_value(IROH_NODE_SECRET_KEY.to_string())
             .await?)
     }
-    async fn write_iroh_node_secret_key(
-        &self,
-        secret_key: iroh_net::key::SecretKey,
-    ) -> MdnIdentityAgentResult {
+    async fn write_iroh_node_secret_key(&self, secret_key: SecretKey) -> MdnIdentityAgentResult {
         Ok(self
             .local_kvdb
             .set_json_value(IROH_NODE_SECRET_KEY.to_string(), &secret_key)

@@ -1,7 +1,7 @@
 use crate::error::MeeDirectoryServiceResult;
 use futures::StreamExt;
 use mee_data_sync::{
-    iroh::iroh_net::key::SecretKey,
+    iroh::key::SecretKey,
     mdn::{
         common::{node::MdnVirtualAgentNode, store::ReadDataRecord},
         provider_agent::delegation::manager::ImportCapabilitiesFromVirtualAgent,
