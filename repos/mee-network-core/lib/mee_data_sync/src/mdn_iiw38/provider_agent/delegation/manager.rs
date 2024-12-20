@@ -2,7 +2,7 @@ use super::MdnProviderDelegationManagerImpl;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
     json_codec,
-    mdn::common::{
+    mdn_iiw38::common::{
         delegation::revocation_request_record_path,
         store::{data_entry_path_from_key_path, ReadDataRecord},
     },

@@ -1,7 +1,7 @@
 use super::api_types::ShareSearchSchemasNsWithProviderRequest;
 use crate::{app_ctl::AppCtl, error::MeeDirectoryServiceResult};
 use axum::{extract::State, Json};
-use mee_data_sync::mdn::{
+use mee_data_sync::mdn_iiw38::{
     common::store::ReadDataRecord,
     provider_agent::delegation::manager::ImportCapabilitiesFromVirtualAgent,
 };

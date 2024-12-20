@@ -1,7 +1,7 @@
 use iroh::key::SecretKey;
 use mee_data_sync::{
     error::MeeDataSyncResult,
-    mdn::{
+    mdn_iiw38::{
         common::node::{MdnAgentProviderNode, MdnVirtualAgentNode},
         local_agent::node::MdnAgentDataOwnerNodeWillowImpl,
         provider_agent::node::MdnAgentProviderNodeWillowImpl,

@@ -60,7 +60,7 @@ impl<'a, C: ConnectionTrait> MdnContextScopedIdsRepository
         }: CreateScopedIdDto,
     ) -> MdnCloudControllerResult<mdn_context_scoped_ids::Model> {
         let mdn_context_scoped_uid =
-            format!("mdn_user_csi-${}", uuid::Uuid::new_v4());
+            format!("mdn_user_csi-{}", uuid::Uuid::new_v4());
 
         let res = mdn_context_scoped_ids::ActiveModel {
             mdn_context_scoped_id: NotSet,

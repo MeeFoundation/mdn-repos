@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     error::MeeDataSyncResult,
-    mdn::common::{
+    mdn_iiw38::common::{
         network::MdnAgentDataNodeNetworkOps, node::MdnAgentProviderNode,
         store::MdnAgentDataNodeKvStore, user::MdnAgentDataNodeUserOps,
     },

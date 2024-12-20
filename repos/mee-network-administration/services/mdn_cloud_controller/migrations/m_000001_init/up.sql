@@ -76,7 +76,12 @@ CREATE TABLE IF NOT EXISTS mdn_custodian_context_operation_caps(
 CREATE TABLE IF NOT EXISTS mdn_identity_contexts(
   mdn_identity_context_id bigint generated always as identity primary key,
   mdn_identity_context_uid varchar unique not null,
+  context_description varchar not null,
   willow_namespace_id varchar not null,
+  mdn_user_subject_id bigint not null,
+  FOREIGN KEY (mdn_user_subject_id) REFERENCES mdn_users(mdn_user_id),
+  mdn_custodian_id bigint not null,
+  FOREIGN KEY (mdn_custodian_id) REFERENCES mdn_custodians(mdn_custodian_id),
   context_scoped_subject_id bigint not null,
   FOREIGN KEY (context_scoped_subject_id) REFERENCES mdn_context_scoped_ids(mdn_context_scoped_id)
 );

@@ -3,7 +3,7 @@ use super::{
 };
 use crate::{
     error::MeeDataSyncResult,
-    mdn::common::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
+    mdn_iiw38::common::{network::MdnAgentDataNodeNetworkOps, user::MdnAgentDataNodeUserOps},
     willow::peer::WillowPeer,
 };
 use async_trait::async_trait;

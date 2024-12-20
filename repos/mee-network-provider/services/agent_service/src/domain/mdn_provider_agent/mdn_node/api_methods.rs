@@ -5,7 +5,7 @@ use super::api_types::{
 };
 use crate::{app_ctl::AppCtl, error::AgentServiceResult};
 use axum::{extract::State, Json};
-use mee_data_sync::mdn::{
+use mee_data_sync::mdn_iiw38::{
     common::store::ReadDataRecord,
     provider_agent::delegation::manager::{
         ImportCapabilitiesFromProvider, ImportCapabilitiesFromVirtualAgent,

@@ -3,7 +3,7 @@ use iroh::ticket::NodeTicket;
 use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,
-    mdn::{
+    mdn_iiw38::{
         common::{
             node::{MdnAgentProviderNode, MdnVirtualAgentNode},
             store::ReadDataRecord,

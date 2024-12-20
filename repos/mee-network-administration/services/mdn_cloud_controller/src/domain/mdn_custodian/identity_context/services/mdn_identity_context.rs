@@ -73,6 +73,7 @@ impl<'a> MdnIdentityContextService<'a> {
             willow_namespace_id,
             context_ops_cap_token,
             custodian_uid,
+            context_description,
         }: CreateMdnIdentityContextRequest,
         logged_in_mdn_user: LoggedInMdnUser,
     ) -> MdnCloudControllerResult<MdnIdentityContextResponse> {
@@ -128,8 +129,11 @@ impl<'a> MdnIdentityContextService<'a> {
             .mdn_identity_contexts_repository
             .create_context(CreateContextDto {
                 willow_namespace_id,
+                context_description,
                 context_scoped_subject_id: context_scoped_id
                     .mdn_context_scoped_id,
+                mdn_user_subject_id: user.mdn_user_id,
+                mdn_custodian_id: custodian.mdn_custodian_id,
             })
             .await?;
 

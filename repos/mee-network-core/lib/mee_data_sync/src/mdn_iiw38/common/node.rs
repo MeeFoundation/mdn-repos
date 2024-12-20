@@ -2,7 +2,7 @@ use super::{
     network::MdnAgentDataNodeNetworkOps, store::MdnAgentDataNodeKvStore,
     user::MdnAgentDataNodeUserOps,
 };
-use crate::mdn::{
+use crate::mdn_iiw38::{
     local_agent::delegation::MdnDataOwnerDelegationManager,
     provider_agent::delegation::manager::MdnProviderDelegationManager,
     virtual_agent::delegation::VirtualAgentDelegationManager,

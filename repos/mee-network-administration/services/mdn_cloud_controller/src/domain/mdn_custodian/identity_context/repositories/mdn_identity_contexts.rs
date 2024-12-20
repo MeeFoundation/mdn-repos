@@ -12,6 +12,9 @@ use sea_orm::{entity::*, query::*, sea_query, FromQueryResult};
 pub struct CreateContextDto {
     pub willow_namespace_id: String,
     pub context_scoped_subject_id: i64,
+    pub context_description: String,
+    pub mdn_user_subject_id: i64,
+    pub mdn_custodian_id: i64,
 }
 
 #[async_trait]
@@ -59,6 +62,7 @@ pub struct MdnIdentityContextWithCustodianName {
     pub willow_namespace_id: String,
     pub context_scoped_subject_uid: String,
     pub custodian_name: String,
+    pub context_description: String,
 }
 
 fn select_context_with_custodian_name(
@@ -69,6 +73,7 @@ fn select_context_with_custodian_name(
         .column(mdn_identity_contexts::Column::WillowNamespaceId)
         .column(mdn_identity_contexts::Column::MdnIdentityContextId)
         .column(mdn_identity_contexts::Column::MdnIdentityContextUid)
+        .column(mdn_identity_contexts::Column::ContextDescription)
         .expr_as(
             sea_query::Func::coalesce([
                 mdn_users::Column::MdnUserName.into_simple_expr(),
@@ -97,7 +102,7 @@ fn select_context_with_custodian_name(
         )
         .join(
             JoinType::InnerJoin,
-            mdn_context_scoped_ids::Relation::MdnCustodians.def(),
+            mdn_identity_contexts::Relation::MdnCustodians.def(),
         )
         .join(
             JoinType::LeftJoin,
@@ -144,6 +149,9 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepository
         CreateContextDto {
             willow_namespace_id,
             context_scoped_subject_id,
+            context_description,
+            mdn_user_subject_id,
+            mdn_custodian_id,
         }: CreateContextDto,
     ) -> MdnCloudControllerResult<mdn_identity_contexts::Model> {
         let mdn_identity_context_uid =
@@ -154,6 +162,9 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepository
             mdn_identity_context_uid: Set(mdn_identity_context_uid),
             willow_namespace_id: Set(willow_namespace_id),
             context_scoped_subject_id: Set(context_scoped_subject_id),
+            context_description: Set(context_description),
+            mdn_user_subject_id: Set(mdn_user_subject_id),
+            mdn_custodian_id: Set(mdn_custodian_id),
         }
         .insert(self.db_conn)
         .await?;

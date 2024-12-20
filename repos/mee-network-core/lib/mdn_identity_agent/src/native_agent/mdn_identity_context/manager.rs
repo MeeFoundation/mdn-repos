@@ -11,12 +11,14 @@ use crate::{
 use async_trait::async_trait;
 use std::sync::Arc;
 
+/// Internal context manager with low-level details knowledge
 #[async_trait]
 pub trait MdnIdentityContextManager {
     async fn create_context(
         &self,
         custodian_uid: String,
         willow_namespace_id: String,
+        context_description: String,
     ) -> MdnIdentityAgentResult<MdnIdentityContextResponse>;
     async fn list_contexts(&self) -> MdnIdentityAgentResult<Vec<MdnIdentityContextResponse>>;
 }
@@ -47,6 +49,7 @@ impl MdnIdentityContextManager for MdnIdentityContextManagerDefault {
         &self,
         custodian_uid: String,
         willow_namespace_id: String,
+        context_description: String,
     ) -> MdnIdentityAgentResult<MdnIdentityContextResponse> {
         let auth_token = self
             .mdn_user_account_manager
@@ -66,6 +69,7 @@ impl MdnIdentityContextManager for MdnIdentityContextManagerDefault {
                     willow_namespace_id,
                     custodian_uid,
                     context_ops_cap_token,
+                    context_description,
                 },
                 &auth_token,
             )

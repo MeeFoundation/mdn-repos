@@ -1,7 +1,7 @@
 use crate::error::AgentServiceErr;
 use chrono::TimeZone;
 use mee_data_sync::{
-    mdn::{
+    mdn_iiw38::{
         common::store::ReadDataRecord,
         provider_agent::delegation::manager::MdnProviderCapabilityPack,
     },

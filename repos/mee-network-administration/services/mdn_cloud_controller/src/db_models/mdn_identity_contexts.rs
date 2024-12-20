@@ -10,7 +10,10 @@ pub struct Model {
     pub mdn_identity_context_id: i64,
     #[sea_orm(unique)]
     pub mdn_identity_context_uid: String,
+    pub context_description: String,
     pub willow_namespace_id: String,
+    pub mdn_user_subject_id: i64,
+    pub mdn_custodian_id: i64,
     pub context_scoped_subject_id: i64,
 }
 
@@ -28,8 +31,24 @@ pub enum Relation {
         has_many = "super::mdn_custodian_context_data_access_caps::Entity"
     )]
     MdnCustodianContextDataAccessCaps,
+    #[sea_orm(
+        belongs_to = "super::mdn_custodians::Entity",
+        from = "Column::MdnCustodianId",
+        to = "super::mdn_custodians::Column::MdnCustodianId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    MdnCustodians,
     #[sea_orm(has_many = "super::mdn_identity_contexts_in_storages::Entity")]
     MdnIdentityContextsInStorages,
+    #[sea_orm(
+        belongs_to = "super::mdn_users::Entity",
+        from = "Column::MdnUserSubjectId",
+        to = "super::mdn_users::Column::MdnUserId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    MdnUsers,
 }
 
 impl Related<super::mdn_context_scoped_ids::Entity> for Entity {
@@ -44,9 +63,21 @@ impl Related<super::mdn_custodian_context_data_access_caps::Entity> for Entity {
     }
 }
 
+impl Related<super::mdn_custodians::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MdnCustodians.def()
+    }
+}
+
 impl Related<super::mdn_identity_contexts_in_storages::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::MdnIdentityContextsInStorages.def()
+    }
+}
+
+impl Related<super::mdn_users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MdnUsers.def()
     }
 }
 

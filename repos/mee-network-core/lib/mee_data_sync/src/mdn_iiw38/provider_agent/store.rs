@@ -1,7 +1,7 @@
 use super::node::MdnAgentProviderNodeWillowImpl;
 use crate::{
     error::MeeDataSyncResult,
-    mdn::common::store::{data_entry_path_from_key_path, MdnAgentDataNodeKvStore},
+    mdn_iiw38::common::store::{data_entry_path_from_key_path, MdnAgentDataNodeKvStore},
     willow::utils::empty_entry_payload,
 };
 use async_trait::async_trait;

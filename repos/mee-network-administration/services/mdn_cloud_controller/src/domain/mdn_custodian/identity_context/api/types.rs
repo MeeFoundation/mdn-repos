@@ -8,6 +8,7 @@ impl From<MdnIdentityContextWithCustodianName> for MdnIdentityContextResponse {
             willow_namespace_id,
             context_scoped_subject_uid,
             custodian_name,
+            context_description,
             ..
         }: MdnIdentityContextWithCustodianName,
     ) -> Self {
@@ -16,6 +17,7 @@ impl From<MdnIdentityContextWithCustodianName> for MdnIdentityContextResponse {
             willow_namespace_id,
             context_scoped_subject_uid,
             custodian_name,
+            context_description,
         }
     }
 }

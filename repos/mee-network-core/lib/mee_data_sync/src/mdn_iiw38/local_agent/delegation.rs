@@ -1,7 +1,7 @@
 use super::namespace::MdnDataOwnerNamespaceStoreManager;
 use crate::{
     error::{MeeDataSyncErr, MeeDataSyncResult},
-    mdn::{
+    mdn_iiw38::{
         common::delegation::{
             revocation_request_record_path, CAPABILITY_LIST_PATH_PREFIX,
             REVOCATION_DONE_PATH_PREFIX, REVOCATION_REQUEST_PATH_PREFIX,

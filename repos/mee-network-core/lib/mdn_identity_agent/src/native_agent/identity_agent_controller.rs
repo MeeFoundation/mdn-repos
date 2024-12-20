@@ -5,7 +5,8 @@ use super::{
     mdn_custodian_storage::manager::{
         MdnCustodianStorageManager, MdnCustodianStorageManagerDefault,
     },
-    mdn_identity_context::manager::{MdnIdentityContextManager, MdnIdentityContextManagerDefault},
+    mdn_identity_context::manager::MdnIdentityContextManagerDefault,
+    mdn_node::manager::{MdnNodeManager, MdnNodeManagerUserAgentImpl},
 };
 use crate::{
     error::MdnIdentityAgentResult,
@@ -16,7 +17,7 @@ use crate::{
         mdn_user::api_client::MdnUserAccountApiClientDefault,
     },
 };
-// use mee_data_sync::willow::peer::WillowPeer;
+use async_trait::async_trait;
 use std::sync::Arc;
 use url::Url;
 
@@ -25,15 +26,57 @@ pub struct MdnIdentityAgentControllerConfig {
     pub mdn_api_base_url: Url,
 }
 
-pub struct MdnIdentityAgentController {
-    // willow_peer: WillowPeer,
-    pub mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
-    pub mdn_user_custodian_storage_manager: Arc<dyn MdnCustodianStorageManager + Send + Sync>,
-    pub mdn_capabilities_manager: Arc<dyn MdnCapabilitiesManager + Send + Sync>,
-    pub mdn_identity_context_manager: Arc<dyn MdnIdentityContextManager + Send + Sync>,
+#[async_trait]
+pub trait MdnIdentityAgentController {
+    fn mdn_user_account_manager(&self) -> Arc<dyn MdnUserAccountManager + Send + Sync>;
+    fn mdn_node_manager(&self) -> Arc<dyn MdnNodeManager + Send + Sync>;
+    async fn init(&self) -> MdnIdentityAgentResult<MdnIdentityAgentControllerInitStatus>;
 }
 
-impl MdnIdentityAgentController {
+pub enum MdnIdentityAgentControllerInitStatus {
+    LoginRequired,
+    Initialized,
+}
+
+#[async_trait]
+impl MdnIdentityAgentController for MdnIdentityAgentControllerImpl {
+    fn mdn_user_account_manager(&self) -> Arc<dyn MdnUserAccountManager + Send + Sync> {
+        self.mdn_user_account_manager.clone()
+    }
+
+    fn mdn_node_manager(&self) -> Arc<dyn MdnNodeManager + Send + Sync> {
+        self.mdn_node_manager.clone()
+    }
+    async fn init(&self) -> MdnIdentityAgentResult<MdnIdentityAgentControllerInitStatus> {
+        // TODO check auth token freshness
+        let auth_token = self.mdn_user_account_manager.get_user_auth_token().await?;
+
+        let status = if auth_token.is_some() {
+            self.mdn_user_custodian_storage_manager
+                .register_storage()
+                .await?;
+
+            self.mdn_capabilities_manager
+                .issue_owner_context_ops_cap()
+                .await?;
+
+            MdnIdentityAgentControllerInitStatus::Initialized
+        } else {
+            MdnIdentityAgentControllerInitStatus::LoginRequired
+        };
+
+        Ok(status)
+    }
+}
+
+pub struct MdnIdentityAgentControllerImpl {
+    mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
+    mdn_user_custodian_storage_manager: Arc<dyn MdnCustodianStorageManager + Send + Sync>,
+    mdn_capabilities_manager: Arc<dyn MdnCapabilitiesManager + Send + Sync>,
+    mdn_node_manager: Arc<dyn MdnNodeManager + Send + Sync>,
+}
+
+impl MdnIdentityAgentControllerImpl {
     pub async fn try_new(
         MdnIdentityAgentControllerConfig {
             local_db_file_path,
@@ -72,12 +115,15 @@ impl MdnIdentityAgentController {
             mdn_capabilities_manager.clone(),
         ));
 
+        let mdn_node_manager = Arc::new(MdnNodeManagerUserAgentImpl::new(
+            mdn_identity_context_manager,
+        ));
+
         Ok(Self {
-            // willow_peer: WillowPeer::new(mdn_user_account_manager.get_iroh_node_key().await?).await?,
             mdn_user_account_manager,
             mdn_user_custodian_storage_manager,
             mdn_capabilities_manager,
-            mdn_identity_context_manager,
+            mdn_node_manager,
         })
     }
 }

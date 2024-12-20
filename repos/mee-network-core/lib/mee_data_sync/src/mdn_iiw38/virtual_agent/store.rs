@@ -1,6 +1,6 @@
 use super::namespace::VirtualAgentNamespaceStoreManager;
 use crate::{
-    error::MeeDataSyncResult, mdn::common::store::MdnAgentDataNodeKvStore, willow::peer::WillowPeer,
+    error::MeeDataSyncResult, mdn_iiw38::common::store::MdnAgentDataNodeKvStore, willow::peer::WillowPeer,
 };
 use async_trait::async_trait;
 use futures::{stream::BoxStream, StreamExt};

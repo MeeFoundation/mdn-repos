@@ -6,6 +6,7 @@ pub struct MdnIdentityContextResponse {
     pub willow_namespace_id: String,
     pub context_scoped_subject_uid: String,
     pub custodian_name: String,
+    pub context_description: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -13,4 +14,5 @@ pub struct CreateMdnIdentityContextRequest {
     pub willow_namespace_id: String,
     pub custodian_uid: String,
     pub context_ops_cap_token: String,
+    pub context_description: String,
 }

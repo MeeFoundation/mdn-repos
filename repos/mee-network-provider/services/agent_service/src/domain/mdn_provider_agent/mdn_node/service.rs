@@ -7,7 +7,7 @@ use crate::error::AgentServiceResult;
 use futures::{StreamExt, TryStreamExt};
 use mee_data_sync::{
     iroh::key::SecretKey,
-    mdn::{
+    mdn_iiw38::{
         common::{node::MdnAgentProviderNode, store::ReadDataRecord},
         provider_agent::{
             delegation::manager::{

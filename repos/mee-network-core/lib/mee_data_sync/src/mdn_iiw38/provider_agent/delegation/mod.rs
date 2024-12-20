@@ -1,7 +1,7 @@
 use super::{caps::MdnProviderCapabilityManager, namespace::MdnProviderNamespaceStoreManager};
 use crate::{
     error::MeeDataSyncResult,
-    mdn::{
+    mdn_iiw38::{
         common::{
             delegation::{
                 cap_list_record_path, revocation_done_record_path,
