@@ -1,5 +1,5 @@
 use crate::{
-    native_agent::idm::user_auth::MdnUserAccountManager,
+    native_agent::mdn_user::manager::MdnUserAccountManager,
     error::MdnIdentityAgentResult,
     mdn_cloud::mdn_custodian_storage::{
         api_client::MdnCustodianStorageApiClient,
@@ -19,12 +19,12 @@ pub trait MdnCustodianStorageManager {
     async fn list_all_storages(&self) -> MdnIdentityAgentResult<Vec<MdnCustodianStorageResponse>>;
 }
 
-pub struct MdnCustodianStorageManagerDefault {
+pub struct MdnCustodianStorageManagerDefaultImpl {
     mdn_custodian_storage_api_client: Arc<dyn MdnCustodianStorageApiClient + Send + Sync>,
     mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
 }
 
-impl MdnCustodianStorageManagerDefault {
+impl MdnCustodianStorageManagerDefaultImpl {
     pub fn new(
         mdn_custodian_storage_api_client: Arc<dyn MdnCustodianStorageApiClient + Send + Sync>,
         mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
@@ -37,7 +37,7 @@ impl MdnCustodianStorageManagerDefault {
 }
 
 #[async_trait]
-impl MdnCustodianStorageManager for MdnCustodianStorageManagerDefault {
+impl MdnCustodianStorageManager for MdnCustodianStorageManagerDefaultImpl {
     async fn register_storage(&self) -> MdnIdentityAgentResult<()> {
         let iroh_node_id = self
             .mdn_user_account_manager

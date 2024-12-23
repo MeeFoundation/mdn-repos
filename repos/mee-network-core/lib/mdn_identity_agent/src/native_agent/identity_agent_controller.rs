@@ -1,12 +1,13 @@
 use super::{
-    device_storage::{local_kvdb::LocalKvDbRedb, user_local_db::MdnUserLocalDbDefault},
-    idm::user_auth::{MdnUserAccountManager, MdnUserAccountManagerDefault},
-    mdn_capabilities::manager::{MdnCapabilitiesManager, MdnCapabilitiesManagerDefault},
+    local_storage::user_local_db::MdnUserLocalDbDefault,
+    mdn_capabilities::manager::{MdnCapabilitiesManager, MdnCapabilitiesManagerDefaultImpl},
     mdn_custodian_storage::manager::{
-        MdnCustodianStorageManager, MdnCustodianStorageManagerDefault,
+        MdnCustodianStorageManager, MdnCustodianStorageManagerDefaultImpl,
     },
-    mdn_identity_context::manager::MdnIdentityContextManagerDefault,
-    mdn_node::manager::{MdnNodeManager, MdnNodeManagerUserAgentImpl},
+    mdn_custodian_willow_storage::MdnUserCustodianWillowStorage,
+    mdn_identity_context::manager::MdnIdentityContextManagerDefaultImpl,
+    mdn_node::manager::{MdnNodeManager, MdnNodeManagerIdentityAgentImpl},
+    mdn_user::manager::{MdnUserAccountManager, MdnUserAccountManagerDefaultImpl},
 };
 use crate::{
     error::MdnIdentityAgentResult,
@@ -16,8 +17,10 @@ use crate::{
         mdn_identity_context::api_client::MdnIdentityContextApiClientDefault,
         mdn_user::api_client::MdnUserAccountApiClientDefault,
     },
+    mdn_common::mdn_custodian_willow_storage::namespace_storage_manager::NamespaceStorageManagerEmbeddedRedb,
 };
 use async_trait::async_trait;
+use mee_data_sync::willow::peer::WillowPeer;
 use std::sync::Arc;
 use url::Url;
 
@@ -83,31 +86,30 @@ impl MdnIdentityAgentControllerImpl {
             mdn_api_base_url,
         }: MdnIdentityAgentControllerConfig,
     ) -> MdnIdentityAgentResult<Self> {
-        let local_db = Arc::new(LocalKvDbRedb::try_new(local_db_file_path).await?);
-
-        let mdn_user_account_manager = Arc::new(MdnUserAccountManagerDefault::new(
-            Arc::new(MdnUserLocalDbDefault::new(local_db.clone())),
+        let mdn_user_account_manager = Arc::new(MdnUserAccountManagerDefaultImpl::new(
+            Arc::new(MdnUserLocalDbDefault::try_new(local_db_file_path.clone()).await?),
             Arc::new(MdnUserAccountApiClientDefault::try_new(
                 mdn_api_base_url.clone(),
             )?),
         ));
 
-        let mdn_user_custodian_storage_manager = Arc::new(MdnCustodianStorageManagerDefault::new(
-            Arc::new(MdnCustodianStorageApiClientDefault::try_new(
-                mdn_api_base_url.clone(),
-            )?),
-            mdn_user_account_manager.clone(),
-        ));
+        let mdn_user_custodian_storage_manager =
+            Arc::new(MdnCustodianStorageManagerDefaultImpl::new(
+                Arc::new(MdnCustodianStorageApiClientDefault::try_new(
+                    mdn_api_base_url.clone(),
+                )?),
+                mdn_user_account_manager.clone(),
+            ));
 
-        let mdn_capabilities_manager = Arc::new(MdnCapabilitiesManagerDefault::new(
-            Arc::new(MdnUserLocalDbDefault::new(local_db.clone())),
+        let mdn_capabilities_manager = Arc::new(MdnCapabilitiesManagerDefaultImpl::new(
+            Arc::new(MdnUserLocalDbDefault::try_new(local_db_file_path.clone()).await?),
             Arc::new(MdnCapabilitiesApiClientDefault::try_new(
                 mdn_api_base_url.clone(),
             )?),
             mdn_user_account_manager.clone(),
         ));
 
-        let mdn_identity_context_manager = Arc::new(MdnIdentityContextManagerDefault::new(
+        let mdn_identity_context_manager = Arc::new(MdnIdentityContextManagerDefaultImpl::new(
             Arc::new(MdnIdentityContextApiClientDefault::try_new(
                 mdn_api_base_url.clone(),
             )?),
@@ -115,8 +117,18 @@ impl MdnIdentityAgentControllerImpl {
             mdn_capabilities_manager.clone(),
         ));
 
-        let mdn_node_manager = Arc::new(MdnNodeManagerUserAgentImpl::new(
+        let willow_peer =
+            WillowPeer::try_new(mdn_user_account_manager.get_iroh_node_key().await?).await?;
+
+        let mdn_node_manager = Arc::new(MdnNodeManagerIdentityAgentImpl::new(
             mdn_identity_context_manager,
+            Arc::new(MdnUserCustodianWillowStorage::new(
+                Arc::new(
+                    NamespaceStorageManagerEmbeddedRedb::try_new(local_db_file_path.clone())
+                        .await?,
+                ),
+                willow_peer,
+            )),
         ));
 
         Ok(Self {

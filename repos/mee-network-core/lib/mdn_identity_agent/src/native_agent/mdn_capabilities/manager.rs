@@ -4,11 +4,11 @@ use crate::{
         api_client::MdnCapabilitiesApiClient,
         api_types::{IssueContextOpsCapTokenRequest, MdnCustodianContextOperationCapsResponse},
     },
-    mdn_common::cap_definitions::{
+    mdn_common::capabilities::cap_definitions::{
         ContextOperationsCapabilityDefinition, MdnCapability, MdnCapabilityDefinition,
     },
     native_agent::{
-        device_storage::user_local_db::MdnUserLocalDb, idm::user_auth::MdnUserAccountManager,
+        local_storage::user_local_db::MdnUserLocalDb, mdn_user::manager::MdnUserAccountManager,
     },
 };
 use anyhow::Context;
@@ -26,13 +26,13 @@ pub trait MdnCapabilitiesManager {
     async fn context_ops_cap_local(&self) -> MdnIdentityAgentResult<String>;
 }
 
-pub struct MdnCapabilitiesManagerDefault {
+pub struct MdnCapabilitiesManagerDefaultImpl {
     user_local_db: Arc<dyn MdnUserLocalDb + Send + Sync>,
     mdn_capabilities_api_client: Arc<dyn MdnCapabilitiesApiClient + Send + Sync>,
     mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
 }
 
-impl MdnCapabilitiesManagerDefault {
+impl MdnCapabilitiesManagerDefaultImpl {
     pub fn new(
         user_local_db: Arc<dyn MdnUserLocalDb + Send + Sync>,
         mdn_capabilities_api_client: Arc<dyn MdnCapabilitiesApiClient + Send + Sync>,
@@ -47,7 +47,7 @@ impl MdnCapabilitiesManagerDefault {
 }
 
 #[async_trait]
-impl MdnCapabilitiesManager for MdnCapabilitiesManagerDefault {
+impl MdnCapabilitiesManager for MdnCapabilitiesManagerDefaultImpl {
     async fn issue_owner_context_ops_cap(&self) -> MdnIdentityAgentResult {
         let existing_cap_token = self.user_local_db.read_mdn_user_ctx_ops_cap_token().await?;
 

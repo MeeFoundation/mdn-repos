@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS mdn_identity_contexts(
   mdn_identity_context_uid varchar unique not null,
   context_description varchar not null,
   willow_namespace_id varchar not null,
+  delegated_from_context_id bigint,
+  FOREIGN KEY (delegated_from_context_id) REFERENCES mdn_identity_contexts(mdn_identity_context_id),
   mdn_user_subject_id bigint not null,
   FOREIGN KEY (mdn_user_subject_id) REFERENCES mdn_users(mdn_user_id),
   mdn_custodian_id bigint not null,

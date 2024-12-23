@@ -128,6 +128,7 @@ impl<'a> MdnIdentityContextService<'a> {
         let ctx = self
             .mdn_identity_contexts_repository
             .create_context(CreateContextDto {
+                delegated_from_context_id: None,
                 willow_namespace_id,
                 context_description,
                 context_scoped_subject_id: context_scoped_id

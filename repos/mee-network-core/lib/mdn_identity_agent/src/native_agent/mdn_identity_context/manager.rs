@@ -5,7 +5,7 @@ use crate::{
         api_types::{CreateMdnIdentityContextRequest, MdnIdentityContextResponse},
     },
     native_agent::{
-        idm::user_auth::MdnUserAccountManager, mdn_capabilities::manager::MdnCapabilitiesManager,
+        mdn_user::manager::MdnUserAccountManager, mdn_capabilities::manager::MdnCapabilitiesManager,
     },
 };
 use async_trait::async_trait;
@@ -23,13 +23,13 @@ pub trait MdnIdentityContextManager {
     async fn list_contexts(&self) -> MdnIdentityAgentResult<Vec<MdnIdentityContextResponse>>;
 }
 
-pub struct MdnIdentityContextManagerDefault {
+pub struct MdnIdentityContextManagerDefaultImpl {
     mdn_identity_context_api_client: Arc<dyn MdnIdentityContextApiClient + Send + Sync>,
     mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
     mdn_capabilities_manager: Arc<dyn MdnCapabilitiesManager + Send + Sync>,
 }
 
-impl MdnIdentityContextManagerDefault {
+impl MdnIdentityContextManagerDefaultImpl {
     pub fn new(
         mdn_identity_context_api_client: Arc<dyn MdnIdentityContextApiClient + Send + Sync>,
         mdn_user_account_manager: Arc<dyn MdnUserAccountManager + Send + Sync>,
@@ -44,7 +44,7 @@ impl MdnIdentityContextManagerDefault {
 }
 
 #[async_trait]
-impl MdnIdentityContextManager for MdnIdentityContextManagerDefault {
+impl MdnIdentityContextManager for MdnIdentityContextManagerDefaultImpl {
     async fn create_context(
         &self,
         custodian_uid: String,

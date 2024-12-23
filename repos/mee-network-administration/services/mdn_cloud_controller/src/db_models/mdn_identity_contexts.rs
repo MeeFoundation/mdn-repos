@@ -12,6 +12,7 @@ pub struct Model {
     pub mdn_identity_context_uid: String,
     pub context_description: String,
     pub willow_namespace_id: String,
+    pub delegated_from_context_id: Option<i64>,
     pub mdn_user_subject_id: i64,
     pub mdn_custodian_id: i64,
     pub context_scoped_subject_id: i64,
@@ -39,6 +40,14 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     MdnCustodians,
+    #[sea_orm(
+        belongs_to = "Entity",
+        from = "Column::DelegatedFromContextId",
+        to = "Column::MdnIdentityContextId",
+        on_update = "NoAction",
+        on_delete = "NoAction"
+    )]
+    SelfRef,
     #[sea_orm(has_many = "super::mdn_identity_contexts_in_storages::Entity")]
     MdnIdentityContextsInStorages,
     #[sea_orm(

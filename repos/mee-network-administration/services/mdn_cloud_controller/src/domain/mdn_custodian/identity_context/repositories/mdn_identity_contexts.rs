@@ -10,6 +10,7 @@ use migrations::IntoCondition;
 use sea_orm::{entity::*, query::*, sea_query, FromQueryResult};
 
 pub struct CreateContextDto {
+    pub delegated_from_context_id: Option<i64>,
     pub willow_namespace_id: String,
     pub context_scoped_subject_id: i64,
     pub context_description: String,
@@ -147,6 +148,7 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepository
     async fn create_context(
         &self,
         CreateContextDto {
+            delegated_from_context_id,
             willow_namespace_id,
             context_scoped_subject_id,
             context_description,
@@ -159,6 +161,7 @@ impl<'a, C: ConnectionTrait> MdnIdentityContextsRepository
 
         let res = mdn_identity_contexts::ActiveModel {
             mdn_identity_context_id: NotSet,
+            delegated_from_context_id: Set(delegated_from_context_id),
             mdn_identity_context_uid: Set(mdn_identity_context_uid),
             willow_namespace_id: Set(willow_namespace_id),
             context_scoped_subject_id: Set(context_scoped_subject_id),

@@ -5,7 +5,7 @@ use crate::{
         api_types::{CreateUserAccountRequest, UserAccountLoginRequest},
         auth_utils::MdnCloudUserIdToken,
     },
-    native_agent::device_storage::user_local_db::MdnUserLocalDb,
+    native_agent::local_storage::user_local_db::MdnUserLocalDb,
 };
 use async_trait::async_trait;
 use mee_crypto::{
@@ -43,12 +43,12 @@ pub trait MdnUserAccountManager {
     }
 }
 
-pub struct MdnUserAccountManagerDefault {
+pub struct MdnUserAccountManagerDefaultImpl {
     user_local_db: Arc<dyn MdnUserLocalDb + Send + Sync>,
     mdn_user_account_api_client: Arc<dyn MdnUserAccountApiClient + Send + Sync>,
 }
 
-impl MdnUserAccountManagerDefault {
+impl MdnUserAccountManagerDefaultImpl {
     pub fn new(
         user_local_db: Arc<dyn MdnUserLocalDb + Send + Sync>,
         mdn_user_account_api_client: Arc<dyn MdnUserAccountApiClient + Send + Sync>,
@@ -61,7 +61,7 @@ impl MdnUserAccountManagerDefault {
 }
 
 #[async_trait]
-impl MdnUserAccountManager for MdnUserAccountManagerDefault {
+impl MdnUserAccountManager for MdnUserAccountManagerDefaultImpl {
     async fn login(&self, email: String, password: String) -> MdnIdentityAgentResult {
         let res = self
             .mdn_user_account_api_client

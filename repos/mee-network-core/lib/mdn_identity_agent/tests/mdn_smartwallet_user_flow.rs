@@ -67,7 +67,11 @@ async fn mdn_smartwallet_user_flow() {
             .await
             .unwrap();
 
-        identity_agent_ctl.init().await.unwrap();
+        if let MdnIdentityAgentControllerInitStatus::LoginRequired =
+            identity_agent_ctl.init().await.unwrap()
+        {
+            panic!("Something goes wrong with the user login");
+        }
     };
 
     let auth_token = identity_agent_ctl

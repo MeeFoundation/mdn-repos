@@ -1,5 +1,7 @@
-use super::local_kvdb::LocalKvDbExt;
-use crate::{error::MdnIdentityAgentResult, native_agent::device_storage::local_kvdb::LocalKvDb};
+use crate::{
+    error::MdnIdentityAgentResult,
+    mdn_common::local_storage::local_kvdb::{LocalKvDbExt, LocalKvDbRedb},
+};
 use async_trait::async_trait;
 use mee_crypto::jwk::Jwk;
 use mee_data_sync::iroh::key::SecretKey;
@@ -34,10 +36,13 @@ pub struct MdnUserLocalDbDefault {
 }
 
 impl MdnUserLocalDbDefault {
-    pub fn new(local_kvdb: Arc<dyn LocalKvDb + Send + Sync>) -> Self {
-        Self {
-            local_kvdb: LocalKvDbExt::new(local_kvdb),
-        }
+    pub async fn try_new(local_db_file_path: String) -> MdnIdentityAgentResult<Self> {
+        Ok(Self {
+            local_kvdb: LocalKvDbExt::new(Arc::new(
+                LocalKvDbRedb::try_new(local_db_file_path.clone(), "USER_TABLE".to_string())
+                    .await?,
+            )),
+        })
     }
 }
 
