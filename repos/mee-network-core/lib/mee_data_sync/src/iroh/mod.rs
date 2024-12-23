@@ -1,2 +1,2 @@
 pub mod utils;
-pub use iroh_net;
+pub use iroh::key;

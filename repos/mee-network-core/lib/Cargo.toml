@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["mee_crypto", "mee_secrets_manager", "mee_did", "mee_data_sync"]
+members = [
+  "mee_crypto",
+  "mee_secrets_manager",
+  "mee_did",
+  "mee_data_sync",
+  "mdn_identity_agent",
+]
 
 [workspace.package]
 edition = "2021"
@@ -38,9 +44,7 @@ biscuit-auth = "4"
 openid = { default-features = false, version = "0.12" }
 
 ### crypto
-didkit = "0.6"
-ssi = "0.7"
-did-method-key = "0.2"
+didkit = { version = "0.6", default-features = false }
 argon2 = "0.5"
 identity_jose = "1"
 ed25519 = { version = "2", features = ["pem", "alloc"] }
@@ -55,3 +59,14 @@ anyhow = "1.0"
 thiserror = "1"
 strum = "0.26"
 strum_macros = "0.26"
+derive_builder = "0.20"
+
+[patch.crates-io]
+
+willow-data-model = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+willow-encoding = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+meadowcap = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+
+# [patch.'https://github.com/MeeFoundation/iroh-willow']
+
+# iroh-willow = { path = "../../../../iroh-willow" }

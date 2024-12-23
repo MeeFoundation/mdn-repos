@@ -6,15 +6,7 @@ license.workspace = true
 
 [dependencies]
 mee_secrets_manager = { path = "../../../mee-network-core/lib/mee_secrets_manager" }
-mee_crypto = { path = "../../../mee-network-core/lib/mee_crypto" }
-mee_data_sync = { path = "../../../mee-network-core/lib/mee_data_sync" }
 
-async-trait = { workspace = true }
-thiserror = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["fs", "macros", "rt"] }
-identity_jose = { workspace = true }
-serde_json = { workspace = true }
-biscuit-auth = { workspace = true }
-uuid = { workspace = true, features = ["v4"] }
 clap = { workspace = true, features = ["derive", "env"] }

@@ -65,7 +65,7 @@ impl<'a> OidcProviderIssuerService<'a> {
     ) -> MeeOidcProviderResult<Option<String>> {
         let root_key = self
             .mee_network_authority_signature_service
-            .get_biscuit_signature()
+            .get_biscuit_signature_from_source_jwk()
             .await?
             .ok_or(MeeOidcProviderErr::MissingMeeAuthoritySignature)?;
 
@@ -98,7 +98,7 @@ impl<'a> OidcProviderIssuerService<'a> {
     ) -> MeeOidcProviderResult<(String, DateTime<Utc>)> {
         let root_key = self
             .mee_network_authority_signature_service
-            .get_biscuit_signature()
+            .get_biscuit_signature_from_source_jwk()
             .await?
             .ok_or(MeeOidcProviderErr::MissingMeeAuthoritySignature)?;
 

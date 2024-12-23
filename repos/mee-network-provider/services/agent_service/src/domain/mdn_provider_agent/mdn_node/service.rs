@@ -6,8 +6,8 @@ use super::api_types::{
 use crate::error::AgentServiceResult;
 use futures::{StreamExt, TryStreamExt};
 use mee_data_sync::{
-    iroh::iroh_net::key::SecretKey,
-    mdn::{
+    iroh::key::SecretKey,
+    mdn_iiw38::{
         common::{node::MdnAgentProviderNode, store::ReadDataRecord},
         provider_agent::{
             delegation::manager::{
@@ -32,7 +32,7 @@ impl MdnProviderAgentNodeService {
     pub async fn new(
         iroh_node_secret_key: SecretKey,
     ) -> AgentServiceResult<Self> {
-        let willow_peer = WillowPeer::new(iroh_node_secret_key).await?;
+        let willow_peer = WillowPeer::try_new(iroh_node_secret_key).await?;
 
         let provider_mdn_node =
             Arc::new(MdnAgentProviderNodeWillowImpl::new(willow_peer).await?);
