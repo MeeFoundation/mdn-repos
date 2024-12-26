@@ -17,7 +17,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
         &self,
         source_text: Arc<String>,
         node: Arc<MeeNode<BoolExpression>>,
-        ctx: RuntimeContext,
+        ctx: &mut RuntimeContext,
         executor_list: Arc<ExecutorList>,
     ) -> Result<Value> {
         let be = executor_list.be.clone();
@@ -33,7 +33,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                         .execute(
                             source_text.clone(),
                             expr.clone(),
-                            ctx.clone(),
+                            ctx,
                             executor_list.clone(),
                         )
                         .await?
@@ -52,7 +52,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                         .execute(
                             source_text.clone(),
                             expr.clone(),
-                            ctx.clone(),
+                            ctx,
                             executor_list.clone(),
                         )
                         .await?
@@ -70,7 +70,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?
@@ -90,7 +90,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                         val.clone(),
                         source_text.clone(),
                         comparator.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -103,7 +103,7 @@ impl Executor<BoolExpression, Value> for BoolExpressionExecutorImpl {
                     .execute(
                         source_text.clone(),
                         path.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;

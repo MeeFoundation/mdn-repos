@@ -4,7 +4,7 @@ use async_stream::{stream, try_stream};
 use futures::pin_mut;
 use futures::stream::StreamExt;
 use mee_storage::binary_kv_store::PATH_SEPARATOR;
-use mee_storage::json_kv_store::Store;
+use mee_storage::json_kv_store::{Record, Store};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -25,31 +25,54 @@ impl QueryExecutorImpl {
         pair: (Arc<MeeNode<Path>>, Arc<MeeNode<Expression>>),
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
-        updates: Arc<Mutex<HashMap<String, Value>>>,
     ) -> ContextStream {
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
-                let ctx = ctx?;
+                let mut ctx = ctx?;
                 let (path, expr) = pair.clone();
 
-                    let v = executor_list
+                    let v: Value = executor_list
                         .ee
                         .execute(
                             source_text.clone(),
                             expr.clone(),
-                            ctx.clone(),
+                            &mut ctx,
                             executor_list.clone(),
                         )
                         .await?;
 
-                let prefix = ctx
-                            .get(&format!("{}.$path", path.value.root))
-                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
-                            .unwrap_or("".to_string());
-                    let prefix = format!("{prefix}{}", path.value.field.as_ref().unwrap_or(&"".to_string()));
+                let path = executor_list
+                    .pe
+                    .clone()
+                    .resolve_path(source_text.clone(), path.clone(), &mut ctx, executor_list.clone())
+                    .await?;
 
-                updates.lock().unwrap().insert(prefix, v);
+                let prop: String = path.value.field.clone().unwrap_or("".to_string());
+
+               match ctx.get(&path.value.root) {
+                Some(LazyValue::Unevaluated(arc)) => {
+                    match &arc.value {
+                        Expression::User(record) => {
+                            record.set(prop, v).await?;
+                        }
+                        _ => {
+                            Err(Error::runtime_error(
+                                arc.position.clone(),
+                                source_text.as_str(),
+                                format!("Invalid set property: {:?}", &path),
+                            ))?
+                        }
+                    }
+                }
+                _ => {
+                    Err(Error::runtime_error(
+                        path.position.clone(),
+                        source_text.as_str(),
+                        format!("Incorrect path to property for update: {:?}", &path),
+                    ))?
+                }
+               }
 
                 yield ctx;
             }
@@ -60,35 +83,8 @@ impl QueryExecutorImpl {
 
     async fn execute_delete(
         &self,
-        _source_text: Arc<String>,
-        path: Arc<MeeNode<Path>>,
-        input_ctx: ContextStream,
-        deletes: Arc<Mutex<HashSet<String>>>,
-    ) -> ContextStream {
-        let stream = try_stream! {
-            pin_mut!(input_ctx);
-            for await ctx in input_ctx {
-                let  ctx = ctx?;
-
-                let path_node = Arc::new(path.clone());
-
-                        let prefix = ctx
-                            .get(&format!("{}.$path", path_node.value.root))
-                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
-                            .unwrap_or("".to_string());
-                        let prefix = format!("{prefix}{}", path_node.value.field.as_ref().unwrap_or(&"".to_string()));
-
-                deletes.lock().unwrap().insert(prefix);
-                yield ctx.clone();
-            }
-        };
-        Box::pin(stream)
-    }
-
-    async fn execute_assignment(
-        &self,
         source_text: Arc<String>,
-        pair: (Arc<MeeNode<String>>, Arc<MeeNode<Expression>>),
+        path: Arc<MeeNode<Path>>,
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
     ) -> ContextStream {
@@ -96,18 +92,57 @@ impl QueryExecutorImpl {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
+
+                                let path = executor_list
+                    .pe
+                    .clone()
+                    .resolve_path(source_text.clone(), path.clone(), &mut ctx, executor_list.clone())
+                    .await?;
+
+                let prop: String = path.value.field.clone().unwrap_or("".to_string());
+
+               match ctx.get(&path.value.root) {
+                Some(LazyValue::Unevaluated(arc)) => {
+                    match &arc.value {
+                        Expression::User(record) => {
+                            record.delete_property(prop).await?;
+                        }
+                        _ => {
+                            Err(Error::runtime_error(
+                                arc.position.clone(),
+                                source_text.as_str(),
+                                format!("Invalid delete property: {:?}", &path),
+                            ))?
+                        }
+                    }
+                }
+                _ => {
+                    Err(Error::runtime_error(
+                        path.position.clone(),
+                        source_text.as_str(),
+                        format!("Incorrect path to property for delete: {:?}", &path),
+                    ))?
+                }
+               }
+
+                yield ctx
+            }
+        };
+        Box::pin(stream)
+    }
+
+    async fn execute_assignment(
+        &self,
+        pair: (Arc<MeeNode<String>>, Arc<MeeNode<Expression>>),
+        input_ctx: ContextStream,
+    ) -> ContextStream {
+        let stream = try_stream! {
+            pin_mut!(input_ctx);
+            for await ctx in input_ctx {
+                let mut ctx = ctx?;
                 let (key, expr) = pair.clone();
-                let value = executor_list
-            .ee
-            .execute(
-                source_text.clone(),
-                expr.clone(),
-                ctx.clone(),
-                executor_list.clone(),
-            )
-            .await?;
-        ctx.insert(key.value.clone(), value);
-        yield ctx.clone();
+                ctx.insert(key.value.clone(), LazyValue::Unevaluated(expr));
+                yield ctx;
             }
         };
         Box::pin(stream)
@@ -123,7 +158,7 @@ impl QueryExecutorImpl {
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
-                let ctx = ctx?;
+                let mut ctx = ctx?;
 
                 if let Some(ref filter_node) = filter_node {
                     if executor_list
@@ -131,7 +166,7 @@ impl QueryExecutorImpl {
                     .execute(
                         source_text.clone(),
                         Arc::new(filter_node.clone()),
-                        ctx.clone(),
+                        &mut ctx,
                         executor_list.clone(),
                     )
                 .await?
@@ -151,12 +186,11 @@ impl QueryExecutorImpl {
         pair: (Arc<MeeNode<Path>>, Arc<MeeNode<Expression>>),
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
-        appends: Arc<Mutex<HashMap<String, Vec<Value>>>>,
     ) -> ContextStream {
         let stream = try_stream! {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
-                let ctx = ctx?;
+                let mut ctx = ctx?;
                 let (path, expr) = pair.clone();
 
                     let v = executor_list
@@ -164,25 +198,43 @@ impl QueryExecutorImpl {
                         .execute(
                             source_text.clone(),
                             expr.clone(),
-                            ctx.clone(),
+                            &mut ctx,
                             executor_list.clone(),
                         )
                         .await?;
 
 
-                let prefix = ctx
-                            .get(&format!("{}.$path", path.value.root))
-                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
-                            .unwrap_or("".to_string());
-                    let prefix = format!("{prefix}{}", path.value.field.as_ref().unwrap_or(&"".to_string()));
+                 let path = executor_list
+                    .pe
+                    .clone()
+                    .resolve_path(source_text.clone(), path.clone(), &mut ctx, executor_list.clone())
+                    .await?;
 
-                if let Value::Array(arr) = v {
-                    for value in arr {
-                        appends.lock().unwrap().entry(prefix.clone()).or_default().push(value);
+                let prop: String = path.value.field.clone().unwrap_or("".to_string());
+
+               match ctx.get(&path.value.root) {
+                Some(LazyValue::Unevaluated(arc)) => {
+                    match &arc.value {
+                        Expression::User(record) => {
+                            record.append(prop, v).await?;
+                        }
+                        _ => {
+                            Err(Error::runtime_error(
+                                arc.position.clone(),
+                                source_text.as_str(),
+                                format!("Invalid set property: {:?}", &path),
+                            ))?
+                        }
                     }
-                } else {
-                    appends.lock().unwrap().entry(prefix.clone()).or_default().push(v);
                 }
+                _ => {
+                    Err(Error::runtime_error(
+                        path.position.clone(),
+                        source_text.as_str(),
+                        format!("Incorrect path to property for update: {:?}", &path),
+                    ))?
+                }
+               }
 
                 yield ctx;
             }
@@ -200,9 +252,6 @@ impl QueryExecutor for QueryExecutorImpl {
         node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
-        updates: Arc<Mutex<HashMap<String, Value>>>,
-        deletes: Arc<Mutex<HashSet<String>>>,
-        appends: Arc<Mutex<HashMap<String, Vec<Value>>>>,
     ) -> JsonResultStream {
         let main_stream: ContextStream = Box::pin(input_ctx);
         let main_iterator = Arc::new(node.value.main_iterator.clone());
@@ -240,13 +289,11 @@ impl QueryExecutor for QueryExecutorImpl {
                 Statement::Assignment(ref assignment) => {
                     new_stream = self
                         .execute_assignment(
-                            source_text.clone(),
                             (
                                 Arc::new(assignment.0.clone()),
                                 Arc::new(assignment.1.clone()),
                             ),
                             new_stream,
-                            executor_list.clone(),
                         )
                         .await;
                 }
@@ -257,7 +304,6 @@ impl QueryExecutor for QueryExecutorImpl {
                             (Arc::new(update.0.clone()), Arc::new(update.1.clone())),
                             new_stream,
                             executor_list.clone(),
-                            updates.clone(),
                         )
                         .await;
                 }
@@ -267,7 +313,7 @@ impl QueryExecutor for QueryExecutorImpl {
                             source_text.clone(),
                             Arc::new(delete.clone()),
                             new_stream,
-                            deletes.clone(),
+                            executor_list.clone(),
                         )
                         .await;
                 }
@@ -288,7 +334,6 @@ impl QueryExecutor for QueryExecutorImpl {
                             (Arc::new(append.0.clone()), Arc::new(append.1.clone())),
                             new_stream,
                             executor_list.clone(),
-                            appends.clone(),
                         )
                         .await;
                 }
@@ -304,7 +349,21 @@ impl QueryExecutor for QueryExecutorImpl {
         let stream = try_stream! {
 
             for await ctx in new_stream {
-                let ctx = ctx?;
+                let mut ctx = ctx?;
+
+                for (_, value) in ctx.iter() {
+                    match value {
+                        LazyValue::Unevaluated(expr) => {
+                            match &expr.value {
+                                Expression::User(record) => {
+                                    record.commit().await?;
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
 
                 if let Some(result) = &node.clone().value.result {
                     let result = Arc::new(result.clone());
@@ -313,7 +372,7 @@ impl QueryExecutor for QueryExecutorImpl {
                         .execute(
                             source_text.clone(),
                             result.clone(),
-                            ctx.clone(),
+                            &mut ctx,
                             executor_list.clone(),
                         )
                         .await?;
@@ -332,7 +391,7 @@ impl Executor<Query, Value> for QueryExecutorImpl {
         &self,
         source_text: Arc<String>,
         node: Arc<MeeNode<Query>>,
-        ctx: RuntimeContext,
+        ctx: &mut RuntimeContext,
         executor_list: Arc<ExecutorList>,
     ) -> Result<Value> {
         let ctx = ctx.clone();
@@ -341,18 +400,12 @@ impl Executor<Query, Value> for QueryExecutorImpl {
         };
         let initial_stream = Box::pin(initial_stream);
 
-        let updates = Arc::new(Mutex::new(HashMap::new()));
-        let deletes = Arc::new(Mutex::new(HashSet::new()));
-        let appends = Arc::new(Mutex::new(HashMap::new()));
         let mut stream = self
             .stream(
                 source_text.clone(),
                 node.clone(),
                 initial_stream,
                 executor_list,
-                updates.clone(),
-                deletes.clone(),
-                appends.clone(),
             )
             .await;
 
@@ -366,44 +419,6 @@ impl Executor<Query, Value> for QueryExecutorImpl {
                 Ok(Value::Array(arr.into_iter().collect::<Result<Vec<_>>>()?))
             }
         };
-
-        let updates = updates
-            .lock()
-            .unwrap()
-            .clone()
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
-        let appends = appends
-            .lock()
-            .unwrap()
-            .clone()
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
-        let deletes = deletes
-            .lock()
-            .unwrap()
-            .clone()
-            .into_iter()
-            .collect::<HashSet<_>>();
-
-        for (path, value) in updates.into_iter() {
-            let path = path.clone();
-            let value = value.clone();
-            self.store.clone().set(path, value).await?;
-        }
-
-        for (path, values) in appends.into_iter() {
-            let path = path.clone();
-            let values = values.clone();
-            self.store.clone().append(path, values).await?;
-        }
-
-        for path in deletes.into_iter() {
-            let path = path.clone();
-            self.store.delete(path).await?;
-        }
 
         result
     }

@@ -34,6 +34,7 @@ impl JsonStore for KVBasedJsonStoreImpl {
         let id = generate_id();
         let key = object_key(&id);
         let bytes = serde_json::to_vec(&value)?;
+        dbg!(&key);
         self.db.insert(key, bytes).await?;
         Ok(id)
     }
@@ -65,10 +66,11 @@ impl JsonStore for KVBasedJsonStoreImpl {
             let mut prev_id = ID_PREFIX.to_string();
             while let Ok(mut kv_stream) = db.range(prev_id.clone()).await {
                 if let Some((k,_)) = kv_stream.next().await {
+                    dbg!(&k);
                     let id = get_id(&k).unwrap();
                     prev_id = property_key(&id, &char::MAX.to_string());
                     let record = JsonStoreRecord::new(db.clone(), id);
-                    yield Box::new(record) as Box<dyn Record>;
+                    yield record;
                 }
             }
         }

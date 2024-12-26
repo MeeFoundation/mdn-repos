@@ -18,7 +18,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
         left_node: Arc<MeeNode<Expression>>,
         source_text: Arc<String>,
         node: Arc<MeeNode<Comparator>>,
-        ctx: RuntimeContext,
+        ctx: &mut RuntimeContext,
         executor_list: Arc<ExecutorList>,
     ) -> Result<bool> {
         match &node.value {
@@ -29,7 +29,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -38,7 +38,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -51,7 +51,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -60,7 +60,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -73,7 +73,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -82,7 +82,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -99,7 +99,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -108,7 +108,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -124,7 +124,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -133,7 +133,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -150,7 +150,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -159,7 +159,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -176,7 +176,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -185,7 +185,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -214,7 +214,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -223,7 +223,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -239,7 +239,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -248,7 +248,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -263,7 +263,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -274,7 +274,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         from_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -283,7 +283,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         to_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -304,7 +304,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         left_node.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -313,7 +313,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await?;
@@ -328,7 +328,7 @@ impl ComparatorExecutor for ComparatorExecutorImpl {
                 .execute(
                     source_text.clone(),
                     left_node.clone(),
-                    ctx.clone(),
+                    ctx,
                     executor_list.clone(),
                 )
                 .await?

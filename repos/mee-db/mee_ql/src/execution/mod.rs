@@ -34,7 +34,14 @@ use futures::stream::Stream;
 use mee_storage::json_kv_store::Store;
 use std::pin::Pin;
 
-pub type RuntimeContext = HashMap<String, Value>;
+#[derive(Clone)]
+pub enum LazyValue {
+    Unevaluated(Arc<MeeNode<Expression>>),
+    Evaluated(Value),
+}
+
+pub type RuntimeContext = HashMap<String, LazyValue>;
+
 pub type ContextStream = futures::stream::BoxStream<'static, Result<RuntimeContext>>;
 pub type JsonResultStream = Pin<Box<dyn Stream<Item = Result<Value>> + Send>>;
 

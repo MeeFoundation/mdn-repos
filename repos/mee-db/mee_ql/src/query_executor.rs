@@ -56,7 +56,7 @@ impl QueryExecutor for QueryExecutorImpl {
             parser.parse()?
         };
 
-        let ctx = HashMap::new();
+        let mut ctx = HashMap::new();
 
         let executor_list = self.executor_list.clone();
 
@@ -65,7 +65,7 @@ impl QueryExecutor for QueryExecutorImpl {
             .execute(
                 Arc::new(source_code),
                 Arc::new(ast.clone()),
-                ctx,
+                &mut ctx,
                 executor_list.clone(),
             )
             .await?;

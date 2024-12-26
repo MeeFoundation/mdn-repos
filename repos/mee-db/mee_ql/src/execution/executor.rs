@@ -9,7 +9,7 @@ pub trait Executor<T, U> {
         &self,
         source_text: Arc<String>,
         node: Arc<MeeNode<T>>,
-        ctx: RuntimeContext,
+        ctx: &mut RuntimeContext,
         executor_list: Arc<ExecutorList>,
     ) -> Result<U>;
 }
@@ -21,7 +21,7 @@ pub trait ComparatorExecutor {
         left: Arc<MeeNode<Expression>>,
         source_text: Arc<String>,
         node: Arc<MeeNode<Comparator>>,
-        ctx: RuntimeContext,
+        ctx: &mut RuntimeContext,
         executor_list: Arc<ExecutorList>,
     ) -> Result<bool>;
 }
@@ -44,10 +44,26 @@ pub trait QueryExecutor: Executor<Query, Value> {
         node: Arc<MeeNode<Query>>,
         input_ctx: ContextStream,
         executor_list: Arc<ExecutorList>,
-        updates: Arc<Mutex<HashMap<String, Value>>>,
-        deletes: Arc<Mutex<HashSet<String>>>,
-        appends: Arc<Mutex<HashMap<String, Vec<Value>>>>,
     ) -> JsonResultStream;
+}
+
+#[async_trait::async_trait]
+pub trait PathExecutor: Executor<Path, Value> {
+    async fn size(
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Path>>,
+        ctx: &mut RuntimeContext,
+        executor_list: Arc<ExecutorList>,
+    ) -> Result<Option<usize>>;
+
+    async fn resolve_path(
+        &self,
+        source_text: Arc<String>,
+        node: Arc<MeeNode<Path>>,
+        ctx: &mut RuntimeContext,
+        executor_list: Arc<ExecutorList>,
+    ) -> Result<Arc<MeeNode<Path>>>;
 }
 
 pub struct ExecutorList {
@@ -56,5 +72,5 @@ pub struct ExecutorList {
     pub be: Arc<dyn Executor<BoolExpression, Value> + Send + Sync>,
     pub ie: Arc<dyn IteratorExecutor + Send + Sync>,
     pub qe: Arc<dyn QueryExecutor + Send + Sync>,
-    pub pe: Arc<dyn Executor<Path, Value> + Send + Sync>,
+    pub pe: Arc<dyn PathExecutor + Send + Sync>,
 }

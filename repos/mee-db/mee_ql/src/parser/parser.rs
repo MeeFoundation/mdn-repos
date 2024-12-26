@@ -26,7 +26,6 @@ pub struct ParserList {
     pub array: Box<dyn Parser<Vec<MeeNode<Expression>>>>,
     pub object: Box<dyn Parser<HashMap<String, MeeNode<Expression>>>>,
     pub path: Box<dyn Parser<MeeNode<Path>>>,
-    pub source: Box<dyn Parser<MeeNode<Source>>>,
     pub ident: Box<dyn Parser<String>>,
     pub pos_int: Box<dyn Parser<usize>>,
     pub string: Box<dyn Parser<String>>,
@@ -49,7 +48,6 @@ impl ParserList {
             ident: Box::new(IdentParser),
             pos_int: Box::new(PosIntParser),
             string: Box::new(StringParser),
-            source: Box::new(SourceParser),
             number: Box::new(NumberParser),
         }
     }

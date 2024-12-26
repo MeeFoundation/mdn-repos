@@ -1,4 +1,5 @@
 use crate::error::*;
+use mee_storage::json_kv_store::JsonStoreRecord;
 use mee_storage::json_utils::ID_PREFIX;
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -101,7 +102,7 @@ impl<T> MeeNode<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Query {
     pub result: Option<MeeNode<Expression>>,
     pub main_iterator: MeeNode<IteratorStmt>,
@@ -109,7 +110,7 @@ pub struct Query {
     pub query_type: QueryType,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Iterator(IteratorStmt),
     Assignment((MeeNode<String>, MeeNode<Expression>)),
@@ -122,13 +123,13 @@ pub enum Statement {
     Limit(usize),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct IteratorStmt {
     pub item: MeeNode<String>,
-    pub source: MeeNode<Source>,
+    pub source: MeeNode<Expression>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum BoolExpression {
     Comparison {
         val: MeeNode<Expression>,
@@ -142,7 +143,7 @@ pub enum BoolExpression {
     False,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Comparator {
     Eq(MeeNode<Expression>),
     Ne(MeeNode<Expression>),
@@ -158,14 +159,9 @@ pub enum Comparator {
     Exists,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Source {
-    PathSource(MeeNode<Path>),
-    ArraySource(Vec<MeeNode<Expression>>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Expression {
+    User(JsonStoreRecord),
     //complex
     Query(Box<MeeNode<Query>>),
     BoolExpression(Box<MeeNode<BoolExpression>>),

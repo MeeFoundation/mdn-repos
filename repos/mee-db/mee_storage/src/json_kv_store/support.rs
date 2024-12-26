@@ -19,8 +19,9 @@ pub fn remove_object_id_prefix(key: String) -> String {
 }
 
 pub fn get_id(key: &str) -> Result<String> {
-    if let Some(index) = key.find(PATH_SEPARATOR) {
-        Ok(key[ID_PREFIX.len()..index].to_string())
+    if key.starts_with(ID_PREFIX) {
+        let end = key.find(PATH_SEPARATOR).unwrap_or(key.len());
+        Ok(key[ID_PREFIX.len()..end].to_string())
     } else {
         Err(Error::Store(format!("Invalid key format: {key}")))
     }

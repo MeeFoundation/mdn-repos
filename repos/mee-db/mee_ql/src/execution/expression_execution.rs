@@ -16,7 +16,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
         &self,
         source_text: Arc<String>,
         node: Arc<MeeNode<Expression>>,
-        ctx: RuntimeContext,
+        ctx: &mut RuntimeContext,
         executor_list: Arc<ExecutorList>,
     ) -> Result<Value> {
         match &node.value {
@@ -28,7 +28,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                     .execute(
                         source_text.clone(),
                         query.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await
@@ -41,7 +41,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                     .execute(
                         source_text.clone(),
                         expr.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await
@@ -54,7 +54,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                     .execute(
                         source_text.clone(),
                         path.clone(),
-                        ctx.clone(),
+                        ctx,
                         executor_list.clone(),
                     )
                     .await
@@ -66,12 +66,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                     let v = executor_list
                         .ee
                         .clone()
-                        .execute(
-                            source_text.clone(),
-                            v.clone(),
-                            ctx.clone(),
-                            executor_list.clone(),
-                        )
+                        .execute(source_text.clone(), v.clone(), ctx, executor_list.clone())
                         .await?;
                     values.insert(k.clone(), v);
                 }
@@ -85,7 +80,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                         self.execute(
                             source_text.clone(),
                             item.clone(),
-                            ctx.clone(),
+                            ctx,
                             executor_list.clone(),
                         )
                         .await?,
@@ -104,6 +99,11 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                 Ok(Value::Number(res))
             }
             Expression::Null => Ok(Value::Null),
+            _ => Err(Error::runtime_error(
+                node.position.clone(),
+                source_text.as_str(),
+                format!("Invalid expression: {:?}", node.value),
+            )),
         }
     }
 }

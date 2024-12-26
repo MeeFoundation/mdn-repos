@@ -92,10 +92,7 @@ impl BinaryKVStore for BTreeMapStore {
             let excluded = Excluded(format!("{path}{}", char::MAX));
             let range = db.range((Included(path.clone()), excluded));
             for (k, v) in range {
-                let k = match k[path.len()..].to_string() {
-                    k if k.starts_with(PATH_SEPARATOR) => k[1..].to_string(),
-                    k => k,
-                };
+                dbg!(&k);
                 yield (k.clone(), v.clone());
             }
         }

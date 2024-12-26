@@ -43,89 +43,70 @@ impl IteratorExecutor for IteratorExecutorImpl {
 
         let store = self.store.clone();
         let item_name = node.value.item.value.clone();
+        let item_start = node.value.item.position.0;
+        let item_end = node.value.item.position.1;
 
         let stream: ContextStream = match source_node.value.clone() {
-            Source::ArraySource(exprs) => Box::pin(try_stream! {
+            Expression::Array(exprs) => Box::pin(try_stream! {
                 pin_mut!(input_ctx);
+                let source_key = uuid::Uuid::now_v7().to_string();
                 for await ctx in input_ctx {
-                    let ctx = ctx?;
-                    for item in exprs.iter() {
-                        let item = Arc::new(item.clone());
-                        let v = executor_list
-                            .ee
-                            .execute(
-                                source_text.clone(),
-                                item.clone(),
-                                ctx.clone(),
-                                executor_list.clone(),
-                            )
-                            .await?;
-                        let mut new_ctx: RuntimeContext = ctx.clone();
-                        new_ctx.insert(item_name.clone(), v);
+                    let mut ctx = ctx?;
+                    ctx.insert(source_key.clone(), LazyValue::Unevaluated(Arc::new(source_node.clone())));
+                    for i in 0..exprs.len() {
+                        let mut new_ctx = ctx.clone();
+                        let item = MeeNode::new(Expression::Link(MeeNode::new(Path::new(format!("{source_key}.{i}")), item_start, item_end)), item_start, item_end);
+                        new_ctx.insert(item_name.clone(), LazyValue::Unevaluated(Arc::new(item)));
 
                         yield new_ctx.clone();
                     }
                 }
             }),
-            Source::PathSource(MeeNode {
+            Expression::Link(MeeNode {
                 value: Path { ref root, field },
                 ..
-            }) if field.is_none() && root == "users" => Box::pin(try_stream! {
-                pin_mut!(input_ctx);
-                for await ctx in input_ctx {
-                    let ctx = ctx?;
+            }) => {
+                if field.is_none() && root == "users" {
+                    Box::pin(try_stream! {
+                            pin_mut!(input_ctx);
+                            for await ctx in input_ctx {
+                                let ctx = ctx?;
+                                let users = Self::users(store.clone()).await?;
+                                pin_mut!(users);
+                                for await user in users {
+                                    let mut new_ctx = ctx.clone();
+                                    let item = MeeNode::new(Expression::User(user), item_start, item_end);
+                                    new_ctx.insert(item_name.clone(), LazyValue::Unevaluated(Arc::new(item)));
 
-                    let users = Self::users(store.clone()).await?;
-                    pin_mut!(users);
-                    for await user in users {
-                        let mut new_ctx: RuntimeContext = ctx.clone();
-                        let id = user.id();
-                        new_ctx.insert(
-                            format!("{item_name}.$path"),
-                            Value::String(object_key(id)),
-                        );
-                        new_ctx.insert(item_name.clone(), user);
+                                    yield new_ctx.clone();
+                                }
+                            }
+                    })
+                } else {
+                    Box::pin(try_stream! {
+                    pin_mut!(input_ctx);
+                    let source_key = uuid::Uuid::now_v7().to_string();
+                    for await ctx in input_ctx {
+                        let mut ctx = ctx?;
+                        ctx.insert(source_key.clone(), LazyValue::Unevaluated(Arc::new(source_node.clone())));
 
-                        yield new_ctx.clone();
-                    }
-                }
-            }),
-            Source::PathSource(path_node) => Box::pin(try_stream! {
-                pin_mut!(input_ctx);
-                for await ctx in input_ctx {
-                  let ctx = ctx?;
+                        for i in 0..10 {
+                            let mut new_ctx = ctx.clone();
+                            let item = MeeNode::new(Expression::Link(MeeNode::new(Path::new(format!("{source_key}.{i}")), item_start, item_end)), item_start, item_end);
+                                new_ctx.insert(item_name.clone(), LazyValue::Unevaluated(Arc::new(item)));
 
-                    let path_node = Arc::new(path_node.clone());
-                    let path_value = executor_list
-                            .pe
-                        .execute(source_text.clone(), path_node.clone(), ctx.clone(), executor_list.clone())
-                        .await?;
-                    if !path_value.is_null() {
-                        let prefix = path_node.value.root.clone();
-                        let prefix = ctx
-                            .get(&format!("{prefix}.$path"))
-                            .and_then(|v| v.as_str().map(|s| format!("{s}{PATH_SEPARATOR}")))
-                            .unwrap_or("".to_string());
-                        let prefix = format!("{prefix}{}{PATH_SEPARATOR}", path_node.value.field.as_ref().unwrap_or(&"".to_string()));
-
-                        for (i, item) in path_value
-                            .cast_to_array(path_node.clone(), source_text.clone())?
-                            .iter()
-                            .enumerate()
-                        {
-                            let mut new_ctx: RuntimeContext = ctx.clone();
-
-                            new_ctx.insert(
-                                format!("{item_name}.$path"),
-                                Value::String(format!("{prefix}{i}")),
-                            );
-
-                            new_ctx.insert(item_name.clone(), item.clone());
-
-                            yield new_ctx.clone();
+                                yield new_ctx.clone();
+                            }
                         }
-                    }
+                    })
                 }
+            }
+            _ => Box::pin(try_stream! {
+                yield Err(Error::runtime_error(
+                node.position.clone(),
+                source_text.as_str(),
+                    format!("Invalid source: {:?}", &source_node.value),
+                ))?
             }),
         };
 

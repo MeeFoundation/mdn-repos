@@ -5,20 +5,21 @@ mod support;
 
 use crate::binary_kv_store;
 
+pub use json_store_record::JsonStoreRecord;
 use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
 
 pub use error::*;
 pub type Store = Arc<dyn JsonStore + Send + Sync + 'static>;
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
-pub type RecordStream = futures::stream::BoxStream<'static, Box<dyn Record>>;
+pub type RecordStream = futures::stream::BoxStream<'static, JsonStoreRecord>;
 
 use core::fmt::Debug;
 
 use serde_json::{Map, Value};
 
 #[async_trait::async_trait]
-pub trait Record: Send + Sync {
+pub trait Record: Send + Sync + Debug + Clone + 'static {
     fn id(&self) -> &str;
 
     // /**
@@ -67,6 +68,8 @@ pub trait Record: Send + Sync {
      * 3. or else read from store
      */
     async fn snapshot(&self, properties: Option<Vec<String>>) -> Result<Value>;
+
+    async fn property_size(&self, property_name: &str) -> Result<Option<usize>>;
 }
 
 #[allow(unused)]

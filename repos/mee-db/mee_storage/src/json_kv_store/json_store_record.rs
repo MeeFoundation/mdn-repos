@@ -11,16 +11,17 @@ use tokio::sync::Mutex;
 use tracing::{error, trace};
 
 //TODO: use optional external cache
+#[derive(Debug, Clone)]
 pub struct JsonStoreRecord {
     store: KVStore,
 
     id: String,
 
-    object: Mutex<Value>,
-    fetched_paths: Mutex<Vec<String>>,
-    uncommited_paths: Mutex<Vec<String>>,
-    appended_values: Mutex<BTreeMap<String, Vec<Value>>>,
-    is_deleted: Mutex<bool>,
+    object: Arc<Mutex<Value>>,
+    fetched_paths: Arc<Mutex<Vec<String>>>,
+    uncommited_paths: Arc<Mutex<Vec<String>>>,
+    appended_values: Arc<Mutex<BTreeMap<String, Vec<Value>>>>,
+    is_deleted: Arc<Mutex<bool>>,
 }
 
 impl JsonStoreRecord {
@@ -30,11 +31,11 @@ impl JsonStoreRecord {
         Self {
             store,
             id,
-            object: Mutex::new(value),
-            fetched_paths: Mutex::new(vec![]),
-            uncommited_paths: Mutex::new(vec![]),
-            appended_values: Mutex::new(BTreeMap::new()),
-            is_deleted: Mutex::new(false),
+            object: Arc::new(Mutex::new(value)),
+            fetched_paths: Arc::new(Mutex::new(vec![])),
+            uncommited_paths: Arc::new(Mutex::new(vec![])),
+            appended_values: Arc::new(Mutex::new(BTreeMap::new())),
+            is_deleted: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -367,5 +368,13 @@ impl Record for JsonStoreRecord {
                 )))?
             }
         }
+    }
+
+    async fn property_size(&self, property_name: &str) -> Result<Option<usize>> {
+        let count = self
+            .store
+            .max_index(property_key(&self.id, property_name))
+            .await?;
+        Ok(Some(count))
     }
 }
