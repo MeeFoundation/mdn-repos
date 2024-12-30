@@ -192,7 +192,7 @@ impl Path {
 
         Path {
             root: self.root.clone(),
-            field: field,
+            field,
         }
     }
 

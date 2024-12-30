@@ -333,8 +333,8 @@ impl QueryExecutor for QueryExecutorImpl {
                         )
                         .await;
                 }
-                Statement::AppendMany(ref append) => match &append.1.value {
-                    Expression::Array(values) => {
+                Statement::AppendMany(ref append) => {
+                    if let Expression::Array(values) = &append.1.value {
                         for value in values.iter() {
                             new_stream = self
                                 .execute_append(
@@ -346,8 +346,7 @@ impl QueryExecutor for QueryExecutorImpl {
                                 .await;
                         }
                     }
-                    _ => {}
-                },
+                }
                 Statement::Offset(ref offset) => {
                     new_stream = Box::pin(new_stream.skip(*offset));
                 }
@@ -363,16 +362,10 @@ impl QueryExecutor for QueryExecutorImpl {
                 let mut ctx = ctx?;
 
                 for (_, value) in ctx.iter() {
-                    match value {
-                        LazyValue::Unevaluated(expr) => {
-                            match &expr.value {
-                                Expression::User(record) => {
-                                    record.commit().await?;
-                                }
-                                _ => {}
-                            }
+                    if let LazyValue::Unevaluated(expr) = value {
+                        if let Expression::User(record) = &expr.value {
+                            record.commit().await?;
                         }
-                        _ => {}
                     }
                 }
 
@@ -421,7 +414,8 @@ impl Executor<Query, Value> for QueryExecutorImpl {
             .await;
 
         //TODO: handle errors
-        let result = match node.value.query_type.clone() {
+
+        match node.value.query_type.clone() {
             QueryType::FirstOrNull => stream.next().await.ok_or(Error::UnexpectedStateError(
                 "Failed to get first or null value".to_string(),
             ))?,
@@ -429,8 +423,6 @@ impl Executor<Query, Value> for QueryExecutorImpl {
                 let arr = stream.collect::<Vec<_>>().await;
                 Ok(Value::Array(arr.into_iter().collect::<Result<Vec<_>>>()?))
             }
-        };
-
-        result
+        }
     }
 }

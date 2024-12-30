@@ -50,7 +50,8 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
             }
             Expression::Link(path) => {
                 let path = Arc::new(path.clone());
-                let res = executor_list
+                
+                executor_list
                     .pe
                     .clone()
                     .execute(
@@ -59,8 +60,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                         ctx,
                         executor_list.clone(),
                     )
-                    .await;
-                res
+                    .await
             }
             Expression::Object(map) => {
                 let mut values = Map::new();

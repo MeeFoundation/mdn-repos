@@ -37,11 +37,11 @@ impl Executor<Path, Value> for PathExecutorImpl {
                 }
                 Expression::User(record) => {
                     if let Some(ref prop) = node.value.field {
-                        let res = record.get(prop).await?.unwrap_or(Value::Null);
-                        res
+                        
+                        record.get(prop).await?.unwrap_or(Value::Null)
                     } else {
-                        let val = record.snapshot(None).await?;
-                        val
+                        
+                        record.snapshot(None).await?
                     }
                 }
                 _ => {
@@ -83,12 +83,12 @@ impl PathExecutor for PathExecutorImpl {
             LazyValue::Unevaluated(expr) => match &expr.value {
                 Expression::Link(path) => {
                     let new_path = path.map(|p| p.combine(node.value.clone()));
-                    let res = executor_list
+                    
+                    executor_list
                         .pe
                         .clone()
                         .size(source_text, Arc::new(new_path), ctx, executor_list.clone())
-                        .await;
-                    res
+                        .await
                 }
                 Expression::User(record) => {
                     if let Some(ref prop) = node.value.field {
@@ -123,12 +123,12 @@ impl PathExecutor for PathExecutorImpl {
             LazyValue::Unevaluated(expr) => match &expr.value {
                 Expression::Link(path) => {
                     let new_path = path.map(|p| p.combine(node.value.clone()));
-                    let res = executor_list
+                    
+                    executor_list
                         .pe
                         .clone()
                         .resolve_path(source_text, Arc::new(new_path), ctx, executor_list.clone())
-                        .await;
-                    res
+                        .await
                 }
                 _ => Ok(node.clone()),
             },
