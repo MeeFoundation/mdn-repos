@@ -1,3 +1,5 @@
+use mee_storage::Record;
+
 use super::*;
 use crate::error::*;
 use std::sync::Arc;
@@ -48,7 +50,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
             }
             Expression::Link(path) => {
                 let path = Arc::new(path.clone());
-                executor_list
+                let res = executor_list
                     .pe
                     .clone()
                     .execute(
@@ -57,7 +59,8 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                         ctx,
                         executor_list.clone(),
                     )
-                    .await
+                    .await;
+                res
             }
             Expression::Object(map) => {
                 let mut values = Map::new();
@@ -99,11 +102,7 @@ impl Executor<Expression, Value> for ExpressionExecutorImpl {
                 Ok(Value::Number(res))
             }
             Expression::Null => Ok(Value::Null),
-            _ => Err(Error::runtime_error(
-                node.position.clone(),
-                source_text.as_str(),
-                format!("Invalid expression: {:?}", node.value),
-            )),
+            Expression::User(user) => Ok(user.snapshot(None).await?),
         }
     }
 }

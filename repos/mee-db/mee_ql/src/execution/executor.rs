@@ -1,7 +1,6 @@
 use super::*;
 use crate::error::*;
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[async_trait::async_trait]
 pub trait Executor<T, U> {

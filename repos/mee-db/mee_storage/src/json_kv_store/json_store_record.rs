@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
 use tokio::sync::Mutex;
-use tracing::{error, trace};
+use tracing::{debug, error};
 
 //TODO: use optional external cache
 #[derive(Debug, Clone)]
@@ -88,14 +88,14 @@ impl JsonStoreRecord {
         }
 
         if is_empty {
-            trace!(
+            debug!(
                 "{}: Property not found in store: {}",
                 self.title(),
                 property_name
             );
-            return Ok(None);
+            Ok(None)
         } else {
-            trace!(
+            debug!(
                 "{}: Fetch from store property: {} => {:?}",
                 self.title(),
                 property_name,
@@ -106,11 +106,11 @@ impl JsonStoreRecord {
     }
 
     async fn save(&self, property_name: String, value: Value) -> Result<()> {
-        trace!(
+        debug!(
             "{}: Save property: {} => {:?}",
             self.title(),
             property_name,
-            &value
+            value
         );
         let flatten = value.x_to_flatten_map(property_name);
         let mut batch = vec![];
@@ -146,6 +146,9 @@ impl Record for JsonStoreRecord {
     }
 
     async fn get(&self, property_name: &str) -> Result<Option<Value>> {
+        if property_name == "id" {
+            return Ok(Some(Value::String(self.id.clone())));
+        }
         let mut object = self.object.lock().await;
         let uncommited_paths = self.uncommited_paths.lock().await;
         let mut fetched_paths = self.fetched_paths.lock().await;
@@ -159,10 +162,10 @@ impl Record for JsonStoreRecord {
             let property = (*object).x_get_property(property_name).cloned();
             if let Some(mut property) = property {
                 property.x_merge(self.get_from_appended_values(property_name).await?);
-                trace!(
+                debug!(
                     "{}: Get from cache property: {property_name} => {:?}",
                     self.title(),
-                    &property
+                    property
                 );
                 return Ok(Some(property));
             }
@@ -181,11 +184,11 @@ impl Record for JsonStoreRecord {
         let mut object = self.object.lock().await;
         let mut uncommited_paths = self.uncommited_paths.lock().await;
 
-        trace!(
+        debug!(
             "{}: Set uncommited property: {} => {:?}",
             self.title(),
             property_name,
-            &value
+            value
         );
         (*object).x_set_property(&property_name, value);
 
@@ -195,11 +198,11 @@ impl Record for JsonStoreRecord {
     }
 
     async fn append(&self, collection_property_name: String, value: Value) -> Result<()> {
-        trace!(
+        debug!(
             "{}: Mark value for addind to collection property: {} => + {:?}",
             self.title(),
-            &collection_property_name,
-            &value
+            collection_property_name,
+            value
         );
         self.appended_values
             .lock()
@@ -216,10 +219,10 @@ impl Record for JsonStoreRecord {
         let mut uncommited_paths = self.uncommited_paths.lock().await;
 
         (*object).x_delete_property(&property_name);
-        trace!(
+        debug!(
             "{}: Mark uncommited property for deletion: {}",
             self.title(),
-            &property_name
+            property_name
         );
         uncommited_paths.push(property_name);
 
@@ -230,7 +233,7 @@ impl Record for JsonStoreRecord {
         let _ = self.object.lock().await;
         let mut is_deleted = self.is_deleted.lock().await;
         *is_deleted = true;
-        trace!("{}: Mark record for deletion", self.title());
+        debug!("{}: Mark record for deletion", self.title());
         Ok(())
     }
 
@@ -239,6 +242,7 @@ impl Record for JsonStoreRecord {
     }
 
     async fn commit(&self) -> Result<()> {
+        debug!(self.id);
         let mut object = self.object.lock().await;
         let mut fetched_paths = self.fetched_paths.lock().await;
         let mut uncommited_paths = self.uncommited_paths.lock().await;
@@ -247,7 +251,7 @@ impl Record for JsonStoreRecord {
 
         if *is_deleted {
             self.store.delete(&object_key(&self.id)).await?;
-            trace!("{}: Deleted from store", self.title());
+            debug!("{}: Delete record from store", self.title());
         } else {
             for property_name in uncommited_paths.iter_mut() {
                 if let Some(value) = object.x_get_property(property_name).cloned() {
@@ -257,7 +261,7 @@ impl Record for JsonStoreRecord {
                     self.store
                         .delete(&property_key(&self.id, property_name))
                         .await?;
-                    trace!(
+                    debug!(
                         "{}: Delete property: {} from store",
                         self.title(),
                         property_name
@@ -267,22 +271,23 @@ impl Record for JsonStoreRecord {
             for (property_name, values) in append_values.iter_mut() {
                 let count = self
                     .store
-                    .max_index(property_key(&self.id, property_name))
+                    .count(property_key(&self.id, property_name))
                     .await?;
+                debug!(count, property_name);
                 for (i, v) in values.into_iter().enumerate() {
                     let new_key = format!(
                         "{}{}{}",
                         property_key(&self.id, property_name),
                         PATH_SEPARATOR,
-                        count + i + 1
+                        count.unwrap_or(0) + i
                     );
                     self.save(new_key, v.clone()).await?;
                 }
-                trace!(
+                debug!(
                     "{}: Append values to collection property: {} => {:?}",
                     self.title(),
                     property_name,
-                    &values
+                    values
                 );
             }
         }
@@ -292,7 +297,7 @@ impl Record for JsonStoreRecord {
         uncommited_paths.clear();
         append_values.clear();
         fetched_paths.clear();
-        trace!("{}: Committed, cache cleared", self.title());
+        debug!("{}: Committed, cache cleared", self.title());
 
         Ok(())
     }
@@ -341,40 +346,35 @@ impl Record for JsonStoreRecord {
             }
             Ok(result)
         } else {
-            let db_value = self.store.get(&object_key(&self.id)).await?;
-            if let Some(db_value) = db_value {
-                trace!("{}: Fetch from store", self.title());
-                let mut db_value: Value = serde_json::from_slice(&db_value)?;
-                db_value.x_merge(object.take());
-                let mut result = db_value;
+            let mut kv_byte_stream = self.store.range(object_key(&self.id)).await?;
+            let mut db_value = Value::Object(Map::new());
+            db_value.x_set_id(&self.id);
 
-                for (k, v) in appended_values.iter() {
-                    let mut arr = result
-                        .x_get_property(k)
-                        .cloned()
-                        .unwrap_or(Value::Array(vec![]));
-                    arr.x_merge(Value::Array(v.clone()));
-                    result.x_set_property(k, arr);
+            while let Some((key, value)) = kv_byte_stream.next().await {
+                let key = remove_object_id_prefix(key);
+                if let Ok(v) = serde_json::from_slice(&value) {
+                    db_value.x_set_property(&key, v);
+                } else {
+                    error!(
+                        "{}: Failed to parse value: {key} => {:?}",
+                        self.title(),
+                        &value
+                    );
                 }
-
-                fetched_paths.clear();
-                fetched_paths.push("".to_string());
-
-                Ok(result)
-            } else {
-                Err(Error::Store(format!(
-                    "{}: Record not found in store",
-                    self.title()
-                )))?
             }
+
+            fetched_paths.clear();
+            fetched_paths.push("".to_string());
+
+            Ok(db_value)
         }
     }
 
     async fn property_size(&self, property_name: &str) -> Result<Option<usize>> {
         let count = self
             .store
-            .max_index(property_key(&self.id, property_name))
+            .count(property_key(&self.id, property_name))
             .await?;
-        Ok(Some(count))
+        Ok(count)
     }
 }

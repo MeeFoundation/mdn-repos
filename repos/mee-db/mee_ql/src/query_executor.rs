@@ -9,18 +9,12 @@ use mee_storage::json_kv_store::Store;
 use serde_json::Value;
 use std::sync::Arc;
 
-use mee_storage::json_utils::*;
-
 #[allow(unused)]
 use serde_json::json;
 
 use futures::future::try_join_all;
 
 pub type DB = Arc<dyn QueryExecutor + Send + Sync>;
-
-fn object_key(id: &str) -> String {
-    format!("{ID_PREFIX}{id}")
-}
 
 #[async_trait::async_trait]
 pub trait QueryExecutor {
@@ -42,10 +36,6 @@ impl QueryExecutorImpl {
             executor_list: query_executor(store),
         })
     }
-}
-
-fn generate_id() -> String {
-    uuid::Uuid::now_v7().to_string()
 }
 
 #[async_trait::async_trait]
@@ -502,7 +492,7 @@ mod tests {
     async fn test_append_one() {
         let qe = setup().await;
         qe.execute(
-            r#"[user for user in users if user.name == "Bob" append user.payment_cards 
+            r#"[user.id for user in users if user.name == "Bob" append user.payment_cards 
         {
                     "holder": "Bob Smith",
                     "number": "1234 1234 1234 1234",
@@ -532,7 +522,7 @@ mod tests {
     async fn test_append_many() {
         let qe = setup().await;
         qe.execute(
-            r#"[user for user in users if user.name == "Bob" append user.payment_cards values [
+            r#"[for user in users if user.name == "Bob" append user.payment_cards values [
         {
                     "holder": "Bob Smith",
                     "number": "1234 1234 1234 1234",

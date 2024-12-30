@@ -448,7 +448,7 @@
               },
               {
                 "type": "FIELD",
-                "name": "values",
+                "name": "value",
                 "content": {
                   "type": "SYMBOL",
                   "name": "_expected_expression"

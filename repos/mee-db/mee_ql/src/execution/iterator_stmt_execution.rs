@@ -2,18 +2,10 @@ use super::*;
 use crate::error::*;
 use async_stream::try_stream;
 use futures::pin_mut;
-use futures::stream::{Stream, StreamExt};
-use mee_storage::binary_kv_store::PATH_SEPARATOR;
+use futures::stream::StreamExt;
 use mee_storage::json_kv_store::RecordStream;
 use mee_storage::json_kv_store::Store;
-use serde_json::Value;
 use std::sync::Arc;
-
-use mee_storage::json_utils::ID_PREFIX;
-
-fn object_key(id: &str) -> String {
-    format!("{ID_PREFIX}{id}")
-}
 
 pub struct IteratorExecutorImpl {
     store: Store,
@@ -77,7 +69,6 @@ impl IteratorExecutor for IteratorExecutorImpl {
                                     let mut new_ctx = ctx.clone();
                                     let item = MeeNode::new(Expression::User(user), item_start, item_end);
                                     new_ctx.insert(item_name.clone(), LazyValue::Unevaluated(Arc::new(item)));
-
                                     yield new_ctx.clone();
                                 }
                             }
@@ -89,15 +80,17 @@ impl IteratorExecutor for IteratorExecutorImpl {
                     for await ctx in input_ctx {
                         let mut ctx = ctx?;
                         ctx.insert(source_key.clone(), LazyValue::Unevaluated(Arc::new(source_node.clone())));
+                        let len = executor_list.pe.clone().size(source_text.clone(), Arc::new(MeeNode::new(Path::new(source_key.clone()), item_start, item_end)), &mut ctx, executor_list.clone()).await?;
 
-                        for i in 0..10 {
-                            let mut new_ctx = ctx.clone();
+                        if let Some(len) = len {
+                            for i in 0..len {
+                                let mut new_ctx = ctx.clone();
                             let item = MeeNode::new(Expression::Link(MeeNode::new(Path::new(format!("{source_key}.{i}")), item_start, item_end)), item_start, item_end);
                                 new_ctx.insert(item_name.clone(), LazyValue::Unevaluated(Arc::new(item)));
-
                                 yield new_ctx.clone();
                             }
                         }
+                    }
                     })
                 }
             }

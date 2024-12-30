@@ -67,7 +67,12 @@ impl Parser<MeeNode<Statement>> for StatementParser {
                         parser_list
                             .expression
                             .parse(source_text, expr_node, parser_list, ctx)?;
-                    Ok(mee_node(&node, Statement::AppendOne((field, expr))))
+                    let expr = MeeNode::new(
+                        Expression::Array(vec![expr]),
+                        expr_node.byte_range().start,
+                        expr_node.byte_range().end,
+                    );
+                    Ok(mee_node(&node, Statement::AppendMany((field, expr))))
                 }
             }
             "delete_stmt" => {

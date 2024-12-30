@@ -114,7 +114,7 @@ module.exports = grammar({
                     $._values,
                     field('values', $._expected_expression)
                 ),
-                field('values', $._expected_expression)
+                field('value', $._expected_expression)
             )
         )),
 

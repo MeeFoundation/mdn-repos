@@ -21,7 +21,6 @@ pub(crate) use expression_execution::*;
 pub(crate) use iterator_stmt_execution::*;
 pub(crate) use mee_storage::json_utils::*;
 pub(crate) use query_execution::*;
-pub(crate) use support::*;
 
 pub(crate) use executor::*;
 pub(crate) use serde_json::Map;
@@ -34,7 +33,7 @@ use futures::stream::Stream;
 use mee_storage::json_kv_store::Store;
 use std::pin::Pin;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum LazyValue {
     Unevaluated(Arc<MeeNode<Expression>>),
     Evaluated(Value),
@@ -56,7 +55,7 @@ pub fn query_executor(store: Store) -> Arc<ExecutorList> {
 
     let ie = Arc::new(IteratorExecutorImpl::new(store.clone()));
 
-    let qe = Arc::new(QueryExecutorImpl::new(store.clone()));
+    let qe = Arc::new(QueryExecutorImpl::new());
 
     Arc::new(ExecutorList {
         pe,

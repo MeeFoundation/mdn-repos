@@ -1,6 +1,5 @@
 use crate::error::*;
 use mee_storage::json_kv_store::JsonStoreRecord;
-use mee_storage::json_utils::ID_PREFIX;
 use std::boxed::Box;
 use std::collections::HashMap;
 
@@ -116,7 +115,6 @@ pub enum Statement {
     Assignment((MeeNode<String>, MeeNode<Expression>)),
     Update((MeeNode<Path>, MeeNode<Expression>)),
     Delete(MeeNode<Path>),
-    AppendOne((MeeNode<Path>, MeeNode<Expression>)),
     AppendMany((MeeNode<Path>, MeeNode<Expression>)),
     Filter(MeeNode<BoolExpression>),
     Offset(usize),
@@ -183,32 +181,18 @@ pub struct Path {
 
 impl Path {
     pub fn combine(&self, path: Path) -> Self {
-        let rest = if let Some(field) = path.field {
-            format!("{}{TARGET_PATH_SEPARATOR}{field}", path.root)
-        } else {
-            path.root
+        let field = match (self.field.as_ref(), path.field.as_ref()) {
+            (Some(field1), Some(field2)) => {
+                Some(format!("{field1}{TARGET_PATH_SEPARATOR}{field2}"))
+            }
+            (Some(field), Option::None) => Some(field.clone()),
+            (Option::None, Some(field)) => Some(field.clone()),
+            (Option::None, Option::None) => None,
         };
-        let field = if let Some(field) = self.field.as_ref() {
-            format!("{}{TARGET_PATH_SEPARATOR}{field}", field)
-        } else {
-            rest
-        };
+
         Path {
             root: self.root.clone(),
-            field: Some(field),
-        }
-    }
-
-    pub fn to_store_path(&self, id: &str) -> String {
-        let root = if &self.root == "users" {
-            "".to_string()
-        } else {
-            format!("{TARGET_PATH_SEPARATOR}{}", self.root)
-        };
-        if let Some(field) = &self.field {
-            format!("{ID_PREFIX}{id}{root}{TARGET_PATH_SEPARATOR}{field}")
-        } else {
-            format!("{ID_PREFIX}{id}{root}{TARGET_PATH_SEPARATOR}{root}")
+            field: field,
         }
     }
 

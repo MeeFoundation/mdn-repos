@@ -3,18 +3,15 @@ use crate::error::*;
 use async_stream::{stream, try_stream};
 use futures::pin_mut;
 use futures::stream::StreamExt;
-use mee_storage::binary_kv_store::PATH_SEPARATOR;
-use mee_storage::json_kv_store::{Record, Store};
-use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use mee_storage::json_kv_store::Record;
 
-pub struct QueryExecutorImpl {
-    pub store: Store,
-}
+use std::sync::Arc;
+
+pub struct QueryExecutorImpl;
 
 impl QueryExecutorImpl {
-    pub fn new(store: Store) -> Self {
-        Self { store }
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -30,6 +27,7 @@ impl QueryExecutorImpl {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
+
                 let (path, expr) = pair.clone();
 
                     let v: Value = executor_list
@@ -93,19 +91,25 @@ impl QueryExecutorImpl {
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
 
-                                let path = executor_list
+                let path = executor_list
                     .pe
                     .clone()
                     .resolve_path(source_text.clone(), path.clone(), &mut ctx, executor_list.clone())
                     .await?;
 
-                let prop: String = path.value.field.clone().unwrap_or("".to_string());
-
                match ctx.get(&path.value.root) {
                 Some(LazyValue::Unevaluated(arc)) => {
                     match &arc.value {
                         Expression::User(record) => {
-                            record.delete_property(prop).await?;
+                            match &path.value.field {
+                                Some(prop) => {
+                                    record.delete_property(prop.clone() ).await?;
+                                }
+                                None => {
+                                    record.delete().await?;
+                                }
+                            }
+
                         }
                         _ => {
                             Err(Error::runtime_error(
@@ -140,6 +144,7 @@ impl QueryExecutorImpl {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
+
                 let (key, expr) = pair.clone();
                 ctx.insert(key.value.clone(), LazyValue::Unevaluated(expr));
                 yield ctx;
@@ -191,6 +196,7 @@ impl QueryExecutorImpl {
             pin_mut!(input_ctx);
             for await ctx in input_ctx {
                 let mut ctx = ctx?;
+
                 let (path, expr) = pair.clone();
 
                     let v = executor_list
@@ -327,16 +333,21 @@ impl QueryExecutor for QueryExecutorImpl {
                         )
                         .await;
                 }
-                Statement::AppendOne(ref append) | Statement::AppendMany(ref append) => {
-                    new_stream = self
-                        .execute_append(
-                            source_text.clone(),
-                            (Arc::new(append.0.clone()), Arc::new(append.1.clone())),
-                            new_stream,
-                            executor_list.clone(),
-                        )
-                        .await;
-                }
+                Statement::AppendMany(ref append) => match &append.1.value {
+                    Expression::Array(values) => {
+                        for value in values.iter() {
+                            new_stream = self
+                                .execute_append(
+                                    source_text.clone(),
+                                    (Arc::new(append.0.clone()), Arc::new(value.clone())),
+                                    new_stream,
+                                    executor_list.clone(),
+                                )
+                                .await;
+                        }
+                    }
+                    _ => {}
+                },
                 Statement::Offset(ref offset) => {
                     new_stream = Box::pin(new_stream.skip(*offset));
                 }

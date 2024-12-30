@@ -1117,7 +1117,7 @@ static const TSFieldMapEntry ts_field_map_entries[] = {
     {field_val, 0},
   [24] =
     {field_field, 1},
-    {field_values, 2},
+    {field_value, 2},
   [26] =
     {field_expr, 2},
     {field_var, 0},

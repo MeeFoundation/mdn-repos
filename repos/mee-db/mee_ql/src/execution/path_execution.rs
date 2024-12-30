@@ -28,15 +28,17 @@ impl Executor<Path, Value> for PathExecutorImpl {
             LazyValue::Unevaluated(expr) => match &expr.value {
                 Expression::Link(path) => {
                     let new_path = path.map(|p| p.combine(node.value.clone()));
-                    executor_list
+                    let res = executor_list
                         .pe
                         .clone()
                         .execute(source_text, Arc::new(new_path), ctx, executor_list.clone())
-                        .await?
+                        .await?;
+                    return Ok(res);
                 }
                 Expression::User(record) => {
                     if let Some(ref prop) = node.value.field {
-                        record.get(prop).await?.unwrap_or(Value::Null)
+                        let res = record.get(prop).await?.unwrap_or(Value::Null);
+                        res
                     } else {
                         let val = record.snapshot(None).await?;
                         val
@@ -81,11 +83,12 @@ impl PathExecutor for PathExecutorImpl {
             LazyValue::Unevaluated(expr) => match &expr.value {
                 Expression::Link(path) => {
                     let new_path = path.map(|p| p.combine(node.value.clone()));
-                    executor_list
+                    let res = executor_list
                         .pe
                         .clone()
                         .size(source_text, Arc::new(new_path), ctx, executor_list.clone())
-                        .await
+                        .await;
+                    res
                 }
                 Expression::User(record) => {
                     if let Some(ref prop) = node.value.field {
@@ -120,11 +123,12 @@ impl PathExecutor for PathExecutorImpl {
             LazyValue::Unevaluated(expr) => match &expr.value {
                 Expression::Link(path) => {
                     let new_path = path.map(|p| p.combine(node.value.clone()));
-                    executor_list
+                    let res = executor_list
                         .pe
                         .clone()
                         .resolve_path(source_text, Arc::new(new_path), ctx, executor_list.clone())
-                        .await
+                        .await;
+                    res
                 }
                 _ => Ok(node.clone()),
             },

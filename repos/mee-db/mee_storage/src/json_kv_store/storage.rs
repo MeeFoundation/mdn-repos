@@ -1,20 +1,18 @@
 use super::json_store_record::JsonStoreRecord;
 use super::JsonStore;
 use super::Record;
-use super::{Error, Result};
-use super::{JsonStream, RecordStream};
+use super::RecordStream;
+use super::Result;
 use crate::binary_kv_store::BinaryKVStore;
 #[allow(unused_imports)]
 use crate::binary_kv_store::PATH_SEPARATOR;
 use crate::json_kv_store::support::{generate_id, get_id, object_key, property_key};
-use crate::json_utils::{JsonExt, ID_PREFIX};
+use crate::json_utils::JsonExt;
 use async_stream::stream;
-use futures::pin_mut;
 use futures::stream::StreamExt;
 use serde_json::Map;
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::{debug, trace};
 
 #[derive(Debug)]
 pub struct KVBasedJsonStoreImpl {
@@ -32,10 +30,11 @@ impl KVBasedJsonStoreImpl {
 impl JsonStore for KVBasedJsonStoreImpl {
     async fn insert(&self, value: Value) -> Result<String> {
         let id = generate_id();
-        let key = object_key(&id);
-        let bytes = serde_json::to_vec(&value)?;
-        dbg!(&key);
-        self.db.insert(key, bytes).await?;
+        let prefix = object_key(&id);
+        for (k, v) in value.x_to_flatten_map(prefix).into_iter() {
+            let bytes = serde_json::to_vec(&v)?;
+            self.db.insert(k, bytes).await?;
+        }
         Ok(id)
     }
 
@@ -63,15 +62,13 @@ impl JsonStore for KVBasedJsonStoreImpl {
         let db = self.db.clone();
 
         let s = stream! {
-            let mut prev_id = ID_PREFIX.to_string();
-            while let Ok(mut kv_stream) = db.range(prev_id.clone()).await {
-                if let Some((k,_)) = kv_stream.next().await {
-                    dbg!(&k);
-                    let id = get_id(&k).unwrap();
-                    prev_id = property_key(&id, &char::MAX.to_string());
-                    let record = JsonStoreRecord::new(db.clone(), id);
-                    yield record;
-                }
+            let mut prev_id = "-".to_string();
+
+            while let Ok(Some(k)) = db.next_key(prev_id.clone()).await {
+                let id = get_id(&k).unwrap();
+                prev_id = property_key(&id, &char::MAX.to_string());
+                let record = JsonStoreRecord::new(db.clone(), id);
+                yield record;
             }
         }
         .boxed();
@@ -85,25 +82,24 @@ mod test {
 
     // use super::*;
     // use crate::binary_kv_store;
-    // use assert_json_diff::assert_json_eq;
+
     // use serde_json::json;
 
-    // fn setup() -> KVBasedJsonStoreImpl {
+    // async fn setup() -> (String, KVBasedJsonStoreImpl) {
     //     let kv = binary_kv_store::new_btree_map_based();
-    //     KVBasedJsonStoreImpl::new(kv)
+    //     let store = KVBasedJsonStoreImpl::new(kv);
+    //     let id = store.insert(json!({})).await.unwrap();
+    //     (id, store)
     // }
 
     // #[tokio::test]
     // async fn read_write_single_value() {
-    //     let storage = setup();
+    //     let (id, storage) = setup().await;
     //     storage
-    //         .set(format!("key{PATH_SEPARATOR}id"), json!("value"))
+    //         .update(id, json!(Object::from([("field1", "value")])))
     //         .await
     //         .unwrap();
-    //     let value = storage
-    //         .get(format!("key{PATH_SEPARATOR}id"), FieldFilter::All)
-    //         .await
-    //         .unwrap();
+    //     let value = storage.get("field1", None).await.unwrap();
     //     assert_json_eq!(value, Some(json!("value")));
     // }
 
