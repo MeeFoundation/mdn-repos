@@ -1,4 +1,4 @@
-use crate::binary_kv_store::PATH_SEPARATOR;
+use crate::binary_store::PATH_SEPARATOR;
 use crate::json_kv_store::error::*;
 use crate::json_utils::ID_PREFIX;
 

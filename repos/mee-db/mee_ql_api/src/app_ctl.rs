@@ -10,6 +10,7 @@ const SWAGGER_PATH: &str = "/swagger-ui";
 use crate::api::examples;
 use clap::Parser;
 use mee_ql::query_executor::*;
+use mee_storage::binary_kv_store;
 
 #[derive(Clone, FromRef)]
 pub struct AppCtl {
@@ -21,7 +22,8 @@ pub struct AppCtl {
 impl AppCtl {
     pub async fn try_new() -> Result<Self> {
         let app_config = AppConfig::parse();
-        let db = QueryExecutorImpl::new_btree_map_based();
+        let binary_store = binary_kv_store::new_btree_map_based();
+        let db = QueryExecutorImpl::new_btree_map_based(binary_store);
 
         Ok(Self { app_config, db })
     }

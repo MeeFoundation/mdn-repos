@@ -3,9 +3,9 @@ use super::JsonStore;
 use super::Record;
 use super::RecordStream;
 use super::Result;
-use crate::binary_kv_store::BinaryKVStore;
+use crate::binary_store::BinaryKVStore;
 #[allow(unused_imports)]
-use crate::binary_kv_store::PATH_SEPARATOR;
+use crate::binary_store::PATH_SEPARATOR;
 use crate::json_kv_store::support::{generate_id, get_id, object_key, property_key};
 use crate::json_utils::JsonExt;
 use async_stream::stream;

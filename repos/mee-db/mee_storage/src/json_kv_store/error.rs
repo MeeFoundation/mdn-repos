@@ -4,7 +4,7 @@ use tokio::sync::TryLockError;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("Binary KV Store error: {0}")]
-    BinaryKVStoreError(#[from] crate::binary_kv_store::Error),
+    BinaryKVStoreError(#[from] super::binary_store::Error),
 
     #[error("JSON parsing error: {0}")]
     JsonParsingError(#[from] serde_json::Error),

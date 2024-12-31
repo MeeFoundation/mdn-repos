@@ -1,7 +1,7 @@
+use super::binary_store::KVStore;
+use super::binary_store::PATH_SEPARATOR;
 use super::support::{object_key, property_key, remove_object_id_prefix};
 use super::*;
-use crate::binary_kv_store::KVStore;
-use crate::binary_kv_store::PATH_SEPARATOR;
 use crate::json_utils::*;
 use futures::stream::StreamExt;
 use serde_json::Value;

@@ -4,6 +4,8 @@ use crate::execution::ExecutorList;
 use crate::json_kv_store;
 use crate::parser::ASTParserImpl;
 use crate::query_executor;
+use mee_storage::binary_kv_store;
+use mee_storage::json_kv_store::binary_store::BinaryStore;
 use mee_storage::json_kv_store::Store;
 
 use serde_json::Value;
@@ -29,8 +31,8 @@ pub struct QueryExecutorImpl {
 }
 
 impl QueryExecutorImpl {
-    pub fn new_btree_map_based() -> DB {
-        let store = json_kv_store::new_btree_map_based();
+    pub fn new_btree_map_based(binary_store: BinaryStore) -> DB {
+        let store = json_kv_store::new_btree_map_based(binary_store);
         Arc::new(Self {
             store: store.clone(),
             executor_list: query_executor(store),
@@ -182,7 +184,8 @@ mod tests {
     /* #endregion */
 
     async fn setup() -> DB {
-        let qe = QueryExecutorImpl::new_btree_map_based();
+        let binary_store = binary_kv_store::new_btree_map_based();
+        let qe = QueryExecutorImpl::new_btree_map_based(binary_store);
         qe.insert_many(vec![alice(), bob(), carol(), dan()])
             .await
             .unwrap();

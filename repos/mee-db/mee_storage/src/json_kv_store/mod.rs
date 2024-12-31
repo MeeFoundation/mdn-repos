@@ -1,4 +1,6 @@
-pub mod error;
+pub mod binary_store;
+mod error;
+mod json_store;
 mod json_store_record;
 mod storage;
 mod support;
@@ -10,6 +12,7 @@ use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
 
 pub use error::*;
+pub use json_store::*;
 pub type Store = Arc<dyn JsonStore + Send + Sync + 'static>;
 pub type JsonStream = futures::stream::BoxStream<'static, Value>;
 pub type RecordStream = futures::stream::BoxStream<'static, JsonStoreRecord>;
@@ -72,20 +75,6 @@ pub trait Record: Send + Sync + Debug + Clone + 'static {
     async fn property_size(&self, property_name: &str) -> Result<Option<usize>>;
 }
 
-#[allow(unused)]
-#[async_trait::async_trait]
-pub trait JsonStore: Debug {
-    async fn insert(&self, value: Value) -> Result<String>;
-    async fn update(&self, id: String, properties: Map<String, Value>) -> Result<()>;
-    async fn get(&self, id: String, properties: Option<Vec<String>>) -> Result<Option<Value>>;
-    async fn delete(&self, id: String) -> Result<()>;
-
-    //main
-    async fn stream(&self) -> Result<RecordStream>;
-}
-
-#[allow(dead_code)]
-pub fn new_btree_map_based() -> Store {
-    let store = binary_kv_store::new_btree_map_based();
-    Arc::new(KVBasedJsonStoreImpl::new(store))
+pub fn new_btree_map_based(binary_store: binary_store::BinaryStore) -> Store {
+    Arc::new(KVBasedJsonStoreImpl::new(binary_store))
 }
