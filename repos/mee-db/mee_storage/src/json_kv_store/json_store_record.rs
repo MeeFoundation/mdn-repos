@@ -64,7 +64,7 @@ impl JsonStoreRecord {
         let mut property = Value::Null;
         let mut kv_byte_stream = self
             .store
-            .range(property_key(&self.id, &property_name))
+            .range(property_key(&self.id, property_name))
             .await?;
 
         let mut is_empty = true;
@@ -274,7 +274,7 @@ impl Record for JsonStoreRecord {
                     .count(property_key(&self.id, property_name))
                     .await?;
                 debug!(count, property_name);
-                for (i, v) in values.into_iter().enumerate() {
+                for (i, v) in values.iter_mut().enumerate() {
                     let new_key = format!(
                         "{}{}{}",
                         property_key(&self.id, property_name),

@@ -6,7 +6,6 @@ use crate::parser::ASTParserImpl;
 use crate::query_executor;
 use mee_storage::json_kv_store::binary_store::BinaryStore;
 use mee_storage::json_kv_store::Store;
-use mee_storage::mock_binary_kv_store;
 
 use serde_json::Value;
 use std::sync::Arc;
