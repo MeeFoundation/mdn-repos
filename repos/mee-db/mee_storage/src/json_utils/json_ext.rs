@@ -3,7 +3,7 @@ use super::support::{
 };
 use super::ID_PROPERTY;
 #[allow(unused_imports)]
-use crate::binary_kv_store::PATH_SEPARATOR;
+use crate::mock_binary_kv_store::PATH_SEPARATOR;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;

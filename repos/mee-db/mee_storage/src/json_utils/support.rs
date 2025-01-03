@@ -1,4 +1,4 @@
-use crate::binary_kv_store::PATH_SEPARATOR;
+use crate::mock_binary_kv_store::PATH_SEPARATOR;
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 use tracing::error;

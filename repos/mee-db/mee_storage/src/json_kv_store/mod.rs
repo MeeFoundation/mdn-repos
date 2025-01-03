@@ -5,8 +5,6 @@ mod json_store_record;
 mod storage;
 mod support;
 
-use crate::binary_kv_store;
-
 pub use json_store_record::JsonStoreRecord;
 use std::sync::Arc;
 use storage::KVBasedJsonStoreImpl;
@@ -75,6 +73,6 @@ pub trait Record: Send + Sync + Debug + Clone + 'static {
     async fn property_size(&self, property_name: &str) -> Result<Option<usize>>;
 }
 
-pub fn new_btree_map_based(binary_store: binary_store::BinaryStore) -> Store {
+pub fn new(binary_store: binary_store::BinaryStore) -> Store {
     Arc::new(KVBasedJsonStoreImpl::new(binary_store))
 }

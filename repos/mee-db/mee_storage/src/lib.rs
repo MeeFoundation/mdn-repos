@@ -1,5 +1,5 @@
-pub mod binary_kv_store;
 pub mod json_kv_store;
+pub mod mock_binary_kv_store;
 
 pub mod json_utils;
 
