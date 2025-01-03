@@ -1,0 +1,9 @@
+[
+  {
+    "name" : user.name,
+    "phone" : user.phone
+  }
+
+  for user in users() 
+  if user.phone matches "+1[0-9]{11}"
+]
