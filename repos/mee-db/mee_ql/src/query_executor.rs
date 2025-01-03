@@ -74,6 +74,7 @@ impl QueryExecutor for QueryExecutorImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mee_storage::mock_binary_kv_store;
 
     /* #region test_data */
     fn alice() -> Value {
