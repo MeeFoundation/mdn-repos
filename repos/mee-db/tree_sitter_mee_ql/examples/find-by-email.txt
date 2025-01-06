@@ -1,0 +1,4 @@
+[
+  user
+  for user in users() if user.email == "some@gmail.com"
+]

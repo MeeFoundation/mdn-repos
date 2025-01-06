@@ -1,0 +1,29 @@
+[package]
+name = "mee_storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+axum = { workspace = true, features = ["macros"] }
+utoipa = { workspace = true, features = ["axum_extras", "url"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+thiserror = { workspace = true }
+strum = { workspace = true }
+tracing = { workspace = true, features = ["attributes"] }
+clap = { workspace = true, features = ["derive", "env"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+sled = { workspace = true }
+uuid = { workspace = true, features = ["v7"] }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+async-stream = { workspace = true }
+futures = { workspace = true }
+regex = { workspace = true }
+assert-json-diff = { workspace = true }
+
+[dev-dependencies]
+assert-json-diff = { workspace = true }

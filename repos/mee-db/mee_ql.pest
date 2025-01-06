@@ -1,0 +1,59 @@
+// unused file
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+object = {
+    "{" ~ "}"
+  | "{" ~ pair ~ ("," ~ pair)* ~ "}"
+}
+pair   = { string ~ ":" ~ value }
+
+array = {
+    "[" ~ "]"
+  | "[" ~ value ~ ("," ~ value)* ~ "]"
+}
+
+value = _{ path | object | array | string | number | boolean | null }
+
+boolean = { "true" | "false" }
+
+null = { "null" }
+
+string = ${ "\"" ~ inner ~ "\"" }
+inner  = @{ char* }
+char   =  {
+    !("\"" | "\\") ~ ANY
+  | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+  | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+number = @{
+    "-"? ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*) ~ ("." ~ ASCII_DIGIT*)? ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+
+ident = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+
+start         = _{ SOI ~ query ~ EOI }
+query         = _{ array_query | element_query }
+array_query   =  { "[" ~ query_body ~ "]" }
+element_query =  { "(" ~ query_body ~ ")" }
+query_body    = _{ (iterator | value? ~ iterator) ~ (iterator | assignment | condition)* ~ update_assignment? ~ limit? ~ offset? }
+
+iterator          = { "for" ~ ident ~ "in" ~ source }
+assignment        = { ident ~ "=" ~ (value | query) }
+update_assignment = { "set" ~ path ~ "=" ~ value }
+
+source    = { path ~ "()"? | array }
+condition = { "if" ~ comparison }
+
+comparison = _{ (value ~ comparator? | "(" ~ comparison ~ ")") ~ (logical_op ~ comparison)? }
+path       =  { ident ~ ("." ~ ident)* }
+comparator =  { "==" ~ value | "!=" ~ value | ">" ~ value | "<" ~ value | ">=" ~ value | "<=" ~ value | "matches" ~ string | "exists" }
+logical_op =  { "and" | "or" }
+
+limit  = { "limit" ~ pos_int+ }
+offset = { "offset" ~ pos_int+ }
+
+pos_int = @{
+    ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+}

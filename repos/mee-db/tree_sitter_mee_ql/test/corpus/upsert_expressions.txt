@@ -1,0 +1,71 @@
+===
+Append array of objects
+===
+
+[
+  user for user in users if user.name == "Bob"
+  append user.phones values [
+            "3432423",
+            "765756"
+  ]
+]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))
+    (append_stmt
+      (path
+        (ident)
+        (ident))
+      (array
+        (string
+          (string_content))
+        (string
+          (string_content))))))
+
+===
+Append object
+===
+
+[
+  user for user in users if user.name == "Carol"
+  append user.phones "3254565"
+]
+---
+
+(start
+  (array_query
+    (path
+      (ident))
+    (iterator_stmt
+      (ident)
+      (path
+        (ident)))
+    (filter_stmt
+      (comparison
+        (path
+          (ident)
+          (ident))
+        (comparator
+          (string
+            (string_content)))))
+    (append_stmt
+      (path
+        (ident)
+        (ident))
+      (string
+        (string_content)))))
