@@ -1,5 +1,5 @@
 use crate::{error::MeeDataSyncResult, willow::node::WillowNode};
-use iroh_net::NodeId;
+use iroh::NodeId;
 use iroh_willow::session::{intents::IntentHandle, SessionInit};
 
 #[derive(Clone)]

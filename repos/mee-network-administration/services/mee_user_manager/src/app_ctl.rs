@@ -13,7 +13,9 @@ use mee_http_utils::{
 
 use mee_secrets_manager::{
     client::SimpleFileSecretsManagerClient,
-    signatures_service::SignaturesServiceDefault,
+    signatures_service::{
+        SignaturesServiceConfigBuilder, SignaturesServiceDefault,
+    },
 };
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -44,9 +46,16 @@ impl AppCtl {
         )
         .await?;
 
+        let signatures_service_config =
+            SignaturesServiceConfigBuilder::default()
+                .jwk_secret_path(Some(
+                    app_config.mee_signature_secret_path.clone(),
+                ))
+                .build()
+                .map_err(anyhow::Error::from)?;
+
         let mee_authority_signature = Arc::new(SignaturesServiceDefault::new(
-            app_config.mee_signature_secret_path.clone(),
-            None,
+            signatures_service_config,
             // TODO replace with real world secure secret manager
             Arc::new(SimpleFileSecretsManagerClient::new(format!(
                 "{}/../target",
@@ -89,7 +98,9 @@ impl AppCtl {
                     .allow_headers([CONTENT_TYPE])
                     .allow_credentials(true)
                     .allow_origin(
-                        "http://127.0.0.1:8003".parse::<HeaderValue>().unwrap(),
+                        "http://127.0.0.1:8003"
+                            .parse::<HeaderValue>()
+                            .map_err(anyhow::Error::msg)?,
                     )
                     .allow_methods([Method::GET]),
             );

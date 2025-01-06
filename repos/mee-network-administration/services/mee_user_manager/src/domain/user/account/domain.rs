@@ -29,8 +29,8 @@ pub enum UserRole {
 #[derive(Debug)]
 pub struct UserAccountDomainModel {
     pub user_meeid: String,
-    pub user_email: String,
     pub user_role: UserRole,
+    pub user_email: String,
     pub user_phone: Option<String>,
     pub is_active: bool,
 }

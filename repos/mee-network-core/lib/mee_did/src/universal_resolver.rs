@@ -1,11 +1,12 @@
 use crate::error::{MeeDidErr, MeeDidResult};
 use async_trait::async_trait;
-use didkit::{
-    DIDResolver, Document, DocumentMetadata, ResolutionInputMetadata,
-    ResolutionMetadata, DID_METHODS, JWK,
+pub use didkit::{
+    ssi::did::{DIDMethods, VerificationMethod},
+    DIDResolver, Document, DocumentMetadata, ResolutionInputMetadata, ResolutionMetadata,
+    VerificationRelationship, DID_METHODS,
 };
 use lazy_static::lazy_static;
-use ssi::did::{DIDMethods, VerificationMethod};
+use mee_crypto::jwk::Jwk;
 
 lazy_static! {
     pub static ref UNIVERSAL_DID_METHOD: DIDMethods<'static> = {
@@ -45,7 +46,7 @@ pub trait DIDResolverExt: DIDResolver {
     async fn resolve_did_for_relation(
         &self,
         did: &str,
-        relation: ssi::did::VerificationRelationship,
+        relation: VerificationRelationship,
     ) -> MeeDidResult<String> {
         let (_, doc, _) = self
             .resolve_err(did, &ResolutionInputMetadata::default())
@@ -70,7 +71,7 @@ pub trait DIDResolverExt: DIDResolver {
         &self,
         did: &str,
         method_id: &str,
-    ) -> MeeDidResult<JWK> {
+    ) -> MeeDidResult<Jwk> {
         let (_, doc, _) = self
             .resolve_err(did, &ResolutionInputMetadata::default())
             .await?;
@@ -98,7 +99,7 @@ pub trait DIDResolverExt: DIDResolver {
             });
 
         Ok(match jwk {
-            Some(jwk) => jwk?,
+            Some(jwk) => jwk?.try_into()?,
             None => Err(MeeDidErr::DidResolver {
                 error: format!("No matching JWKs for {}", did),
             })?,

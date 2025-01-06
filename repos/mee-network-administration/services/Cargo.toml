@@ -8,6 +8,7 @@ members = [
   "oidc_provider",
   "service_utils",
   "mee_dev_secrets",
+  "mdn_cloud_controller",
 ]
 
 [workspace.package]
@@ -62,3 +63,9 @@ utoipa = "4.2"
 utoipa-swagger-ui = "6.0"
 hyper = "1.0"
 tower-http = "0.5"
+
+[patch.crates-io]
+
+willow-data-model = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+willow-encoding = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }
+meadowcap = { git = "https://github.com/n0-computer/willow-rs.git", branch = "main" }

@@ -6,6 +6,13 @@ PG_DATABASE_PSWD=postgres
 export DATABASE_URL=postgres://${PG_DATABASE_USER}:${PG_DATABASE_PSWD}@${PG_DATABASE_HOST}:${PG_DATABASE_PORT}/${PG_DATABASE_NAME}
 
 DB_CONT_NAME=local-dev-mee-pgsql
+DOCKER_DB=docker exec -ti ${DB_CONT_NAME} psql
+USE_LOCAL_DEV_DB:=$(USE_LOCAL_DEV_DB)
+PGSQL_BIN=${DOCKER_DB}
+
+ifeq (${USE_LOCAL_DEV_DB},1)
+	PGSQL_BIN=psql
+endif
 
 RUST_LOG=info
 
@@ -23,16 +30,16 @@ run_db_daemon:
 		postgres
 
 create_db:
-	docker exec -ti ${DB_CONT_NAME} psql \
+	${PGSQL_BIN} \
 		-U ${PG_DATABASE_USER} \
 		-c "CREATE DATABASE ${PG_DATABASE_NAME} WITH OWNER=${PG_DATABASE_USER};"
 
-	docker exec -ti ${DB_CONT_NAME} psql \
+	${PGSQL_BIN} \
 		-U ${PG_DATABASE_USER} \
 		-c "GRANT ALL PRIVILEGES ON DATABASE ${PG_DATABASE_NAME} TO ${PG_DATABASE_USER};"
 
 clean_db:
-	docker exec -ti ${DB_CONT_NAME} psql \
+	${PGSQL_BIN} \
 		-U ${PG_DATABASE_USER} \
 		-c "drop database if exists ${PG_DATABASE_NAME};"
 

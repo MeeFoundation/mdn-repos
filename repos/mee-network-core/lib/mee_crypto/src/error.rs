@@ -1,4 +1,5 @@
 use chacha20poly1305::aead;
+use josekit::JoseError;
 use mee_macro_utils::from_external_error_to_string_error;
 use std::string::FromUtf8Error;
 
@@ -66,28 +67,14 @@ impl MeeCryptoErr {
     }
 }
 
-from_external_error_to_string_error!(
-    identity_jose::error::Error,
-    MeeCryptoErr,
-    JoseKit
-);
+from_external_error_to_string_error!(JoseError, MeeCryptoErr, JoseKit);
+from_external_error_to_string_error!(identity_jose::error::Error, MeeCryptoErr, JoseKit);
 from_external_error_to_string_error!(aead::Error, MeeCryptoErr, AeadCrypto);
 from_external_error_to_string_error!(pkcs8::Error, MeeCryptoErr, Pkcs8);
 from_external_error_to_string_error!(pkcs8::spki::Error, MeeCryptoErr, Pkcs8);
-from_external_error_to_string_error!(
-    p256::elliptic_curve::Error,
-    MeeCryptoErr,
-    P256
-);
+from_external_error_to_string_error!(p256::elliptic_curve::Error, MeeCryptoErr, P256);
 from_external_error_to_string_error!(rsa::Error, MeeCryptoErr, Rsa);
 from_external_error_to_string_error!(base64::DecodeError, MeeCryptoErr, Base64);
-from_external_error_to_string_error!(
-    FromUtf8Error,
-    MeeCryptoErr,
-    InternalString
-);
-from_external_error_to_string_error!(
-    biscuit_auth::error::Format,
-    MeeCryptoErr,
-    BiscuitAuthFormat
-);
+from_external_error_to_string_error!(FromUtf8Error, MeeCryptoErr, InternalString);
+from_external_error_to_string_error!(biscuit_auth::error::Format, MeeCryptoErr, BiscuitAuthFormat);
+from_external_error_to_string_error!(serde_json::error::Error, MeeCryptoErr, SerdeCodec);

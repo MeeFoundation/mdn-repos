@@ -5,6 +5,7 @@ use crate::{
 };
 use bytes::Bytes;
 use futures::{Stream, StreamExt, TryStreamExt};
+use iroh_blobs::store::{bao_tree::io::fsm::AsyncSliceReader, Map, MapEntry};
 use iroh_willow::{
     form::{EntryForm, SubspaceForm},
     proto::{
@@ -13,19 +14,68 @@ use iroh_willow::{
         keys::{NamespaceId, UserId},
     },
 };
+use mee_async_utils::local_spawn::{LocalSpawner, TaskRunner};
+use tokio::sync::oneshot::{self};
+
+pub enum WillowDataManagerLocalTask {
+    ReadEntryPayload {
+        willow_node: WillowNode,
+        entry: Entry,
+        reply_tx: oneshot::Sender<MeeDataSyncResult<Option<Bytes>>>,
+    },
+}
+
+#[async_trait::async_trait(?Send)]
+impl TaskRunner for WillowDataManagerLocalTask {
+    async fn run(self) {
+        match self {
+            WillowDataManagerLocalTask::ReadEntryPayload {
+                willow_node,
+                entry,
+                reply_tx,
+            } => {
+                let res = async move {
+                    let blob_entry = willow_node.blobs.get(&entry.payload_digest().0).await?;
+
+                    let data = if let Some(blob_entry) = blob_entry {
+                        let mut reader = blob_entry.data_reader().await?;
+                        let data = reader
+                            .read_at(0, entry.payload_length().try_into()?)
+                            .await?;
+
+                        Some(data)
+                    } else {
+                        None
+                    };
+
+                    MeeDataSyncResult::Ok(data)
+                };
+
+                if reply_tx.send(res.await).is_err() {
+                    log::error!("Read entry payload channel send error");
+                }
+            }
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct WillowDataManager {
     willow_node: WillowNode,
     willow_user_manager: WillowUserManager,
+    local_spawner: LocalSpawner<WillowDataManagerLocalTask>,
 }
 
 impl WillowDataManager {
-    pub fn new(willow_node: WillowNode, willow_user_manager: WillowUserManager) -> Self {
-        Self {
+    pub fn try_new(
+        willow_node: WillowNode,
+        willow_user_manager: WillowUserManager,
+    ) -> MeeDataSyncResult<Self> {
+        Ok(Self {
             willow_node,
             willow_user_manager,
-        }
+            local_spawner: LocalSpawner::try_new()?,
+        })
     }
     pub async fn insert_entry(
         &self,
@@ -119,6 +169,17 @@ impl WillowDataManager {
         Ok(res)
     }
     pub async fn read_entry_payload(&self, entry: Entry) -> MeeDataSyncResult<Option<Bytes>> {
-        Ok(self.willow_node.engine.read_payload(entry).await?)
+        let (reply_tx, reply_rx) = oneshot::channel();
+
+        self.local_spawner
+            .spawn(WillowDataManagerLocalTask::ReadEntryPayload {
+                willow_node: self.willow_node.clone(),
+                entry,
+                reply_tx,
+            })?;
+
+        Ok(reply_rx
+            .await
+            .map_err(|_| anyhow::anyhow!("Read entry payload receiving channel error"))??)
     }
 }

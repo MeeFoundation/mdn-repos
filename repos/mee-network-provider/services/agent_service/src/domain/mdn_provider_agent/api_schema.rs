@@ -1,5 +1,5 @@
 use super::mdn_node::{api_methods::*, api_types::*};
-use mee_data_sync::mdn::{
+use mee_data_sync::mdn_iiw38::{
     common::store::ReadDataRecord,
     provider_agent::delegation::manager::{
         ImportCapabilitiesFromProvider, ImportCapabilitiesFromVirtualAgent,

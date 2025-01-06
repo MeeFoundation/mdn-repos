@@ -8,13 +8,16 @@ license.workspace = true
 
 [dependencies]
 mee_macro_utils = { path = "../../../mee-utils/lib/mee_macro_utils" }
+mee_crypto = { path = "../mee_crypto" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-ssi = { workspace = true, features = ["w3c"] }
 async-trait = { workspace = true }
-didkit = { workspace = true }
+didkit = { workspace = true, features = ["w3c"] }
 
 lazy_static = "1"
 anyhow = "1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }
