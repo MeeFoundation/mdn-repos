@@ -80,19 +80,10 @@ async fn mdn_smartwallet_user_flow() {
         .await
         .unwrap();
 
-    // TODO expose storage list API?
-    // let custodian_storages = identity_agent_ctl
-    //     .mdn_user_custodian_storage_manager
-    //     .list_all_storages()
-    //     .await
-    //     .unwrap();
-
-    // assert!(custodian_storages.len() > 0);
-    // log::info!("custodian_storages: {custodian_storages:#?}");
+    let mdn_node_manager = identity_agent_ctl.mdn_node_manager();
 
     // creates context for itself
-    identity_agent_ctl
-        .mdn_node_manager()
+    mdn_node_manager
         .create_context(
             auth_token.mdn_user_custodian_uid,
             "Alice self-custodian context".to_string(),
@@ -100,11 +91,30 @@ async fn mdn_smartwallet_user_flow() {
         .await
         .unwrap();
 
-    let ctxs = identity_agent_ctl
-        .mdn_node_manager()
-        .list_contexts()
+    let mut ctxs = mdn_node_manager.list_contexts().await.unwrap();
+
+    assert!(ctxs.len() > 0);
+
+    let Some(ctx) = ctxs.pop() else {
+        panic!("empty context list");
+    };
+
+    let phone_path = "phone";
+    let phone_value = "123";
+
+    mdn_node_manager
+        .write_context_data(
+            &ctx.mdn_identity_context_uid,
+            phone_path,
+            phone_value.as_bytes().to_vec(),
+        )
         .await
         .unwrap();
 
-    assert!(ctxs.len() > 0);
+    let res = mdn_node_manager
+        .read_context_data(&ctx.context_scoped_subject_uid, phone_path)
+        .await
+        .unwrap();
+
+    assert_eq!(vec![phone_value.as_bytes()], res);
 }

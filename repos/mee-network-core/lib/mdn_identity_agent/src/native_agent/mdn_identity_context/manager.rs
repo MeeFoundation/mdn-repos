@@ -11,9 +11,9 @@ use crate::{
 use async_trait::async_trait;
 use std::sync::Arc;
 
-/// Internal context manager with low-level details knowledge
+/// Internal context manager
 #[async_trait]
-pub trait MdnIdentityContextManager {
+pub trait MdnCloudControllerIdentityContextManager {
     async fn create_context(
         &self,
         custodian_uid: String,
@@ -44,7 +44,7 @@ impl MdnIdentityContextManagerDefaultImpl {
 }
 
 #[async_trait]
-impl MdnIdentityContextManager for MdnIdentityContextManagerDefaultImpl {
+impl MdnCloudControllerIdentityContextManager for MdnIdentityContextManagerDefaultImpl {
     async fn create_context(
         &self,
         custodian_uid: String,

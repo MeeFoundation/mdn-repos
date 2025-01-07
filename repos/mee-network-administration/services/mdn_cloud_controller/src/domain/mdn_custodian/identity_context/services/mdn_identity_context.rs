@@ -27,7 +27,7 @@ use mdn_identity_agent::{
     mdn_cloud::mdn_identity_context::api_types::{
         CreateMdnIdentityContextRequest, MdnIdentityContextResponse,
     },
-    mdn_common::cap_definitions::MdnCapability,
+    mdn_common::capabilities::cap_definitions::MdnCapability,
 };
 
 pub struct MdnIdentityContextService<'a> {

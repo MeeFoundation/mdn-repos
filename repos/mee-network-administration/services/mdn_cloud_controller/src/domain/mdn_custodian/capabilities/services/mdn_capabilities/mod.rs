@@ -20,7 +20,7 @@ use crate::{
     },
     error::{MdnCloudControllerErr, MdnCloudControllerResult},
 };
-use mdn_identity_agent::mdn_common::cap_definitions::MdnCapability;
+use mdn_identity_agent::mdn_common::capabilities::cap_definitions::MdnCapability;
 
 pub struct MdnCapabilitiesService<'a> {
     custodian_context_operation_caps_repository:
@@ -125,7 +125,8 @@ impl<'a> MdnCapabilitiesService<'a> {
     pub async fn context_ops_caps(
         &self,
         logged_in_mdn_user: LoggedInMdnUser,
-    ) -> MdnCloudControllerResult<Vec<MdnCustodianContextOperationCapsResponse>> {
+    ) -> MdnCloudControllerResult<Vec<MdnCustodianContextOperationCapsResponse>>
+    {
         let user_id = match &logged_in_mdn_user {
             LoggedInMdnUser::DirectlyLoggedInMdnUser(user_auth_token) => {
                 self.mdn_user_account_service

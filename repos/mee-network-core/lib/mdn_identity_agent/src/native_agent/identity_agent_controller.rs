@@ -4,9 +4,8 @@ use super::{
     mdn_custodian_storage::manager::{
         MdnCustodianStorageManager, MdnCustodianStorageManagerDefaultImpl,
     },
-    mdn_custodian_willow_storage::MdnUserCustodianWillowStorage,
     mdn_identity_context::manager::MdnIdentityContextManagerDefaultImpl,
-    mdn_node::manager::{MdnNodeManager, MdnNodeManagerIdentityAgentImpl},
+    mdn_node::manager::MdnNodeManagerImpl,
     mdn_user::manager::{MdnUserAccountManager, MdnUserAccountManagerDefaultImpl},
 };
 use crate::{
@@ -17,7 +16,15 @@ use crate::{
         mdn_identity_context::api_client::MdnIdentityContextApiClientDefault,
         mdn_user::api_client::MdnUserAccountApiClientDefault,
     },
-    mdn_common::mdn_custodian_willow_storage::namespace_storage_manager::NamespaceStorageManagerEmbeddedRedb,
+    mdn_common::{
+        mdn_custodian_willow_storage::{
+            data_storage_manager::WillowDataStorageManagerImpl,
+            namespace_storage_manager::WillowNamespaceStorageManagerEmbeddedRedb,
+            MdnCustodianWillowStorage,
+        },
+        mdn_node::MdnNodeManager,
+        meeql_storage::MdnCustodianMeeqlDataManagerWillowImpl,
+    },
 };
 use async_trait::async_trait;
 use mee_data_sync::willow::peer::WillowPeer;
@@ -120,15 +127,23 @@ impl MdnIdentityAgentControllerImpl {
         let willow_peer =
             WillowPeer::try_new(mdn_user_account_manager.get_iroh_node_key().await?).await?;
 
-        let mdn_node_manager = Arc::new(MdnNodeManagerIdentityAgentImpl::new(
+        let mdn_custodian_willow_storage = MdnCustodianWillowStorage::new(
+            Arc::new(
+                WillowNamespaceStorageManagerEmbeddedRedb::try_new(local_db_file_path.clone())
+                    .await?,
+            ),
+            Arc::new(WillowDataStorageManagerImpl::new(willow_peer.clone())),
+            willow_peer,
+        );
+
+        let mdn_custodian_meeql_storage = Arc::new(MdnCustodianMeeqlDataManagerWillowImpl::new(
+            mdn_custodian_willow_storage.clone(),
+        ));
+
+        let mdn_node_manager = Arc::new(MdnNodeManagerImpl::new(
             mdn_identity_context_manager,
-            Arc::new(MdnUserCustodianWillowStorage::new(
-                Arc::new(
-                    NamespaceStorageManagerEmbeddedRedb::try_new(local_db_file_path.clone())
-                        .await?,
-                ),
-                willow_peer,
-            )),
+            mdn_custodian_willow_storage,
+            mdn_custodian_meeql_storage,
         ));
 
         Ok(Self {

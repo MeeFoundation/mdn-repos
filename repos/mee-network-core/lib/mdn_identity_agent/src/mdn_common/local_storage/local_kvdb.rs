@@ -65,8 +65,6 @@ pub struct LocalKvDbRedb {
 }
 
 impl LocalKvDbRedb {
-    // const MAIN_TABLE: TableDefinition<'_, &str, Vec<u8>> = TableDefinition::new("MAIN_TABLE");
-
     pub async fn try_new(db_file_path: String, table_name: String) -> MdnIdentityAgentResult<Self> {
         let db_file_path = db_file_path.clone();
 
