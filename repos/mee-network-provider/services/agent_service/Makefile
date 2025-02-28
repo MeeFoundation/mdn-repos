@@ -9,7 +9,9 @@ RUST_LOG=info
 TEST_CORS=--local-testing-cors-port=5173 \
 					--local-testing-cors-port=5174 \
 					--local-testing-cors-port=5175 \
-					--local-testing-cors-port=5176
+					--local-testing-cors-port=5176 \
+					--local-testing-cors-port=5177 \
+					--local-testing-cors-port=5178
 
 profile_provider1:
 	RUST_LOG=${RUST_LOG} \

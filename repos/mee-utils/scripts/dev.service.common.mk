@@ -20,7 +20,7 @@ run_db_daemon:
 		-e POSTGRES_PASSWORD=${PG_DATABASE_PSWD} \
 		-e PGDATA=/var/lib/postgresql/data/pgdata \
 		-v $(shell pwd)/../../tmp:/var/lib/postgresql/data \
-		postgres
+		postgres:16.8
 
 create_db:
 	docker exec -ti ${DB_CONT_NAME} psql \
