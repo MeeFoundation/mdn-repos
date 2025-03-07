@@ -6,7 +6,7 @@ use super::api_types::{
 use crate::error::AgentServiceResult;
 use futures::{StreamExt, TryStreamExt};
 use mee_data_sync::{
-    iroh::key::SecretKey,
+    iroh::iroh_base::SecretKey,
     mdn_iiw38::{
         common::{node::MdnAgentProviderNode, store::ReadDataRecord},
         provider_agent::{

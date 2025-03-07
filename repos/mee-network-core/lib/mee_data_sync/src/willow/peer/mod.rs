@@ -2,7 +2,7 @@ use super::node::WillowNode;
 use crate::error::MeeDataSyncResult;
 use data_manager::WillowDataManager;
 use delegation_manager::WillowDelegationManager;
-use iroh::key::SecretKey;
+use iroh_base::SecretKey;
 use namespace_manager::WillowNamespaceManager;
 use network_manager::WillowNetworkManager;
 use session_manager::WillowSessionManager;

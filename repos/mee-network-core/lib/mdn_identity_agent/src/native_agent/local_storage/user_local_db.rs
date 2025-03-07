@@ -4,7 +4,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use mee_crypto::jwk::Jwk;
-use mee_data_sync::iroh::key::SecretKey;
+use mee_data_sync::iroh::iroh_base::SecretKey;
 use std::sync::Arc;
 
 #[async_trait]

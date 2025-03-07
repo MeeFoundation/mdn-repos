@@ -1,5 +1,5 @@
 use futures::{future::join_all, StreamExt};
-use iroh::ticket::NodeTicket;
+use iroh_base::ticket::NodeTicket;
 use iroh_willow::proto::keys::UserId;
 use mee_data_sync::{
     error::MeeDataSyncResult,

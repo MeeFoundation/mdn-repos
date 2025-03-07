@@ -1,4 +1,5 @@
-use iroh::{endpoint::ConnectionError, ticket};
+use iroh::endpoint::ConnectionError;
+use iroh_base::ticket;
 use iroh_willow::proto::data_model::{InvalidPathError, InvalidPathError2};
 use std::{
     array::TryFromSliceError, num::TryFromIntError, string::FromUtf8Error, sync::PoisonError,

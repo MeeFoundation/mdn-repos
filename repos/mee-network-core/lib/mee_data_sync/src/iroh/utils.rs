@@ -1,8 +1,8 @@
-use iroh::key::SecretKey;
+use iroh_base::SecretKey;
 
 pub fn create_iroh_secret_key() -> SecretKey {
-    let mut rng = rand::thread_rng();
-    let iroh_node_secret_key = SecretKey::generate_with_rng(&mut rng);
+    let rng = rand::thread_rng();
+    let iroh_node_secret_key = SecretKey::generate(rng);
 
     iroh_node_secret_key
 }

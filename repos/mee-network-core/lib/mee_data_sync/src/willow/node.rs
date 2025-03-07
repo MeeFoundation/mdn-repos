@@ -1,5 +1,7 @@
 use crate::error::MeeDataSyncResult;
-use iroh::{key::SecretKey, ticket::NodeTicket, Endpoint, NodeId, RelayMode};
+use iroh::{Endpoint, NodeId, RelayMode};
+use iroh_base::SecretKey;
+use iroh_base::ticket::NodeTicket;
 use iroh_willow::{
     engine::{AcceptOpts, Engine},
     ALPN,

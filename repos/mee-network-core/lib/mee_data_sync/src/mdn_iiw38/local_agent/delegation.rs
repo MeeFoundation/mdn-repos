@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use futures::TryStreamExt;
-use iroh::ticket::NodeTicket;
+use iroh_base::ticket::NodeTicket;
 use iroh_willow::{
     interest::{CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea},
     proto::{

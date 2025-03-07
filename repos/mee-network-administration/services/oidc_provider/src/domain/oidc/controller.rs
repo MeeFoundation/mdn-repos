@@ -161,7 +161,7 @@ impl OidcController {
             request_parameter_supported: false,
             request_uri_parameter_supported: false,
             require_request_uri_registration: false,
-            token_introspection_endpoint: None,
+            introspection_endpoint: None,
             userinfo_endpoint: None,
             end_session_endpoint: None,
             registration_endpoint: None,
@@ -549,18 +549,18 @@ impl OidcController {
                                   .ok_or_else(|| {
                                       MeeOidcProviderErr::OAuth2MissingClientId
                                   })?;
-  
+
                               let client = this
                                   .oidc_provider_service(txn)
                                   .registrar
                                   .get_client_info(&client_id)
                                   .await?;
-  
+
                               let user_info = ConsentInfo {
                                   user_email: user.user_email,
                                   client_id_name: client.provider_name,
                               };
-  
+
                               let response = this
                                   .oidc_provider_service(txn)
                                   .endpoint()
@@ -575,11 +575,11 @@ impl OidcController {
                                   .await
                                   .map_err(|e| e.pack::<WebError>())?
                                   .into_response();
-  
+
                               return Ok(Some(response));
                           }
                       }
-  
+
                       Ok(None) as MeeOidcProviderResult<_>
                   })
               }

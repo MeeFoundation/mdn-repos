@@ -23,6 +23,7 @@ async fn create_identity_agent_controller_instance(
     Arc::new(identity_agent_ctl)
 }
 
+#[ignore = "requires external services"]
 #[tokio::test]
 async fn mdn_smartwallet_user_flow() {
     tracing_subscriber::fmt()

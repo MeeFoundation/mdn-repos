@@ -14,7 +14,7 @@ use crate::{
 use anyhow::Context;
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use iroh::ticket::NodeTicket;
+use iroh_base::ticket::NodeTicket;
 use iroh_willow::{
     interest::{
         AreaSelector, CapSelector, CapabilityPack, DelegateTo, Interests, RestrictArea,

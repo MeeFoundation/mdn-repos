@@ -12,7 +12,7 @@ use mee_crypto::{
     jwk::{Jwk, JwkOps},
     jwt::ToJwk,
 };
-use mee_data_sync::iroh::{key::SecretKey, utils::create_iroh_secret_key};
+use mee_data_sync::iroh::{iroh_base::SecretKey, utils::create_iroh_secret_key};
 use std::sync::Arc;
 
 #[async_trait]

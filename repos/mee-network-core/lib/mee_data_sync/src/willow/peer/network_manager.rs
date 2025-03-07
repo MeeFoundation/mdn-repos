@@ -1,5 +1,6 @@
 use crate::{error::MeeDataSyncResult, willow::node::WillowNode};
-use iroh::{ticket::NodeTicket, NodeAddr};
+use iroh::NodeAddr;
+use iroh_base::ticket::NodeTicket;
 
 #[derive(Clone)]
 pub struct WillowNetworkManager {
