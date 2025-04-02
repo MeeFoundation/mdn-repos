@@ -90,7 +90,7 @@ impl WillowNode {
         }
 
         self.engine.shutdown().await?;
-        self.endpoint.close().await?;
+        self.endpoint.close().await;
 
         Ok(())
     }
