@@ -6,8 +6,8 @@
   "main": "src/shared.js",
   "scripts": {
     "dev": "vite",
-    "provider1": "vite",
-    "provider2": "VITE_MDN_PROVIDER_API_PORT=8011 VITE_MDN_PROVIDER_NAME='Untied Airlines' vite",
+    "provider-oyt": "VITE_MDN_PROVIDER_API_PROTOCOL=http VITE_MDN_PROVIDER_API_HOST=127.0.0.1 VITE_MDN_PROVIDER_API_PORT=8010 VITE_MDN_PROVIDER_NAME='The Olde York Times' vite --port 5174",
+    "provider-ua": "VITE_MDN_PROVIDER_API_PROTOCOL=http VITE_MDN_PROVIDER_API_HOST=127.0.0.1 VITE_MDN_PROVIDER_API_PORT=8011 VITE_MDN_PROVIDER_NAME='Untied Airlines' vite --port 5175",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

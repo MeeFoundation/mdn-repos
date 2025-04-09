@@ -50,10 +50,13 @@ impl AppCtl {
         let signatures_service_config =
             SignaturesServiceConfigBuilder::default()
                 .jwk_secret_path(Some(
-                    app_config.jwk_auth_signature_secret_path.clone(),
+                    app_config.mee_signature_secret_path.clone(),
                 ))
                 .iroh_key_secret_path(Some(
                     app_config.iroh_signature_secret_path.clone(),
+                ))
+                .did_id_secret_path(Some(
+                    app_config.did_signature_secret_path.clone(),
                 ))
                 .build()
                 .map_err(anyhow::Error::from)?;

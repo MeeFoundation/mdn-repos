@@ -44,7 +44,7 @@ impl SignaturesServiceDefault {
 impl SignaturesService for SignaturesServiceDefault {
     async fn get_source_jwk_signature(&self) -> anyhow::Result<Option<Jwk>> {
         if let Some(jwk_secret_path) = &self.signatures_service_config.jwk_secret_path {
-            if let Some(jwk) = self.secrets_manager.get_secret(&jwk_secret_path).await? {
+            if let Some(jwk) = self.secrets_manager.get_secret(jwk_secret_path).await? {
                 return Ok(Some(serde_json::from_slice(&jwk)?));
             }
         }
@@ -55,7 +55,7 @@ impl SignaturesService for SignaturesServiceDefault {
         if let Some(iroh_key_secret_path) = &self.signatures_service_config.iroh_key_secret_path {
             if let Some(iroh_sk) = self
                 .secrets_manager
-                .get_secret(&iroh_key_secret_path)
+                .get_secret(iroh_key_secret_path)
                 .await?
             {
                 return Ok(Some(SecretKey::from_bytes(iroh_sk.as_slice().try_into()?)));

@@ -586,7 +586,7 @@ impl MdnProviderDelegationManager for MdnProviderDelegationManagerImpl {
         let data_ns = self.mdn_ns_store_manager.get_agent_node_data_ns().await?.0;
         let revoke_list_ns = self.mdn_ns_store_manager.get_cap_revoke_list_ns().await?.0;
 
-        let shared_data_path = data_entry_path_from_key_path(&shared_data_path_str)?;
+        let shared_data_path = data_entry_path_from_key_path(shared_data_path_str)?;
 
         let cap_issuer = self
             .willow_peer

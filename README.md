@@ -1,26 +1,15 @@
 # Monorepo for MDN-related subsystems
 
-## Local development (backend services)
+## Starting the demo
 
-### Database
+### First-time setup
 
-- `docker` has installed
-- db init commands:
+* set up the database: `just setup-local-database`
+* generate secrets: `just gen-dev-secrets`
+* generate demo provider secrets: `just gen-demo-provider-secrets`
 
-```bash
-  cd mee-utils/scripts
-  make -f dev.service.common run_db_daemon # run it only once
-  cd path_to_concrete_service
-  make create_db
-  # make clean_db # if required
-  # make stop_db_daemon # if required
-```
+### Running the demo
 
-### Service itself
-
-To start a service run:
-
-```bash
-cd path_to_service
-make dev
-```
+* start the database: `just start-local-database`
+* start demo: `just start-demo`
+* stop demo: `just stop-demo`

@@ -9,10 +9,13 @@ pub struct AppConfig {
     pub mdn_license_manager_url: Url,
 
     #[arg(env, long)]
-    pub jwk_auth_signature_secret_path: String,
+    pub mee_signature_secret_path: String,
 
     #[arg(env, long)]
     pub iroh_signature_secret_path: String,
+
+    #[arg(env, long)]
+    pub did_signature_secret_path: String,
 
     #[arg(env, long)]
     pub inter_service_api_secret: String,
